@@ -199,6 +199,37 @@ http://localhost:3000
 
 ## 🔧 Troubleshooting
 
+### ❌ "spawn pnpm ENOENT" Build Hatası
+
+**Sebep:** Next.js projeyi `pnpm` ile kurmaya çalışıyor ama `pnpm` yok.
+
+**Çözüm:**
+```bash
+# 1. pnpm lock dosyasını sil
+rm -f pnpm-lock.yaml
+
+# 2. .npmrc oluştur (proje kökünde)
+echo "package-manager=npm" > .npmrc
+echo "legacy-peer-deps=true" >> .npmrc
+
+# 3. .gitignore'a ekle
+echo "pnpm-lock.yaml" >> .gitignore
+echo "yarn.lock" >> .gitignore
+
+# 4. nixpacks.toml güncelle (npm ci kullan)
+# [phases.install]
+# cmds = ["npm ci --legacy-peer-deps"]
+
+# 5. Git push & redeploy
+git add .npmrc .gitignore nixpacks.toml
+git commit -m "Fix: Force npm usage"
+git push origin main
+```
+
+✅ Build başarılı olmalı!
+
+---
+
 ### ❌ "Database connection error"
 
 **Çözüm:**
@@ -440,7 +471,7 @@ npx prisma generate
 nixPkgs = ["nodejs_20"]
 
 [phases.install]
-cmds = ["npm install --production"]
+cmds = ["npm ci --legacy-peer-deps"]
 
 [phases.build]
 cmds = [
@@ -455,6 +486,8 @@ cmd = "npm start"
 **Build süresi:** ~2-3 dakika  
 **Runtime:** Node.js 20  
 **Process:** 1 (Monolithic)
+
+**⚠️ Önemli:** Proje **npm** kullanır. `pnpm-lock.yaml` veya `yarn.lock` dosyaları varsa silin ve `.gitignore` ekleyin.
 
 ---
 
