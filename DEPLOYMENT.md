@@ -78,6 +78,12 @@ NEXTAUTH_URL=https://test-sms-link.com.tr
 NODE_ENV=production
 ```
 
+**⚠️ ÖNEMLİ - NODE_ENV Ayarı:**
+- `NODE_ENV` değişkenini eklerken
+- **"Available at Buildtime"** seçeneğini **IŞARETLEMEYIN** ❌
+- Sadece **Runtime** olarak bırakın
+- Next.js build otomatik olarak `production` modda çalışır
+
 **NEXTAUTH_SECRET oluşturma:**
 ```bash
 openssl rand -base64 32
