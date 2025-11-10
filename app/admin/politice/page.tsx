@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, Filter, Eye, Edit, Trash2, FileText } from "lucide-react"
-import { policyApi } from "@/lib/api-client"
+import { policyApi, dashboardApi } from "@/lib/api-client"
 import type { UserRole } from "@/lib/role-config"
 
 // Force dynamic rendering
@@ -24,12 +24,28 @@ export default function PoliciesPage() {
   const [policies, setPolicies] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [stats, setStats] = useState<any>(null)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push("/")
     }
   }, [isAuthenticated, isLoading, router])
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await dashboardApi.getStats()
+        setStats(data)
+      } catch (error) {
+        console.error('Failed to fetch stats:', error)
+      }
+    }
+
+    if (isAuthenticated) {
+      fetchStats()
+    }
+  }, [isAuthenticated])
 
   const handleLogout = async () => {
     try {
@@ -44,8 +60,8 @@ export default function PoliciesPage() {
   const fetchPolicies = async () => {
     try {
       setLoading(true)
-      const data = await policyApi.getAll({ search, status })
-      setPolicies(data.data || data || [])
+      const data = await policyApi.list({ search, status })
+      setPolicies(Array.isArray(data) ? data : [])
       setError("")
     } catch (err: any) {
       setError(err.message || 'Poliçeler yüklenemedi')
@@ -130,6 +146,69 @@ export default function PoliciesPage() {
               Çıkış Yap
             </Button>
           </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <Card className="rounded-3xl border-2 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600">
+                  <FileText className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-2xl font-bold text-blue-600">
+                  {loading ? '...' : stats?.total_policies || policies.length}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">Toplam Poliçe</p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-3xl border-2 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-600">
+                  <FileText className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-2xl font-bold text-green-600">
+                  {loading ? '...' : stats?.active_policies || policies.filter(p => p.status === 'active').length}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">Aktif Poliçe</p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-3xl border-2 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-600">
+                  <FileText className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-2xl font-bold text-orange-600">
+                  {loading ? '...' : 
+                    stats?.total_premium ? 
+                      `₺${parseFloat(stats.total_premium).toLocaleString('tr-TR')}` : 
+                      `₺${policies.reduce((sum, p) => sum + (parseFloat(p.premium) || 0), 0).toLocaleString('tr-TR')}`
+                  }
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">Toplam Prim</p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-3xl border-2 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-600">
+                  <FileText className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-2xl font-bold text-purple-600">
+                  {loading ? '...' : stats?.active_customers || 0}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">Aktif Müşteri</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Search and Filters */}
