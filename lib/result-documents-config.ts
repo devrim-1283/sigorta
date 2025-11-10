@@ -1,89 +1,103 @@
-export type ResultDocumentType =
-  | "ihtarname"
-  | "tahkim-basvuru"
-  | "tahkim-karar"
-  | "sigorta-odeme-dekontu"
-  | "musteri-odeme-dekontu"
-  | "bilirkisi-raporu"
-  | "esnaf-talimat"
-  | "icra-dilekce"
+/**
+ * Result Documents Configuration
+ * Defines the 8 types of result documents (Sonuç Evrakları)
+ * that can be uploaded by İkincil Admin and viewed by all
+ */
 
-export interface ResultDocument {
-  id: ResultDocumentType
-  label: string
-  description: string
-  visibleToCustomer: boolean
-  visibleToDealer: boolean
+export interface ResultDocumentType {
+  id: number
+  name: string
+  description?: string
+  displayOrder: number
 }
 
-export const RESULT_DOCUMENTS: ResultDocument[] = [
+export const RESULT_DOCUMENT_TYPES: ResultDocumentType[] = [
   {
-    id: "ihtarname",
-    label: "Sigortaya Çekilen İhtarname",
-    description: "Sigorta şirketine gönderilen resmi ihtarname belgesi",
-    visibleToCustomer: true,
-    visibleToDealer: true,
+    id: 1,
+    name: 'Sigortaya çekilen ihtarname',
+    description: 'Sigorta şirketine gönderilen resmi ihtarname belgesi',
+    displayOrder: 1,
   },
   {
-    id: "tahkim-basvuru",
-    label: "Tahkim Başvuru Dilekçesi",
-    description: "Tahkim komisyonuna yapılan başvuru dilekçesi",
-    visibleToCustomer: true,
-    visibleToDealer: true,
+    id: 2,
+    name: 'Tahkim başvuru dilekçesi',
+    description: 'Tahkim kuruluna yapılan başvuru dilekçesi',
+    displayOrder: 2,
   },
   {
-    id: "tahkim-karar",
-    label: "Tahkim Komisyon Kararı",
-    description: "Tahkim komisyonunun nihai kararı",
-    visibleToCustomer: true,
-    visibleToDealer: true,
+    id: 3,
+    name: 'Tahkim komisyonu nihai kararı',
+    description: 'Tahkim komisyonunun verdiği nihai karar belgesi',
+    displayOrder: 3,
   },
   {
-    id: "sigorta-odeme-dekontu",
-    label: "Sigortadan Gelen Ödeme Dekontu",
-    description: "Sigorta şirketinden alınan ödeme belgesi",
-    visibleToCustomer: true,
-    visibleToDealer: true,
+    id: 4,
+    name: 'Bilirkişi raporu',
+    description: 'Mahkeme tarafından atanan bilirkişinin hazırladığı rapor',
+    displayOrder: 4,
   },
   {
-    id: "musteri-odeme-dekontu",
-    label: "Müşteriye Yapılan Ödeme Dekontu",
-    description: "Sistem tarafından müşteriye yapılan ödeme belgesi",
-    visibleToCustomer: true,
-    visibleToDealer: true,
+    id: 5,
+    name: 'Sigortadan gelen ödeme dekontu',
+    description: 'Sigorta şirketinden yapılan ödemenin dekont belgesi',
+    displayOrder: 5,
   },
   {
-    id: "bilirkisi-raporu",
-    label: "Bilirkişi Raporu",
-    description: "Mahkeme tarafından atanan bilirkişinin hazırladığı rapor",
-    visibleToCustomer: true,
-    visibleToDealer: true,
+    id: 6,
+    name: 'Sistem tarafından yapılan ödeme',
+    description: 'Sistem üzerinden müşteriye yapılan ödeme belgesi',
+    displayOrder: 6,
   },
   {
-    id: "esnaf-talimat",
-    label: "Esnaf İçin Talimat Evrakı",
-    description: "Esnaf için hazırlanan talimat ve yönlendirme evrakı",
-    visibleToCustomer: false,
-    visibleToDealer: true,
+    id: 7,
+    name: 'Esnaf talimat evrakı',
+    description: 'Esnafa verilen talimat ve ödeme evrakları',
+    displayOrder: 7,
   },
   {
-    id: "icra-dilekce",
-    label: "İcra Dilekçesi",
-    description: "İcra takibi için hazırlanan dilekçe",
-    visibleToCustomer: false,
-    visibleToDealer: true,
+    id: 8,
+    name: 'İcra dilekçesi',
+    description: 'İcra takibi için hazırlanan dilekçe',
+    displayOrder: 8,
   },
 ]
 
-export function getResultDocument(id: ResultDocumentType): ResultDocument | undefined {
-  return RESULT_DOCUMENTS.find((doc) => doc.id === id)
+/**
+ * Get result document type by ID
+ */
+export function getResultDocumentType(id: number): ResultDocumentType | undefined {
+  return RESULT_DOCUMENT_TYPES.find((type) => type.id === id)
 }
 
-export function getVisibleResultDocuments(userRole: "musteri" | "bayi" | "admin"): ResultDocument[] {
-  if (userRole === "musteri") {
-    return RESULT_DOCUMENTS.filter((doc) => doc.visibleToCustomer)
-  } else if (userRole === "bayi") {
-    return RESULT_DOCUMENTS.filter((doc) => doc.visibleToDealer)
-  }
-  return RESULT_DOCUMENTS // Admin sees all
+/**
+ * Get result document type by name
+ */
+export function getResultDocumentTypeByName(name: string): ResultDocumentType | undefined {
+  return RESULT_DOCUMENT_TYPES.find(
+    (type) => type.name.toLowerCase() === name.toLowerCase()
+  )
+}
+
+/**
+ * Check if a user role can upload result documents
+ */
+export function canUploadResultDocuments(roleName: string): boolean {
+  const allowedRoles = ['superadmin', 'birincil-admin', 'ikincil-admin']
+  return allowedRoles.includes(roleName.toLowerCase())
+}
+
+/**
+ * Check if a user role can view result documents
+ */
+export function canViewResultDocuments(roleName: string): boolean {
+  // Everyone can view result documents
+  return true
+}
+
+/**
+ * Check if a user role can delete result documents
+ */
+export function canDeleteResultDocuments(roleName: string): boolean {
+  const allowedRoles = ['superadmin', 'birincil-admin', 'ikincil-admin']
+  return allowedRoles.includes(roleName.toLowerCase())
 }

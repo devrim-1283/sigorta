@@ -62,12 +62,13 @@ model User {
   role              Role       @relation(fields: [role_id], references: [id], onDelete: Restrict)
   dealer            Dealer?    @relation(fields: [dealer_id], references: [id], onDelete: SetNull)
   
-  documents_uploaded Document[] @relation("uploaded_by")
-  documents_approved Document[] @relation("approved_by")
-  payments_recorded  Payment[]  @relation("recorded_by")
-  notes              Note[]
-  notifications      Notification[]
-  claims_handled     Claim[]    @relation("handled_by")
+  documents_uploaded      Document[]              @relation("uploaded_by")
+  documents_approved      Document[]              @relation("approved_by")
+  payments_recorded       Payment[]               @relation("recorded_by")
+  notes                   Note[]
+  notifications           Notification[]
+  claims_handled          Claim[]                 @relation("handled_by")
+  accounting_transactions AccountingTransaction[] @relation("accounting_created_by")
   
   @@map("users")
 }
@@ -81,8 +82,36 @@ model FileType {
   updated_at             DateTime?  @db.Timestamp()
   
   customers              Customer[]
+  required_documents     RequiredDocument[]
   
   @@map("file_types")
+}
+
+model RequiredDocument {
+  id                BigInt    @id @default(autoincrement())
+  file_type_id      BigInt
+  document_name     String    @db.VarChar(255)
+  display_order     Int       @default(0)
+  created_at        DateTime? @default(now()) @db.Timestamp()
+  updated_at        DateTime? @default(now()) @db.Timestamp()
+  
+  file_type         FileType  @relation(fields: [file_type_id], references: [id], onDelete: Cascade)
+  
+  @@unique([file_type_id, document_name])
+  @@map("required_documents")
+}
+
+model ResultDocumentType {
+  id                BigInt     @id @default(autoincrement())
+  name              String     @unique @db.VarChar(255)
+  description       String?    @db.Text
+  display_order     Int        @default(0)
+  created_at        DateTime?  @default(now()) @db.Timestamp()
+  updated_at        DateTime?  @default(now()) @db.Timestamp()
+  
+  documents         Document[]
+  
+  @@map("result_document_types")
 }
 
 model Customer {
@@ -117,26 +146,30 @@ model Customer {
 }
 
 model Document {
-  id                   BigInt    @id @default(autoincrement())
-  customer_id          BigInt
-  belge_adi            String    @db.VarChar(255)
-  dosya_yolu           String    @db.VarChar(255)
-  dosya_adi_orijinal   String    @db.VarChar(255)
-  mime_type            String?   @db.VarChar(255)
-  dosya_boyutu         BigInt?
-  tip                  String    @db.VarChar(100)
-  durum                String    @default("Beklemede") @db.VarChar(20)
-  red_nedeni           String?   @db.Text
-  uploaded_by          BigInt
-  onay_tarihi          DateTime? @db.Timestamp()
-  onaylayan_id         BigInt?
-  created_at           DateTime? @db.Timestamp()
-  updated_at           DateTime? @db.Timestamp()
-  deleted_at           DateTime? @db.Timestamp()
+  id                        BigInt              @id @default(autoincrement())
+  customer_id               BigInt
+  belge_adi                 String              @db.VarChar(255)
+  dosya_yolu                String              @db.VarChar(255)
+  dosya_adi_orijinal        String              @db.VarChar(255)
+  mime_type                 String?             @db.VarChar(255)
+  dosya_boyutu              BigInt?
+  tip                       String              @db.VarChar(100)
+  durum                     String              @default("Beklemede") @db.VarChar(20)
+  red_nedeni                String?             @db.Text
+  uploaded_by               BigInt
+  onay_tarihi               DateTime?           @db.Timestamp()
+  onaylayan_id              BigInt?
+  document_type             String?             @default("Standart Evrak") @db.VarChar(100)
+  is_result_document        Boolean             @default(false)
+  result_document_type_id   BigInt?
+  created_at                DateTime?           @db.Timestamp()
+  updated_at                DateTime?           @db.Timestamp()
+  deleted_at                DateTime?           @db.Timestamp()
   
-  customer             Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)
-  uploader             User      @relation("uploaded_by", fields: [uploaded_by], references: [id], onDelete: Restrict)
-  approver             User?     @relation("approved_by", fields: [onaylayan_id], references: [id], onDelete: SetNull)
+  customer                  Customer            @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  uploader                  User                @relation("uploaded_by", fields: [uploaded_by], references: [id], onDelete: Restrict)
+  approver                  User?               @relation("approved_by", fields: [onaylayan_id], references: [id], onDelete: SetNull)
+  result_document_type      ResultDocumentType? @relation(fields: [result_document_type_id], references: [id], onDelete: SetNull)
   
   @@map("documents")
 }
@@ -236,6 +269,23 @@ model Claim {
   handler          User?     @relation("handled_by", fields: [handled_by], references: [id], onDelete: SetNull)
   
   @@map("claims")
+}
+
+model AccountingTransaction {
+  id                BigInt    @id @default(autoincrement())
+  type              String    @db.VarChar(20)
+  category          String?   @db.VarChar(100)
+  description       String?   @db.Text
+  amount            Decimal   @db.Decimal(15, 2)
+  transaction_date  DateTime  @db.Date
+  document_url      String?   @db.Text
+  created_by        BigInt
+  created_at        DateTime? @default(now()) @db.Timestamp()
+  updated_at        DateTime? @default(now()) @db.Timestamp()
+  
+  creator           User      @relation("accounting_created_by", fields: [created_by], references: [id], onDelete: Restrict)
+  
+  @@map("accounting_transactions")
 }
 
 // Laravel/Next.js system tables

@@ -3,6 +3,23 @@
 import prisma from '@/lib/db'
 import { requireAuth } from './auth'
 import { revalidatePath } from 'next/cache'
+import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
+
+/**
+ * Generate a secure random password
+ */
+function generateRandomPassword(length: number = 12): string {
+  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
+  let password = ''
+  const randomBytes = crypto.randomBytes(length)
+  
+  for (let i = 0; i < length; i++) {
+    password += charset[randomBytes[i] % charset.length]
+  }
+  
+  return password
+}
 
 export async function getCustomers(params?: {
   search?: string
@@ -110,6 +127,7 @@ export async function createCustomer(data: {
 }) {
   await requireAuth()
 
+  // Create customer first
   const customer = await prisma.customer.create({
     data: {
       ...data,
@@ -121,6 +139,74 @@ export async function createCustomer(data: {
       file_type: true,
     },
   })
+
+  // Auto-create user account for customer with role 'musteri'
+  try {
+    // Get musteri role
+    const musteriRole = await prisma.role.findFirst({
+      where: { name: 'musteri' }
+    })
+
+    if (!musteriRole) {
+      console.error('Musteri role not found in database')
+    } else {
+      // Check if user already exists with this TC No or phone
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { tc_no: data.tc_no },
+            { phone: data.telefon },
+            ...(data.email ? [{ email: data.email }] : [])
+          ]
+        }
+      })
+
+      if (!existingUser) {
+        // Generate random password
+        const randomPassword = generateRandomPassword(12)
+        const hashedPassword = await bcrypt.hash(randomPassword, 12)
+
+        // Create user account
+        const newUser = await prisma.user.create({
+          data: {
+            name: data.ad_soyad,
+            tc_no: data.tc_no,
+            phone: data.telefon,
+            email: data.email || null,
+            password: hashedPassword,
+            role_id: musteriRole.id,
+            is_active: true,
+          }
+        })
+
+        console.log('Customer user account created:', {
+          userId: Number(newUser.id),
+          username: data.tc_no || data.telefon || data.email,
+          password: randomPassword, // This will be shown to Evrak Birimi
+        })
+
+        // Return customer with login credentials
+        revalidatePath('/dashboard/customers')
+
+        return {
+          ...customer,
+          id: Number(customer.id),
+          file_type_id: Number(customer.file_type_id),
+          dealer_id: customer.dealer_id ? Number(customer.dealer_id) : null,
+          loginCredentials: {
+            username: data.tc_no || data.telefon || data.email,
+            password: randomPassword,
+            loginUrl: '/musteri-giris'
+          }
+        }
+      } else {
+        console.log('User already exists for this customer, skipping user creation')
+      }
+    }
+  } catch (error) {
+    console.error('Failed to create user account for customer:', error)
+    // Continue even if user creation fails - customer is already created
+  }
 
   revalidatePath('/dashboard/customers')
 
@@ -184,14 +270,14 @@ export async function deleteCustomer(id: number) {
   return { success: true }
 }
 
-export async function closeCustomerFile(id: number, reason?: string) {
+export async function closeCustomerFile(id: number, reason: string) {
   await requireAuth()
 
   const customer = await prisma.customer.update({
     where: { id: BigInt(id) },
     data: {
       dosya_kilitli: true,
-      başvuru_durumu: 'Tamamlandı',
+      başvuru_durumu: 'Dosya Kapatıldı',
       dosya_kapanma_nedeni: reason,
       dosya_kapanma_tarihi: new Date(),
     },
@@ -229,6 +315,67 @@ export async function addCustomerNote(customerId: number, content: string) {
     id: Number(note.id),
     customer_id: Number(note.customer_id),
     user_id: Number(note.user_id),
+  }
+}
+
+/**
+ * Check and auto-transition customer status based on uploaded documents
+ */
+export async function checkAndUpdateCustomerStatus(customerId: number) {
+  await requireAuth()
+
+  // Get customer with documents
+  const customer = await prisma.customer.findUnique({
+    where: { id: BigInt(customerId) },
+    include: {
+      documents: true,
+      file_type: {
+        include: {
+          required_documents: true
+        }
+      }
+    }
+  })
+
+  if (!customer) {
+    throw new Error('Müşteri bulunamadı')
+  }
+
+  // If status is "Evrak Aşamasında", check if all required documents are uploaded
+  if (customer.başvuru_durumu === 'Evrak Aşamasında') {
+    const requiredDocs = customer.file_type.required_documents || []
+    
+    if (requiredDocs.length > 0) {
+      // Check if all required documents are uploaded
+      const uploadedDocNames = customer.documents.map(doc => doc.tip.toLowerCase())
+      const allRequiredUploaded = requiredDocs.every(reqDoc =>
+        uploadedDocNames.some(uploaded => uploaded.includes(reqDoc.document_name.toLowerCase()))
+      )
+
+      if (allRequiredUploaded) {
+        // Auto-transition to "Başvuru Aşamasında"
+        await prisma.customer.update({
+          where: { id: BigInt(customerId) },
+          data: {
+            başvuru_durumu: 'Başvuru Aşamasında',
+            evrak_durumu: 'Tamam'
+          }
+        })
+
+        revalidatePath(`/dashboard/customers/${customerId}`)
+        revalidatePath('/dashboard/customers')
+
+        return {
+          statusChanged: true,
+          newStatus: 'Başvuru Aşamasında'
+        }
+      }
+    }
+  }
+
+  return {
+    statusChanged: false,
+    newStatus: customer.başvuru_durumu
   }
 }
 

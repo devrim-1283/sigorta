@@ -1,98 +1,123 @@
-export type FileType = "deger-kaybi" | "parca-iscilik" | "arac-mahrumiyeti" | "pert-farki"
-
-export type DocumentType =
-  | "musteri-vekaleti"
-  | "eksper-raporu"
-  | "kaza-tutanagi"
-  | "masdur-ruhsati"
-  | "olay-yeri-foto"
-  | "onarim-foto"
-  | "iban-bilgisi"
-  | "vekalet"
-  | "parca-farki-foto"
-  | "parca-farki-fatura"
-  | "muvafakatname"
-  | "arac-ruhsati"
+/**
+ * File Types Configuration
+ * Defines the 4 main file types and their required documents
+ */
 
 export interface RequiredDocument {
-  id: DocumentType
-  label: string
-  minCount?: number
+  name: string
+  displayOrder: number
+  required: boolean
 }
 
 export interface FileTypeConfig {
-  id: FileType
-  label: string
-  color: string
+  id: number
+  name: string
+  description: string
   requiredDocuments: RequiredDocument[]
 }
 
 export const FILE_TYPES: FileTypeConfig[] = [
   {
-    id: "deger-kaybi",
-    label: "Değer Kaybı Dosyası",
-    color: "bg-green-500",
+    id: 1,
+    name: 'Değer Kaybı',
+    description: 'Kaza sonrası araç değer kaybı dosyası',
     requiredDocuments: [
-      { id: "musteri-vekaleti", label: "Müşteri vekaleti" },
-      { id: "eksper-raporu", label: "Eksper raporu" },
-      { id: "kaza-tutanagi", label: "Kaza tutanağı" },
+      { name: 'Müşteri vekaleti', displayOrder: 1, required: true },
+      { name: 'Eksper raporu', displayOrder: 2, required: true },
+      { name: 'Kaza tutanağı', displayOrder: 3, required: true },
+      { name: 'Mağdur ruhsatı', displayOrder: 4, required: true },
+      { name: 'Olay yeri resimleri', displayOrder: 5, required: true },
+      { name: 'Onarım resimleri', displayOrder: 6, required: true },
+      { name: 'IBAN bilgisi', displayOrder: 7, required: true },
     ],
   },
   {
-    id: "parca-iscilik",
-    label: "Parça ve İşçilik Farkı Dosyası",
-    color: "bg-blue-500",
+    id: 2,
+    name: 'Parça ve İşçilik Farkı',
+    description: 'Onarım sonrası parça ve işçilik farkı dosyası',
     requiredDocuments: [
-      { id: "masdur-ruhsati", label: "Maşdur ruhsatı" },
-      { id: "olay-yeri-foto", label: "Olay yeri fotoğrafları", minCount: 2 },
-      { id: "onarim-foto", label: "Onarım fotoğrafları", minCount: 2 },
-      { id: "iban-bilgisi", label: "İBAN bilgisi" },
-      { id: "vekalet", label: "Vekalet" },
-      { id: "parca-farki-foto", label: "Parça farkını beyan eden fotoğraflar" },
-      { id: "parca-farki-fatura", label: "Parça farkını beyan eden faturalar" },
-      { id: "eksper-raporu", label: "Eksper raporu" },
+      { name: 'Vekalet', displayOrder: 1, required: true },
+      { name: 'Parça farkını beyan eden resimler', displayOrder: 2, required: true },
+      { name: 'Parça farkını beyan eden faturalar', displayOrder: 3, required: true },
+      { name: 'Eksper raporu', displayOrder: 4, required: true },
+      { name: 'Onarım resimleri', displayOrder: 5, required: true },
+      { name: 'IBAN bilgisi', displayOrder: 6, required: true },
     ],
   },
   {
-    id: "arac-mahrumiyeti",
-    label: "Araç Mahrumiyeti Dosyası",
-    color: "bg-orange-500",
+    id: 3,
+    name: 'Araç Mahrumiyeti',
+    description: 'Araç kullanılamama nedeniyle mahuriyet tazminatı',
     requiredDocuments: [
-      { id: "muvafakatname", label: "Muvafakatname" },
-      { id: "eksper-raporu", label: "Eksper raporu" },
-      { id: "vekalet", label: "Vekalet" },
-      { id: "arac-ruhsati", label: "Araç ruhsatı" },
-      { id: "iban-bilgisi", label: "İBAN bilgisi" },
+      { name: 'Muvafakatname', displayOrder: 1, required: true },
+      { name: 'Eksper raporu', displayOrder: 2, required: true },
+      { name: 'Vekalet', displayOrder: 3, required: true },
+      { name: 'Araç ruhsatı', displayOrder: 4, required: true },
+      { name: 'IBAN bilgisi', displayOrder: 5, required: true },
     ],
   },
   {
-    id: "pert-farki",
-    label: "Pert Farkı Dosyası",
-    color: "bg-red-500",
+    id: 4,
+    name: 'Pert Farkı',
+    description: 'Araç pert ilan edildiğinde değer farkı tazminatı',
     requiredDocuments: [
-      // Henüz net değil, diğerleriyle aynı sistemde çalışacak
-      { id: "vekalet", label: "Vekalet" },
-      { id: "eksper-raporu", label: "Eksper raporu" },
-      { id: "iban-bilgisi", label: "İBAN bilgisi" },
+      // Pert Farkı için zorunlu evraklar henüz belirlenmemiş
+      // İlerleyen süreçte eklenebilir
     ],
   },
 ]
 
-export function getFileTypeConfig(fileType: FileType): FileTypeConfig | undefined {
-  return FILE_TYPES.find((ft) => ft.id === fileType)
+/**
+ * Get file type configuration by ID
+ */
+export function getFileTypeConfig(fileTypeId: number): FileTypeConfig | undefined {
+  return FILE_TYPES.find((ft) => ft.id === fileTypeId)
 }
 
-export function calculateFileStatus(fileType: FileType, uploadedDocuments: DocumentType[]): string {
-  const config = getFileTypeConfig(fileType)
-  if (!config) return "İnceleniyor"
+/**
+ * Get required documents for a file type
+ */
+export function getRequiredDocuments(fileTypeId: number): RequiredDocument[] {
+  const config = getFileTypeConfig(fileTypeId)
+  return config?.requiredDocuments || []
+}
 
-  const allRequiredUploaded = config.requiredDocuments.every((doc) => uploadedDocuments.includes(doc.id))
+/**
+ * Check if all required documents are uploaded for a customer
+ */
+export function areAllRequiredDocumentsUploaded(
+  fileTypeId: number,
+  uploadedDocumentNames: string[]
+): boolean {
+  const required = getRequiredDocuments(fileTypeId).filter((doc) => doc.required)
+  
+  // If no required documents (like Pert Farkı), return true
+  if (required.length === 0) return true
+  
+  // Check if all required documents are in the uploaded list
+  return required.every((reqDoc) =>
+    uploadedDocumentNames.some((uploaded) =>
+      uploaded.toLowerCase().includes(reqDoc.name.toLowerCase())
+    )
+  )
+}
 
-  // Tüm zorunlu evraklar tamamlandıysa → Başvuru Aşamasında
-  if (allRequiredUploaded) {
-    return "Başvuru Aşamasında"
-  }
-
-  // Eksik zorunlu belge varsa → Evrak Aşamasında
-  return "Evrak Aşamasında"
+/**
+ * Calculate document completion percentage
+ */
+export function getDocumentCompletionPercentage(
+  fileTypeId: number,
+  uploadedDocumentNames: string[]
+): number {
+  const required = getRequiredDocuments(fileTypeId).filter((doc) => doc.required)
+  
+  if (required.length === 0) return 100
+  
+  const uploadedCount = required.filter((reqDoc) =>
+    uploadedDocumentNames.some((uploaded) =>
+      uploaded.toLowerCase().includes(reqDoc.name.toLowerCase())
+    )
+  ).length
+  
+  return Math.round((uploadedCount / required.length) * 100)
 }

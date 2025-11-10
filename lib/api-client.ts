@@ -12,6 +12,8 @@ import * as userActions from './actions/users'
 import * as policyActions from './actions/policies'
 import * as claimActions from './actions/claims'
 import * as fileTypeActions from './actions/file-types'
+import * as resultDocumentActions from './actions/result-documents'
+import * as accountingActions from './actions/accounting'
 
 // API Client class - now uses server actions internally
 class ApiClient {
@@ -97,6 +99,14 @@ export const customerApi = {
 
   addNote: async (id: number, content: string) => {
     return await customerActions.addCustomerNote(id, content)
+  },
+
+  getById: async (id: number) => {
+    return await customerActions.getCustomer(id)
+  },
+
+  checkAndUpdateStatus: async (id: number) => {
+    return await customerActions.checkAndUpdateCustomerStatus(id)
   },
 }
 
@@ -288,19 +298,65 @@ export const documentsApi = documentApi
 // Claims API (alias for claimApi for compatibility)
 export const claimsApi = claimApi
 
-// Accounting API (placeholder - to be implemented)
+// Accounting API
 export const accountingApi = {
-  list: async (params?: any) => {
-    return { transactions: [] }
+  list: async (params?: { type?: 'income' | 'expense'; startDate?: Date; endDate?: Date; page?: number; perPage?: number }) => {
+    return await accountingActions.getAccountingTransactions(params)
   },
-  getStats: async () => {
-    return { 
-      totalRevenue: 0,
-      totalExpenses: 0,
-      pendingPayments: 0,
-      balance: 0
-    }
+
+  getStats: async (params?: { startDate?: Date; endDate?: Date }) => {
+    return await accountingActions.getAccountingStats(params)
   },
+
+  create: async (data: {
+    type: 'income' | 'expense'
+    category?: string
+    description?: string
+    amount: number | string
+    transaction_date: Date
+    document_url?: string
+  }) => {
+    return await accountingActions.createAccountingTransaction(data)
+  },
+
+  update: async (id: number, data: any) => {
+    return await accountingActions.updateAccountingTransaction(id, data)
+  },
+
+  delete: async (id: number) => {
+    return await accountingActions.deleteAccountingTransaction(id)
+  },
+}
+
+// Result Documents API
+export const resultDocumentsApi = {
+  list: async (customerId: number) => {
+    return await resultDocumentActions.getResultDocuments(customerId)
+  },
+
+  getTypes: async () => {
+    return await resultDocumentActions.getResultDocumentTypes()
+  },
+
+  upload: async (data: {
+    customer_id: number
+    result_document_type_id: number
+    file_path: string
+    file_name: string
+    file_size: number
+    mime_type: string
+  }) => {
+    return await resultDocumentActions.uploadResultDocument(data)
+  },
+
+  delete: async (id: number) => {
+    return await resultDocumentActions.deleteResultDocument(id)
+  },
+}
+
+// Export customer status check function
+export const checkCustomerStatus = async (customerId: number) => {
+  return await customerActions.checkAndUpdateCustomerStatus(customerId)
 }
 
 // Export all APIs
@@ -318,4 +374,5 @@ export default {
   fileTypes: fileTypeApi,
   reports: reportsApi,
   accounting: accountingApi,
+  resultDocuments: resultDocumentsApi,
 }
