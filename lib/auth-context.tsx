@@ -70,7 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     if (result?.error) {
-      throw new Error(result.error)
+      // Map NextAuth errors to user-friendly messages
+      const errorMessage = result.error.toLowerCase().includes('configuration')
+        ? 'Kullanıcı adı veya şifre hatalı'
+        : result.error
+      throw new Error(errorMessage)
     }
 
     // Session will be updated automatically, wait a bit then redirect

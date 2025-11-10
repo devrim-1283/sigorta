@@ -42,6 +42,29 @@ export async function markNotificationAsRead(id: number) {
   }
 }
 
+export async function markNotificationAsUnread(id: number) {
+  const user = await requireAuth()
+
+  const notification = await prisma.notification.update({
+    where: {
+      id: BigInt(id),
+      user_id: BigInt(user.id),
+    },
+    data: {
+      is_read: false,
+      read_at: null,
+    },
+  })
+
+  revalidatePath('/dashboard')
+
+  return {
+    ...notification,
+    id: Number(notification.id),
+    user_id: Number(notification.user_id),
+  }
+}
+
 export async function markAllNotificationsAsRead() {
   const user = await requireAuth()
 
@@ -53,6 +76,21 @@ export async function markAllNotificationsAsRead() {
     data: {
       is_read: true,
       read_at: new Date(),
+    },
+  })
+
+  revalidatePath('/dashboard')
+
+  return { success: true }
+}
+
+export async function deleteNotification(id: number) {
+  const user = await requireAuth()
+
+  await prisma.notification.delete({
+    where: {
+      id: BigInt(id),
+      user_id: BigInt(user.id),
     },
   })
 

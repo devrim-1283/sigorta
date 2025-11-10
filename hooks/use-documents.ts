@@ -36,15 +36,10 @@ export function useDocuments(params?: { search?: string; type?: string; status?:
     try {
       setIsLoading(true)
       setError(null)
-      const response = await documentApi.getAll(params)
-      // Handle paginated response
-      if (response.data && Array.isArray(response.data)) {
-        setDocuments(response.data)
-      } else if (Array.isArray(response)) {
+      const response = await documentApi.list(params)
+      // Response is directly an array
+      if (Array.isArray(response)) {
         setDocuments(response)
-      } else if (response.data && Array.isArray(response.data.data)) {
-        // Laravel pagination format
-        setDocuments(response.data.data)
       } else {
         setDocuments([])
       }

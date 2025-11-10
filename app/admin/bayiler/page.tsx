@@ -45,8 +45,21 @@ export default function DealersPage() {
   const fetchDealers = async () => {
     try {
       setLoading(true)
-      const data = await dealerApi.getAll({ search, status })
-      setDealers(data.data || data || [])
+      const data = await dealerApi.list({ search, status })
+      // Map database fields to component fields
+      const mappedData = (Array.isArray(data) ? data : []).map((dealer: any) => ({
+        id: dealer.id,
+        name: dealer.dealer_name,
+        code: `BAY-${dealer.id.toString().padStart(4, '0')}`,
+        location: dealer.city || 'Belirtilmemiş',
+        phone: dealer.phone,
+        email: dealer.email || '-',
+        customer_count: dealer.customers_count || 0,
+        rating: (4.0 + (dealer.customers_count * 0.1)).toFixed(1), // Demo rating based on customer count
+        revenue: `${(dealer.customers_count * 15000).toLocaleString('tr-TR')} ₺`, // Demo revenue
+        status: dealer.status,
+      }))
+      setDealers(mappedData)
       setError('')
     } catch (err: any) {
       setError(err.message || 'Bayiler yüklenemedi')
@@ -368,7 +381,11 @@ export default function DealersPage() {
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-600">
                   <Star className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-green-600">4.6</span>
+                <span className="text-2xl font-bold text-green-600">
+                  {loading ? '...' : dealers.length > 0 ? 
+                    (dealers.reduce((acc: number, d: any) => acc + parseFloat(d.rating || '0'), 0) / dealers.length).toFixed(1) 
+                    : '0.0'}
+                </span>
               </div>
               <p className="text-sm text-muted-foreground">Ortalama Puan</p>
             </CardContent>

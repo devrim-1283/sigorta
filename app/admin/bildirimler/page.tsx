@@ -150,28 +150,57 @@ export default function NotificationsPage() {
     return notification.type === filter
   })
 
-  const markAsRead = (id: number) => {
-    setNotifications(notifications.map(n =>
-      n.id === id ? { ...n, read: true } : n
-    ))
+  const markAsRead = async (id: number) => {
+    try {
+      await notificationApi.markAsRead(id)
+      setNotifications(notifications.map(n =>
+        n.id === id ? { ...n, read: true } : n
+      ))
+    } catch (error) {
+      console.error('Failed to mark as read:', error)
+    }
   }
 
-  const markAsUnread = (id: number) => {
-    setNotifications(notifications.map(n =>
-      n.id === id ? { ...n, read: false } : n
-    ))
+  const markAsUnread = async (id: number) => {
+    try {
+      await notificationApi.markAsUnread(id)
+      setNotifications(notifications.map(n =>
+        n.id === id ? { ...n, read: false } : n
+      ))
+    } catch (error) {
+      console.error('Failed to mark as unread:', error)
+    }
   }
 
-  const deleteNotification = (id: number) => {
-    setNotifications(notifications.filter(n => n.id !== id))
+  const deleteNotification = async (id: number) => {
+    try {
+      await notificationApi.delete(id)
+      setNotifications(notifications.filter(n => n.id !== id))
+    } catch (error) {
+      console.error('Failed to delete notification:', error)
+    }
   }
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })))
+  const markAllAsRead = async () => {
+    try {
+      // Mark all as read in DB
+      await Promise.all(
+        notifications.filter(n => !n.read).map(n => notificationApi.markAsRead(n.id))
+      )
+      setNotifications(notifications.map(n => ({ ...n, read: true })))
+    } catch (error) {
+      console.error('Failed to mark all as read:', error)
+    }
   }
 
-  const clearAllNotifications = () => {
-    setNotifications([])
+  const clearAllNotifications = async () => {
+    try {
+      // Delete all notifications
+      await Promise.all(notifications.map(n => notificationApi.delete(n.id)))
+      setNotifications([])
+    } catch (error) {
+      console.error('Failed to clear all notifications:', error)
+    }
   }
 
   const unreadCount = notifications.filter(n => !n.read).length

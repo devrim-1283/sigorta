@@ -74,7 +74,7 @@ export default function ReportsPage() {
     },
     {
       title: "Toplam Gelir",
-      value: "₺2.4M",
+      value: loading ? '...' : `₺${parseFloat(stats?.total_payments || '0').toLocaleString('tr-TR')}`,
       change: "+15%",
       icon: DollarSign,
       color: "#10b981",

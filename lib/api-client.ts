@@ -194,8 +194,16 @@ export const notificationApi = {
     return await notificationActions.markNotificationAsRead(id)
   },
 
+  markAsUnread: async (id: number) => {
+    return await notificationActions.markNotificationAsUnread(id)
+  },
+
   markAllAsRead: async () => {
     return await notificationActions.markAllNotificationsAsRead()
+  },
+
+  delete: async (id: number) => {
+    return await notificationActions.deleteNotification(id)
   },
 }
 
