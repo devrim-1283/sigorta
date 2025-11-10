@@ -6,8 +6,7 @@ import { validateEmail, validatePhone, validateTCNo, validatePassword, checkRate
 
 export const authConfig: NextAuthConfig = {
   pages: {
-    signIn: '/auth/signin',
-    error: '/auth/error',
+    signIn: '/yonetici-giris',
   },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
