@@ -16,6 +16,10 @@ export interface FileTypeConfig {
   requiredDocuments: RequiredDocument[]
 }
 
+// Type aliases for convenience
+export type FileType = number // 1 | 2 | 3 | 4
+export type DocumentType = string // Document name
+
 export const FILE_TYPES: FileTypeConfig[] = [
   {
     id: 1,
