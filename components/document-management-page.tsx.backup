@@ -1,0 +1,297 @@
+"use client"
+
+import { useState } from "react"
+import { Search, Filter, Upload, FileText } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { type UserRole, hasPermission, getModuleLabel } from "@/lib/role-config"
+import { DocumentCard, type DocumentData, type DocumentType } from "./document-card"
+import { DocumentUploadModal } from "./document-upload-modal"
+import { useDocuments } from "@/hooks/use-documents"
+import { documentApi } from "@/lib/api-client"
+import { toast } from "@/hooks/use-toast"
+
+interface DocumentManagementPageProps {
+  userRole?: UserRole
+}
+
+export function DocumentManagementPage({ userRole = "superadmin" }: DocumentManagementPageProps) {
+  const [searchTerm, setSearchTerm] = useState("")
+  const [typeFilter, setTypeFilter] = useState<string>("all")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [selectedDocType, setSelectedDocType] = useState<DocumentType | undefined>()
+
+  const canCreate = hasPermission(userRole, "document-management", "canCreate")
+  const canDelete = hasPermission(userRole, "document-management", "canDelete")
+  const moduleLabel = getModuleLabel(userRole, "document-management")
+  const shouldShowDealerInfo = userRole === "bayi" || userRole === "superadmin"
+
+  // Use API hook
+  const { documents, isLoading, uploadDocument, deleteDocument } = useDocuments({
+    search: searchTerm || undefined,
+    type: typeFilter !== "all" ? typeFilter : undefined,
+    status: statusFilter !== "all" ? statusFilter : undefined,
+  })
+
+  // Transform API data to match component interface
+  const transformDocument = (apiDoc: any): DocumentData => {
+    return {
+      id: apiDoc.id.toString(),
+      tip: apiDoc.tip || apiDoc.document_type,
+      dosya_adı: apiDoc.dosya_adı || apiDoc.file_name,
+      yüklenme_tarihi: apiDoc.yüklenme_tarihi || apiDoc.created_at,
+      durum: apiDoc.durum || apiDoc.status,
+      müşteri_adı: apiDoc.customer?.ad_soyad || apiDoc.müşteri_adı,
+      bayi_adı: apiDoc.customer?.dealer?.dealer_name || apiDoc.bayi_adı,
+      yükleyen: apiDoc.uploadedBy?.name || apiDoc.yükleyen,
+    }
+  }
+
+  const filteredDocuments = documents.map(transformDocument)
+
+  // Count documents by status
+  const statusCounts = {
+    total: filteredDocuments.length,
+    approved: filteredDocuments.filter((d) => d.durum === "Onaylandı").length,
+    pending: filteredDocuments.filter((d) => d.durum === "Beklemede").length,
+    missing: filteredDocuments.filter((d) => d.durum === "Eksik").length,
+  }
+
+  const handleView = (doc: DocumentData) => {
+    console.log("[v0] Viewing document:", doc)
+    // TODO: Implement document view/download
+  }
+
+  const handleDownload = async (doc: DocumentData) => {
+    try {
+      await documentApi.download(doc.id)
+      toast({
+        title: "İndirildi",
+        description: "Dosya başarıyla indirildi",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Hata",
+        description: error.message || "Dosya indirilemedi",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDelete = async (doc: DocumentData) => {
+    if (!confirm("Bu evrakı silmek istediğinizden emin misiniz?")) return
+
+    try {
+      await deleteDocument(parseInt(doc.id))
+    } catch (error) {
+      console.error("Error deleting document:", error)
+    }
+  }
+
+  const handleUpload = async (file: File, type: DocumentType) => {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('document_type', type)
+      // TODO: Get customer_id from context or selection
+      // formData.append('customer_id', customerId)
+
+      await uploadDocument(formData)
+      setShowUploadModal(false)
+    } catch (error) {
+      console.error("Error uploading document:", error)
+    }
+  }
+
+  const handleUploadClick = () => {
+    setSelectedDocType(undefined)
+    setShowUploadModal(true)
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ color: "#0B3D91" }}>
+            {moduleLabel}
+          </h1>
+          <p className="text-muted-foreground font-medium mt-2">Toplam {filteredDocuments.length} evrak gösteriliyor</p>
+        </div>
+        {canCreate && (
+          <Button
+            className="rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all px-6"
+            style={{ backgroundColor: "#F57C00", color: "white" }}
+            onClick={() => handleUploadClick()}
+          >
+            <Upload className="mr-2 h-5 w-5" />
+            Yeni Evrak Yükle
+          </Button>
+        )}
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="rounded-2xl border-2">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Toplam Evrak</p>
+                <p className="text-3xl font-bold mt-1">{statusCounts.total}</p>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                <FileText className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-2">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Onaylandı</p>
+                <p className="text-3xl font-bold mt-1 text-green-600">{statusCounts.approved}</p>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-green-100 flex items-center justify-center">
+                <FileText className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-2">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Beklemede</p>
+                <p className="text-3xl font-bold mt-1 text-yellow-600">{statusCounts.pending}</p>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-yellow-100 flex items-center justify-center">
+                <FileText className="h-6 w-6 text-yellow-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-2">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Eksik</p>
+                <p className="text-3xl font-bold mt-1 text-orange-600">{statusCounts.missing}</p>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-orange-100 flex items-center justify-center">
+                <FileText className="h-6 w-6 text-orange-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search and Filters */}
+      <Card className="rounded-3xl border-2 shadow-lg bg-gradient-to-r from-white to-slate-50">
+        <CardContent className="p-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 h-5 w-5 text-muted-foreground -translate-y-1/2" />
+              <Input
+                type="search"
+                placeholder="Müşteri adı, dosya adı veya evrak tipi ile ara..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-12 pr-4 py-3 rounded-2xl border-2 font-medium"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-[180px] rounded-2xl border-2 font-medium">
+                  <SelectValue placeholder="Evrak Tipi" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tüm Tipler</SelectItem>
+                  <SelectItem value="Kimlik">Kimlik</SelectItem>
+                  <SelectItem value="Ruhsat">Ruhsat</SelectItem>
+                  <SelectItem value="Kaza Fotoğrafları">Kaza Fotoğrafları</SelectItem>
+                  <SelectItem value="Vekaletname">Vekaletname</SelectItem>
+                  <SelectItem value="Diğer">Diğer</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px] rounded-2xl border-2 font-medium">
+                  <SelectValue placeholder="Durum" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tüm Durumlar</SelectItem>
+                  <SelectItem value="Onaylandı">Onaylandı</SelectItem>
+                  <SelectItem value="Beklemede">Beklemede</SelectItem>
+                  <SelectItem value="Reddedildi">Reddedildi</SelectItem>
+                  <SelectItem value="Eksik">Eksik</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button variant="outline" className="rounded-2xl border-2 font-medium bg-transparent">
+                <Filter className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Documents List */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-8 h-8 border-4 border-[#0B3D91] border-t-transparent rounded-full animate-spin" />
+            <p className="text-slate-600">Yükleniyor...</p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredDocuments.map((doc) => (
+          <DocumentCard
+            key={doc.id}
+            document={doc}
+            userRole={userRole}
+            canUpload={canCreate}
+            canDelete={canDelete}
+            showDealerInfo={shouldShowDealerInfo}
+            onView={handleView}
+            onDownload={handleDownload}
+            onDelete={handleDelete}
+            onUpload={handleUploadClick}
+          />
+        ))}
+
+        {filteredDocuments.length === 0 && (
+          <Card className="rounded-3xl border-2">
+            <CardContent className="p-12 text-center">
+              <div className="flex items-center justify-center mb-4">
+                <div className="h-16 w-16 rounded-2xl bg-gray-100 flex items-center justify-center">
+                  <FileText className="h-8 w-8 text-gray-400" />
+                </div>
+              </div>
+              <p className="text-lg font-semibold text-muted-foreground">Evrak bulunamadı</p>
+              <p className="text-sm text-muted-foreground mt-2">Arama kriterlerinizi değiştirmeyi deneyin</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+      )}
+
+      {/* Upload Modal */}
+      <DocumentUploadModal
+        open={showUploadModal}
+        onOpenChange={setShowUploadModal}
+        onUpload={handleUpload}
+        preselectedType={selectedDocType}
+      />
+    </div>
+  )
+}

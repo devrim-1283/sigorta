@@ -1,0 +1,81 @@
+# Application
+APP_NAME="Sigorta Yönetim Sistemi"
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_TIMEZONE=Europe/Istanbul
+APP_URL=http://localhost:8000
+APP_LOCALE=tr
+APP_FALLBACK_LOCALE=tr
+APP_FAKER_LOCALE=tr_TR
+
+# Frontend URL (CORS için)
+FRONTEND_URL=http://localhost:3000
+
+# Database
+DB_CONNECTION=sqlite
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=database/database.sqlite
+DB_USERNAME=root
+DB_PASSWORD=
+DB_FOREIGN_KEYS=true
+
+# Cache & Session
+CACHE_STORE=database
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+
+# Queue
+QUEUE_CONNECTION=database
+
+# Laravel Sanctum
+SANCTUM_STATEFUL_DOMAINS=localhost:3000,localhost,127.0.0.1,127.0.0.1:3000,::1
+SANCTUM_TOKEN_PREFIX=
+
+# CORS Settings
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+CORS_ALLOWED_METHODS="GET,POST,PUT,PATCH,DELETE,OPTIONS"
+CORS_ALLOWED_HEADERS="Content-Type,Authorization,X-Requested-With,Accept,Origin"
+CORS_EXPOSED_HEADERS="Authorization"
+CORS_MAX_AGE=0
+CORS_SUPPORTS_CREDENTIALS=true
+
+# Mail (Opsiyonel - şimdilik log)
+MAIL_MAILER=log
+MAIL_HOST=127.0.0.1
+MAIL_PORT=2525
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS="noreply@sigorta.test"
+MAIL_FROM_NAME="${APP_NAME}"
+
+# Logging
+LOG_CHANNEL=stack
+LOG_STACK=single
+LOG_LEVEL=debug
+
+# File Storage
+FILESYSTEM_DISK=local
+
+# Broadcasting (Opsiyonel)
+BROADCAST_CONNECTION=log
+
+# Vite (Laravel mix kullanılmıyorsa)
+VITE_APP_NAME="${APP_NAME}"
+
+# Production Settings (Production'da değiştirilmeli)
+# APP_ENV=production
+# APP_DEBUG=false
+# DB_CONNECTION=mysql (veya postgresql)
+# SANCTUM_STATEFUL_DOMAINS=yourdomain.com,www.yourdomain.com
+# FRONTEND_URL=https://yourdomain.com
+
+# INSTRUCTIONS:
+# 1. Bu dosyayı .env olarak kopyalayın: cp ENV_EXAMPLE.txt .env
+# 2. APP_KEY oluşturun: php artisan key:generate
+# 3. Database dosyasını oluşturun: touch database/database.sqlite
+# 4. Migration'ları çalıştırın: php artisan migrate
+# 5. Seeder'ları çalıştırın: php artisan db:seed
+

@@ -1,0 +1,13 @@
+# Frontend Environment Variables
+
+# API Base URL
+# Development: Backend Laravel API URL
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+
+# Production'da şu şekilde olmalı:
+# NEXT_PUBLIC_API_URL=https://yourdomain.com/api/v1
+
+# INSTRUCTIONS:
+# 1. Bu dosyayı .env.local olarak kopyalayın
+# 2. API URL'ini backend sunucunuza göre ayarlayın
+
