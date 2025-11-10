@@ -54,36 +54,74 @@ export async function createPolicy(data: {
   company: string
   premium: number | string
   coverage_amount?: number | string
-  start_date: Date
-  end_date: Date
+  start_date: Date | string
+  end_date: Date | string
   status?: string
   notes?: string
 }) {
   await requireAuth()
 
-  const policy = await prisma.policy.create({
-    data: {
-      customer_id: BigInt(data.customer_id),
-      policy_number: data.policy_number,
-      policy_type: data.policy_type,
-      company: data.company,
-      premium: new Decimal(data.premium.toString()),
-      coverage_amount: data.coverage_amount ? new Decimal(data.coverage_amount.toString()) : null,
-      start_date: data.start_date,
-      end_date: data.end_date,
-      status: data.status || 'active',
-      notes: data.notes,
-    },
+  // Validate required fields
+  if (!data.customer_id) {
+    throw new Error('Müşteri ID gerekli')
+  }
+  if (!data.policy_type) {
+    throw new Error('Poliçe tipi gerekli')
+  }
+  if (!data.company) {
+    throw new Error('Sigorta şirketi gerekli')
+  }
+  if (!data.premium) {
+    throw new Error('Prim tutarı gerekli')
+  }
+  if (!data.start_date) {
+    throw new Error('Başlangıç tarihi gerekli')
+  }
+  if (!data.end_date) {
+    throw new Error('Bitiş tarihi gerekli')
+  }
+
+  // Verify customer exists
+  const customer = await prisma.customer.findUnique({
+    where: { id: BigInt(data.customer_id) }
   })
 
-  revalidatePath('/dashboard/policies')
+  if (!customer) {
+    throw new Error('Müşteri bulunamadı')
+  }
 
-  return {
-    ...policy,
-    id: Number(policy.id),
-    customer_id: Number(policy.customer_id),
-    premium: policy.premium.toString(),
-    coverage_amount: policy.coverage_amount?.toString(),
+  try {
+    const policy = await prisma.policy.create({
+      data: {
+        customer_id: BigInt(data.customer_id),
+        policy_number: data.policy_number || null,
+        policy_type: data.policy_type,
+        company: data.company,
+        premium: new Decimal(data.premium.toString()),
+        coverage_amount: data.coverage_amount ? new Decimal(data.coverage_amount.toString()) : null,
+        start_date: new Date(data.start_date),
+        end_date: new Date(data.end_date),
+        status: data.status || 'active',
+        notes: data.notes || null,
+      },
+      include: {
+        customer: true,
+      }
+    })
+
+    revalidatePath('/admin/politice')
+    revalidatePath('/dashboard/policies')
+
+    return {
+      ...policy,
+      id: Number(policy.id),
+      customer_id: Number(policy.customer_id),
+      premium: policy.premium.toString(),
+      coverage_amount: policy.coverage_amount?.toString(),
+    }
+  } catch (error: any) {
+    console.error('[Policy Creation Error]', error)
+    throw new Error(`Poliçe oluşturulamadı: ${error.message}`)
   }
 }
 
@@ -118,43 +156,78 @@ export async function updatePolicy(
     company: string
     premium: number | string
     coverage_amount: number | string
-    start_date: Date
-    end_date: Date
+    start_date: Date | string
+    end_date: Date | string
     status: string
     notes: string
   }>
 ) {
   await requireAuth()
 
-  const updateData: any = { ...data }
-  if (data.premium) updateData.premium = new Decimal(data.premium.toString())
-  if (data.coverage_amount) updateData.coverage_amount = new Decimal(data.coverage_amount.toString())
-
-  const policy = await prisma.policy.update({
-    where: { id: BigInt(id) },
-    data: updateData,
+  // Check if policy exists
+  const existingPolicy = await prisma.policy.findUnique({
+    where: { id: BigInt(id) }
   })
 
-  revalidatePath('/dashboard/policies')
+  if (!existingPolicy) {
+    throw new Error('Poliçe bulunamadı')
+  }
 
-  return {
-    ...policy,
-    id: Number(policy.id),
-    customer_id: Number(policy.customer_id),
-    premium: policy.premium.toString(),
-    coverage_amount: policy.coverage_amount?.toString(),
+  try {
+    const updateData: any = { ...data }
+    if (data.premium) updateData.premium = new Decimal(data.premium.toString())
+    if (data.coverage_amount) updateData.coverage_amount = new Decimal(data.coverage_amount.toString())
+    if (data.start_date) updateData.start_date = new Date(data.start_date)
+    if (data.end_date) updateData.end_date = new Date(data.end_date)
+
+    const policy = await prisma.policy.update({
+      where: { id: BigInt(id) },
+      data: updateData,
+      include: {
+        customer: true,
+      }
+    })
+
+    revalidatePath('/admin/politice')
+    revalidatePath('/dashboard/policies')
+
+    return {
+      ...policy,
+      id: Number(policy.id),
+      customer_id: Number(policy.customer_id),
+      premium: policy.premium.toString(),
+      coverage_amount: policy.coverage_amount?.toString(),
+    }
+  } catch (error: any) {
+    console.error('[Policy Update Error]', error)
+    throw new Error(`Poliçe güncellenemedi: ${error.message}`)
   }
 }
 
 export async function deletePolicy(id: number) {
   await requireAuth()
 
-  await prisma.policy.delete({
-    where: { id: BigInt(id) },
+  // Check if policy exists
+  const existingPolicy = await prisma.policy.findUnique({
+    where: { id: BigInt(id) }
   })
 
-  revalidatePath('/dashboard/policies')
+  if (!existingPolicy) {
+    throw new Error('Poliçe bulunamadı')
+  }
 
-  return { success: true }
+  try {
+    await prisma.policy.delete({
+      where: { id: BigInt(id) },
+    })
+
+    revalidatePath('/admin/politice')
+    revalidatePath('/dashboard/policies')
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('[Policy Delete Error]', error)
+    throw new Error(`Poliçe silinemedi: ${error.message}`)
+  }
 }
 

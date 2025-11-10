@@ -57,6 +57,16 @@ export async function getDashboardStats() {
     }),
   ])
 
+  // Count completed files
+  const completedFiles = await prisma.customer.count({
+    where: { 
+      OR: [
+        { başvuru_durumu: 'Tamamlandı' },
+        { başvuru_durumu: 'Dosya Kapatıldı' }
+      ]
+    },
+  })
+
   return {
     total_customers: totalCustomers,
     total_dealers: totalDealers,
@@ -75,6 +85,7 @@ export async function getDashboardStats() {
     pending_cases: await prisma.customer.count({
       where: { başvuru_durumu: 'Beklemede' },
     }),
+    completed_files: completedFiles,
     total_premium: (await prisma.policy.aggregate({ _sum: { premium: true } }))._sum.premium?.toString() || '0',
     recent_customers: recentCustomers.map(c => ({
       ...c,

@@ -162,8 +162,8 @@ model Document {
   document_type             String?             @default("Standart Evrak") @db.VarChar(100)
   is_result_document        Boolean             @default(false)
   result_document_type_id   BigInt?
-  created_at                DateTime?           @db.Timestamp()
-  updated_at                DateTime?           @db.Timestamp()
+  created_at                DateTime?           @default(now()) @db.Timestamp()
+  updated_at                DateTime?           @default(now()) @db.Timestamp()
   deleted_at                DateTime?           @db.Timestamp()
   
   customer                  Customer            @relation(fields: [customer_id], references: [id], onDelete: Cascade)

@@ -19,86 +19,45 @@ export default function NotificationsPage() {
   const router = useRouter()
   const userRole: UserRole = (user?.role?.name as UserRole) || "superadmin"
   const [filter, setFilter] = useState("all")
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: "customer",
-      title: "Yeni Müşteri Kaydı",
-      message: "Ahmet Yılmaz sisteme kaydedildi.",
-      time: "2 dakika önce",
-      read: false,
-      priority: "normal"
-    },
-    {
-      id: 2,
-      type: "payment",
-      title: "Ödeme Alındı",
-      message: "Mehmet Kaya'dan ₺12,500 ödeme alındı.",
-      time: "15 dakika önce",
-      read: false,
-      priority: "high"
-    },
-    {
-      id: 3,
-      type: "document",
-      title: "Evrak Eksik",
-      message: "Ayşe Demir için ruhsat evrağı eksik.",
-      time: "1 saat önce",
-      read: true,
-      priority: "normal"
-    },
-    {
-      id: 4,
-      type: "system",
-      title: "Sistem Bakımı",
-      message: "Yarın saat 02:00'da sistem bakımı yapılacaktır.",
-      time: "2 saat önce",
-      read: true,
-      priority: "low"
-    },
-    {
-      id: 5,
-      type: "alert",
-      title: "Dosya Süresi Uyarma",
-      message: "Fatma Çelik'in dosyası 3 gün içinde kapanacak.",
-      time: "3 saat önce",
-      read: false,
-      priority: "high"
-    },
-    {
-      id: 6,
-      type: "customer",
-      title: "Müşteri Güncellemesi",
-      message: "Mustafa Öztürk'ün bilgileri güncellendi.",
-      time: "5 saat önce",
-      read: true,
-      priority: "low"
-    },
-    {
-      id: 7,
-      type: "payment",
-      title: "Ödeme Gecikmesi",
-      message: "Ali Vural'ın ödemesi 2 gündür gecikti.",
-      time: "1 gün önce",
-      read: true,
-      priority: "high"
-    },
-    {
-      id: 8,
-      type: "settings",
-      title: "Ayarlar Güncellendi",
-      message: "E-posta bildirim ayarları güncellendi.",
-      time: "1 gün önce",
-      read: true,
-      priority: "low"
-    }
-  ])
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [loadingNotifications, setLoadingNotifications] = useState(true)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push("/")
     }
   }, [isAuthenticated, isLoading, router])
+
+  // Fetch notifications from database
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        setLoadingNotifications(true)
+        const data = await notificationApi.list()
+        
+        // Transform notifications to match the component's expected format
+        const transformedNotifications = (data.notifications || []).map((notif: any) => ({
+          id: Number(notif.id),
+          type: notif.tur || 'system',
+          title: notif.baslik,
+          message: notif.icerik,
+          time: formatTimeAgo(notif.created_at),
+          read: notif.is_read,
+          priority: notif.oncelik || 'normal'
+        }))
+        
+        setNotifications(transformedNotifications)
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error)
+      } finally {
+        setLoadingNotifications(false)
+      }
+    }
+
+    if (isAuthenticated) {
+      fetchNotifications()
+    }
+  }, [isAuthenticated])
 
   const handleLogout = async () => {
     try {
@@ -107,6 +66,24 @@ export default function NotificationsPage() {
     } catch (error) {
       console.error("Logout error:", error)
     }
+  }
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    
+    if (seconds < 60) return `${seconds} saniye önce`
+    const minutes = Math.floor(seconds / 60)
+    if (minutes < 60) return `${minutes} dakika önce`
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return `${hours} saat önce`
+    const days = Math.floor(hours / 24)
+    if (days < 30) return `${days} gün önce`
+    const months = Math.floor(days / 30)
+    if (months < 12) return `${months} ay önce`
+    const years = Math.floor(months / 12)
+    return `${years} yıl önce`
   }
 
   const getNotificationIcon = (type: string) => {
@@ -352,7 +329,12 @@ export default function NotificationsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {filteredNotifications.length === 0 ? (
+            {loadingNotifications ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-slate-600">Bildirimler yükleniyor...</p>
+              </div>
+            ) : filteredNotifications.length === 0 ? (
               <div className="text-center py-12">
                 <Bell className="h-12 w-12 text-slate-300 mx-auto mb-4" />
                 <p className="text-slate-600">Bildirim bulunamadı.</p>

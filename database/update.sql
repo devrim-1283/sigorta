@@ -3,6 +3,11 @@
 -- Mevcut production DB'yi günceller
 -- ========================================
 
+-- 0. Documents tablosuna default NOW() ekle (evrak yükleme hatası düzeltmesi)
+ALTER TABLE documents 
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
 -- 1. Rol isimlerini güncelle (kod ile uyumlu hale getir)
 UPDATE roles SET name = 'birincil-admin' WHERE name = 'admin';
 UPDATE roles SET name = 'ikincil-admin' WHERE name = 'manager';

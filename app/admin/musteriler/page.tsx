@@ -142,14 +142,22 @@ export default function CustomersPage() {
 
   // Form states
   const [newNote, setNewNote] = useState("")
-  const [newFileData, setNewFileData] = useState({
+  const [newFileData, setNewFileData] = useState<{
+    ad_soyad: string
+    tc_no: string
+    telefon: string
+    email: string
+    plaka: string
+    hasar_tarihi: string
+    dosya_tipi: number | ""
+  }>({
     ad_soyad: "",
     tc_no: "",
     telefon: "",
     email: "",
     plaka: "",
     hasar_tarihi: "",
-    dosya_tipi: "" as FileType | "",
+    dosya_tipi: "",
   })
   const [newFileUploadedDocs, setNewFileUploadedDocs] = useState<FileDocType[]>([])
   const [currentUploadingDocType, setCurrentUploadingDocType] = useState<FileDocType | null>(null)
@@ -177,29 +185,33 @@ export default function CustomersPage() {
       setLoading(true)
       const data = await customerApi.list({ search: searchTerm, status: statusFilter })
 
+      console.log('[Müşteri Listesi] API Response:', data)
+      console.log('[Müşteri Listesi] Müşteri sayısı:', data.customers?.length || 0)
+
       // Transform API data to Customer interface
       const transformedCustomers: Customer[] = (data.customers || []).map((item: any) => ({
-        id: item.id,
+        id: String(item.id), // Convert to string
         ad_soyad: item.ad_soyad || item.name || 'Bilinmeyen',
         tc_no: item.tc_no || '',
         telefon: item.telefon || item.phone || '',
         email: item.email || '',
         plaka: item.plaka || '',
-        hasar_tarihi: item.hasar_tarihi || item.damage_date || '',
+        hasar_tarihi: item.hasar_tarihi || item.damage_date || new Date().toISOString().split('T')[0],
         başvuru_durumu: item.başvuru_durumu || 'İnceleniyor',
-        ödemeler: item.ödemeler || [],
+        ödemeler: item.ödemeler || item.payments || [],
         evraklar: item.evraklar || item.documents || [],  // Handle both Turkish and English field names
-        bağlı_bayi_id: item.bağlı_bayi_id || '',
-        bağlı_bayi_adı: item.bağlı_bayi_adı || 'Belirtilmemiş',
+        bağlı_bayi_id: item.dealer_id ? String(item.dealer_id) : (item.bağlı_bayi_id || ''),
+        bağlı_bayi_adı: item.dealer?.dealer_name || item.bağlı_bayi_adı || 'Belirtilmemiş',
         notlar: item.notlar || item.notes || [],
-        son_güncelleme: item.son_güncelleme || new Date().toLocaleDateString('tr-TR'),
+        son_güncelleme: item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : (item.son_güncelleme || new Date().toLocaleDateString('tr-TR')),
         evrak_durumu: item.evrak_durumu || 'Eksik',
         eksik_evraklar: item.eksik_evraklar || [],
         dosya_kilitli: item.dosya_kilitli || false,
-        dosya_tipi: item.dosya_tipi || 'deger-kaybi',
+        dosya_tipi: item.file_type?.name || item.dosya_tipi || 'deger-kaybi',
         yüklenen_evraklar: item.yüklenen_evraklar || [],
       }))
 
+      console.log('[Müşteri Listesi] Transformed customers:', transformedCustomers.length)
       setCustomers(transformedCustomers)
       setError("")
     } catch (err: any) {
@@ -520,11 +532,13 @@ export default function CustomersPage() {
   // New file creation handler
   const handleCreateNewFile = async () => {
     try {
-      const fileTypeConfig = newFileData.dosya_tipi ? getFileTypeConfig(newFileData.dosya_tipi as FileType) : null
+      const fileTypeConfig = newFileData.dosya_tipi ? getFileTypeConfig(newFileData.dosya_tipi) : null
       let initialStatus: ApplicationStatus = "İnceleniyor"
 
       if (fileTypeConfig) {
-        const allRequiredUploaded = fileTypeConfig.requiredDocuments.every((doc) => newFileUploadedDocs.includes(doc.id))
+        const allRequiredUploaded = fileTypeConfig.requiredDocuments.every((doc) => 
+          newFileUploadedDocs.some(uploaded => uploaded === doc.name)
+        )
         initialStatus = allRequiredUploaded ? "Başvuru Aşamasında" : "Evrak Aşamasında"
       }
 
@@ -1571,9 +1585,9 @@ export default function CustomersPage() {
                   Dosya Tipi *
                 </Label>
                 <Select
-                  value={newFileData.dosya_tipi}
+                  value={newFileData.dosya_tipi ? String(newFileData.dosya_tipi) : ""}
                   onValueChange={(value) => {
-                    setNewFileData({ ...newFileData, dosya_tipi: value as FileType })
+                    setNewFileData({ ...newFileData, dosya_tipi: Number(value) as any })
                     setNewFileUploadedDocs([])
                   }}
                 >
@@ -1582,10 +1596,10 @@ export default function CustomersPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {FILE_TYPES.map((fileType) => (
-                      <SelectItem key={fileType.id} value={fileType.id}>
-                        <div className="flex items-center gap-2">
-                          <div className={cn("w-3 h-3 rounded-full", fileType.color)} />
-                          {fileType.label}
+                      <SelectItem key={fileType.id} value={String(fileType.id)}>
+                        <div className="flex flex-col">
+                          <span className="font-semibold">{fileType.name}</span>
+                          <span className="text-xs text-muted-foreground">{fileType.description}</span>
                         </div>
                       </SelectItem>
                     ))}

@@ -81,6 +81,8 @@ export async function POST(request: NextRequest) {
         tip: tip || 'Diğer',
         durum: 'Beklemede',
         uploaded_by: BigInt(session.user.id),
+        created_at: new Date(),
+        updated_at: new Date(),
       },
     })
 
