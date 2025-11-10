@@ -15,7 +15,9 @@ cp ENV_EXAMPLE.txt .env
 php artisan key:generate
 ```
 
-### 3. Database Oluşturun (SQLite için)
+### 3. Database Oluşturun
+
+**Local Development (SQLite):**
 
 Windows PowerShell:
 ```powershell
@@ -25,6 +27,17 @@ New-Item -ItemType File -Path database\database.sqlite -Force
 Linux/Mac:
 ```bash
 touch database/database.sqlite
+```
+
+**Production (PostgreSQL - Coolify):**
+```env
+# .env dosyasında:
+DB_CONNECTION=pgsql
+DB_HOST=f04k88w8koc44c4wossw04w4
+DB_PORT=5432
+DB_DATABASE=postgres
+DB_USERNAME=postgres
+DB_PASSWORD=s5CtgtRRl1z10S6feIbjixpjwnBTjh2LtBNY57sf883PIcvWa912Mz3ZC7Ed4v0F
 ```
 
 ### 4. Migrations Çalıştırın
@@ -138,7 +151,7 @@ Beklenen: 403 Forbidden
 
 ## Yaygın Sorunlar ve Çözümler
 
-### Sorun: "SQLSTATE[HY000] [14] unable to open database file"
+### Sorun: "SQLSTATE[HY000] [14] unable to open database file" (SQLite)
 
 **Çözüm:**
 ```bash
@@ -148,6 +161,23 @@ touch database/database.sqlite
 # İzinleri kontrol edin
 chmod 664 database/database.sqlite
 chmod 775 database/
+```
+
+### Sorun: PostgreSQL Connection Error
+
+**Çözüm:**
+```bash
+# PHP PostgreSQL extension kontrolü
+php -m | grep pgsql
+
+# Extension yoksa yükleyin (Ubuntu/Debian):
+sudo apt install php8.2-pgsql
+
+# Windows için:
+# php.ini dosyasında extension=pdo_pgsql ve extension=pgsql satırlarını aktif edin
+
+# Bağlantıyı test edin:
+php artisan tinker --execute="DB::connection()->getPdo();"
 ```
 
 ### Sorun: "Class 'XXXController' not found"

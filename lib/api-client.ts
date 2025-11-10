@@ -1,5 +1,7 @@
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://sigorta.test/api/v1';
+// Production: NEXT_PUBLIC_API_URL environment variable'dan gelir
+// Development fallback: localhost:8000
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 // API Helper Functions
 class ApiClient {

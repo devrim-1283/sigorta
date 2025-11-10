@@ -40,7 +40,7 @@ Modern, full-stack sigorta yönetim platformu. Next.js 14 + Laravel 12 ile geli�
 - **Framework:** Laravel 12
 - **Language:** PHP 8.2+
 - **Auth:** Laravel Sanctum
-- **Database:** SQLite / MySQL / PostgreSQL
+- **Database:** PostgreSQL (Production) / SQLite (Development)
 - **Storage:** Local / S3 compatible
 
 ## 🏗️ Proje Yapısı
@@ -80,9 +80,9 @@ proje/
 
 ### Gereksinimler
 - Node.js 20+
-- PHP 8.2+
+- PHP 8.2+ (php-pgsql extension dahil)
 - Composer
-- SQLite veya MySQL/PostgreSQL
+- PostgreSQL 14+ (Production) / SQLite (Local test)
 
 ### 1. Backend Kurulumu
 
@@ -98,7 +98,8 @@ composer install
 # Key oluştur
 php artisan key:generate
 
-# Database oluştur (SQLite)
+# Database oluştur (Local test için SQLite)
+# Production'da PostgreSQL kullanılıyor
 touch database/database.sqlite
 
 # Migrations çalıştır

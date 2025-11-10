@@ -1,0 +1,155 @@
+GIT & COOLIFY DEPLOYMENT
+========================
+
+1. GIT REPOSITORY OLUŞTUR
+--------------------------
+# GitHub/GitLab/Gitea'da yeni repo oluştur
+# Örnek: https://github.com/username/sigorta-yonetim
+
+2. LOCAL GIT INIT (PowerShell)
+-------------------------------
+cd C:\Users\tunce\OneDrive\Desktop\proje
+
+git init
+git add .
+git commit -m "Initial commit: Sigorta Yönetim Sistemi"
+git branch -M main
+git remote add origin YOUR_GIT_URL
+git push -u origin main
+
+3. COOLIFY SETUP
+----------------
+a) Coolify Dashboard'a git
+b) "New Resource" -> "Application"
+c) "Connect Git Repository" seç
+d) Repository URL'i yapıştır
+e) Branch: main
+f) Build Pack: Nixpacks (otomatik seçilecek)
+
+4. ENVIRONMENT VARIABLES AYARLA
+--------------------------------
+Coolify'da "Environment" sekmesine git ve şunları ekle:
+
+# Backend
+APP_NAME="Sigorta Yönetim Sistemi"
+APP_ENV=production
+APP_KEY=                    # Boş bırak, post-deploy generate edeceğiz
+APP_DEBUG=false
+APP_URL=https://test-sms-link.com.tr
+FRONTEND_URL=https://test-sms-link.com.tr
+
+# Database (Coolify PostgreSQL)
+DB_CONNECTION=pgsql
+DB_HOST=f04k88w8koc44c4wossw04w4
+DB_PORT=5432
+DB_DATABASE=postgres
+DB_USERNAME=postgres
+DB_PASSWORD=s5CtgtRRl1z10S6feIbjixpjwnBTjh2LtBNY57sf883PIcvWa912Mz3ZC7Ed4v0F
+
+# CORS & Security
+SANCTUM_STATEFUL_DOMAINS=test-sms-link.com.tr,www.test-sms-link.com.tr
+CORS_ALLOWED_ORIGINS=https://test-sms-link.com.tr,https://www.test-sms-link.com.tr
+
+# Cache & Sessions
+CACHE_STORE=database
+SESSION_DRIVER=database
+QUEUE_CONNECTION=database
+
+# Frontend
+NEXT_PUBLIC_API_URL=https://test-sms-link.com.tr/api/v1
+
+5. DOMAIN AYARLA
+----------------
+Coolify'da "Domains" sekmesi:
+- test-sms-link.com.tr ekle
+- SSL/HTTPS otomatik aktif olacak
+
+6. DEPLOY ET
+------------
+"Deploy" butonuna tıkla
+Build süreci başlayacak (2-5 dakika)
+
+7. POSTGRESQL SETUP (ÖNEMLİ!)
+------------------------------
+Deploy bittikten sonra:
+
+a) Coolify'da PostgreSQL servisini aç
+b) "Execute Command" veya adminer kullan
+c) backend/database/init.sql dosyasını aç
+d) TÜM içeriği kopyala
+e) PostgreSQL query editor'e yapıştır
+f) Execute/Run et
+
+8. POST-DEPLOY COMMANDS
+------------------------
+Coolify Terminal'de:
+
+cd backend
+php artisan key:generate
+php artisan storage:link
+php artisan config:cache
+php artisan route:cache
+
+9. TEST ET
+----------
+https://test-sms-link.com.tr
+Login: admin@sigorta.com
+Password: password
+
+10. API TEST
+------------
+https://test-sms-link.com.tr/api/v1/file-types
+(4 dosya tipi JSON dönmeli)
+
+BAŞARILI DEPLOYMENT KRİTERLERİ
+===============================
+✅ Site açılıyor (https://test-sms-link.com.tr)
+✅ Login sayfası görünüyor
+✅ Admin login çalışıyor
+✅ Dashboard yükleniyor
+✅ API endpoint'ler çalışıyor
+✅ CORS hatası yok
+
+SORUN GİDERME
+=============
+Hata: "Failed to connect to database"
+-> init.sql çalıştırıldı mı kontrol et
+
+Hata: "CORS policy error"
+-> Environment variables'da SANCTUM_STATEFUL_DOMAINS doğru mu?
+
+Hata: "No application encryption key"
+-> php artisan key:generate çalıştır
+
+Hata: "500 Internal Server Error"
+-> Coolify logs kontrol et
+-> php artisan config:clear
+-> APP_KEY var mı kontrol et
+
+BUILD SÜRESI
+============
+Ortalama: 3-5 dakika
+- npm install: ~2 dk
+- composer install: ~1 dk
+- next build: ~1 dk
+- Laravel cache: ~30 sn
+
+GÜNCELLEME (Code Push)
+======================
+1. Local'de değişiklik yap
+2. git add .
+3. git commit -m "Update message"
+4. git push
+5. Coolify otomatik detect edip deploy eder
+
+READY TO DEPLOY! 🚀
+===================
+Tüm dosyalar hazır:
+✅ backend/database/init.sql (PostgreSQL schema + data)
+✅ nixpacks.toml (Build config)
+✅ start.sh (Startup script)
+✅ .gitignore (Git config)
+✅ Environment examples
+
+Coolify'a yüklemek için git push yapın!
+

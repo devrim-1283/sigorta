@@ -4,22 +4,25 @@ APP_ENV=local
 APP_KEY=
 APP_DEBUG=true
 APP_TIMEZONE=Europe/Istanbul
-APP_URL=http://localhost:8000
+APP_URL=https://test-sms-link.com.tr
 APP_LOCALE=tr
 APP_FALLBACK_LOCALE=tr
 APP_FAKER_LOCALE=tr_TR
 
 # Frontend URL (CORS için)
-FRONTEND_URL=http://localhost:3000
+FRONTEND_URL=https://test-sms-link.com.tr
 
-# Database
-DB_CONNECTION=sqlite
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=database/database.sqlite
-DB_USERNAME=root
-DB_PASSWORD=
+# Database - PostgreSQL
+DB_CONNECTION=pgsql
+DB_HOST=f04k88w8koc44c4wossw04w4
+DB_PORT=5432
+DB_DATABASE=postgres
+DB_USERNAME=postgres
+DB_PASSWORD=s5CtgtRRl1z10S6feIbjixpjwnBTjh2LtBNY57sf883PIcvWa912Mz3ZC7Ed4v0F
 DB_FOREIGN_KEYS=true
+
+# Full Database URL (Coolify için)
+# DATABASE_URL=postgres://postgres:s5CtgtRRl1z10S6feIbjixpjwnBTjh2LtBNY57sf883PIcvWa912Mz3ZC7Ed4v0F@f04k88w8koc44c4wossw04w4:5432/postgres
 
 # Cache & Session
 CACHE_STORE=database
@@ -30,11 +33,11 @@ SESSION_LIFETIME=120
 QUEUE_CONNECTION=database
 
 # Laravel Sanctum
-SANCTUM_STATEFUL_DOMAINS=localhost:3000,localhost,127.0.0.1,127.0.0.1:3000,::1
+SANCTUM_STATEFUL_DOMAINS=test-sms-link.com.tr,www.test-sms-link.com.tr,localhost:3000,localhost,127.0.0.1
 SANCTUM_TOKEN_PREFIX=
 
 # CORS Settings
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+CORS_ALLOWED_ORIGINS=https://test-sms-link.com.tr,https://www.test-sms-link.com.tr,http://localhost:3000,http://127.0.0.1:3000
 CORS_ALLOWED_METHODS="GET,POST,PUT,PATCH,DELETE,OPTIONS"
 CORS_ALLOWED_HEADERS="Content-Type,Authorization,X-Requested-With,Accept,Origin"
 CORS_EXPOSED_HEADERS="Authorization"
@@ -65,17 +68,21 @@ BROADCAST_CONNECTION=log
 # Vite (Laravel mix kullanılmıyorsa)
 VITE_APP_NAME="${APP_NAME}"
 
-# Production Settings (Production'da değiştirilmeli)
+# Production Settings (Production'da bu ayarları kullanın)
 # APP_ENV=production
 # APP_DEBUG=false
-# DB_CONNECTION=mysql (veya postgresql)
-# SANCTUM_STATEFUL_DOMAINS=yourdomain.com,www.yourdomain.com
-# FRONTEND_URL=https://yourdomain.com
+# LOG_LEVEL=error
+
+# Development Settings (Local development için)
+# APP_URL=http://localhost:8000
+# FRONTEND_URL=http://localhost:3000
+# SANCTUM_STATEFUL_DOMAINS=localhost:3000,localhost,127.0.0.1
+# CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+# DB_HOST=127.0.0.1 (veya SQLite kullanın)
 
 # INSTRUCTIONS:
 # 1. Bu dosyayı .env olarak kopyalayın: cp ENV_EXAMPLE.txt .env
 # 2. APP_KEY oluşturun: php artisan key:generate
-# 3. Database dosyasını oluşturun: touch database/database.sqlite
-# 4. Migration'ları çalıştırın: php artisan migrate
-# 5. Seeder'ları çalıştırın: php artisan db:seed
+# 3. Migration'ları çalıştırın: php artisan migrate
+# 4. Seeder'ları çalıştırın: php artisan db:seed
 

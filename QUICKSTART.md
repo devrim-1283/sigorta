@@ -17,8 +17,12 @@ composer install
 # Application key oluşturun
 php artisan key:generate
 
-# Database oluşturun (SQLite)
+# Database oluşturun (Local test için SQLite)
+# Production'da PostgreSQL kullanılıyor
 New-Item -ItemType File -Path database\database.sqlite -Force
+
+# .env dosyasında DB_CONNECTION=sqlite olduğundan emin olun (local test için)
+# Production: DB_CONNECTION=pgsql
 
 # Migrations çalıştırın
 php artisan migrate
@@ -134,13 +138,22 @@ npm run dev
 cd backend
 # Database'i sıfırlayın
 php artisan migrate:fresh --seed
+
+# PostgreSQL bağlantı hatası alırsanız:
+# .env dosyasında DB_CONNECTION=sqlite yapın (local test için)
+# Veya local PostgreSQL kurulumunu kontrol edin
 ```
 
 ### CORS Hatası
 Backend .env dosyasında:
 ```env
+# Local development için:
 CORS_ALLOWED_ORIGINS=http://localhost:3000
 SANCTUM_STATEFUL_DOMAINS=localhost:3000,localhost
+
+# Production için:
+CORS_ALLOWED_ORIGINS=https://test-sms-link.com.tr,https://www.test-sms-link.com.tr
+SANCTUM_STATEFUL_DOMAINS=test-sms-link.com.tr,www.test-sms-link.com.tr
 ```
 
 Sonra backend'i yeniden başlatın.
