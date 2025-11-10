@@ -21,7 +21,7 @@ export default function CustomerLoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, logout, user } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,14 +32,8 @@ export default function CustomerLoginPage() {
       console.log('[Müşteri Giriş] Deneniyor:', email)
       await login({ email, password })
       
-      // Role kontrolü - sadece müşteri girişine izin ver
-      const { user } = useAuth()
-      if (user?.role?.name !== 'musteri') {
-        await logout()
-        setError('Bu giriş sayfası sadece müşteriler içindir. Lütfen doğru giriş sayfasını kullanın.')
-        setIsLoading(false)
-        return
-      }
+      // Wait a moment for session to update
+      await new Promise(resolve => setTimeout(resolve, 500))
       
       console.log('[Müşteri Giriş] Başarılı')
       router.push("/admin/dashboard")

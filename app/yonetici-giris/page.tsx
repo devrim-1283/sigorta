@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, logout, user } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,15 +31,8 @@ export default function AdminLoginPage() {
     try {
       await login({ email, password })
       
-      // Role kontrolü - sadece yönetici rolleri girişine izin ver
-      const { user } = useAuth()
-      const allowedRoles = ['superadmin', 'birincil-admin', 'ikincil-admin', 'evrak-birimi']
-      if (user?.role?.name && !allowedRoles.includes(user.role.name)) {
-        await logout()
-        setError('Bu giriş sayfası sadece yöneticiler içindir. Lütfen doğru giriş sayfasını kullanın.')
-        setIsLoading(false)
-        return
-      }
+      // Wait a moment for session to update
+      await new Promise(resolve => setTimeout(resolve, 500))
       
       // Başarılı login sonrası admin panel'e yönlendir
       router.push("/admin/dashboard")
