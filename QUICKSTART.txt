@@ -1,0 +1,105 @@
+# ⚡ QUICKSTART - Sigorta Yönetim Sistemi
+
+## 🎯 5 Dakikada Coolify Deploy
+
+### Database URL (Hazır)
+```
+postgres://postgres:s5CtgtRRl1z10S6feIbjixpjwnBTjh2LtBNY57sf883PIcvWa912Mz3ZC7Ed4v0F@f04k88w8koc44c4wossw04w4:5432/postgres
+```
+
+### 1️⃣ Database Schema Yükle
+```
+1. Coolify → PostgreSQL → Query Editor
+2. database/init.sql açın
+3. Tüm içeriği kopyala (Ctrl+A, Ctrl+C)
+4. Query Editor'e yapıştır
+5. Execute
+```
+
+### 2️⃣ Environment Variables (Coolify App)
+```env
+DATABASE_URL=postgres://postgres:s5CtgtRRl1z10S6feIbjixpjwnBTjh2LtBNY57sf883PIcvWa912Mz3ZC7Ed4v0F@f04k88w8koc44c4wossw04w4:5432/postgres
+NEXTAUTH_SECRET=k8fJ3nP9mL2qR5tY7wX0zA1bC4dE6gH8iJ9kM2nP5qR7t
+NEXTAUTH_URL=https://test-sms-link.com.tr
+NODE_ENV=production
+```
+
+### 3️⃣ Persistent Volume
+```
+Source: /app/public/uploads
+```
+
+### 4️⃣ Domain
+```
+test-sms-link.com.tr (SSL auto)
+```
+
+### 5️⃣ Deploy!
+```
+Build: ~2-3 dakika
+```
+
+### 6️⃣ Test
+```
+URL: https://test-sms-link.com.tr
+Login: admin@sigorta.com / admin123
+```
+
+✅ HAZIR!
+
+---
+
+## 💻 Local Development (5 Dakika)
+
+### 1. Setup
+```bash
+npm install
+cp ENV_LOCAL_EXAMPLE.txt .env.local
+# .env.local'i düzenle (DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL)
+```
+
+### 2. Database
+```bash
+psql -U postgres -c "CREATE DATABASE sigorta_db;"
+psql -U postgres -d sigorta_db -f database/init.sql
+```
+
+### 3. Start
+```bash
+npx prisma generate
+npm run dev
+```
+
+### 4. Test
+```
+URL: http://localhost:3000
+Login: admin@sigorta.com / admin123
+```
+
+✅ ÇALIŞIYOR!
+
+---
+
+## 📚 Detaylı Dokümantasyon
+
+- **DEPLOYMENT.md** - Kapsamlı deployment guide
+- **ENV_PRODUCTION.txt** - Environment variables açıklaması
+- **README.md** - Proje özeti
+
+---
+
+## 🔗 Önemli Linkler
+
+- **Production:** https://test-sms-link.com.tr
+- **Database:** PostgreSQL (Coolify)
+- **Schema:** database/init.sql
+- **Prisma:** prisma/schema.prisma
+
+---
+
+**Stack:** Next.js 14 + Prisma + PostgreSQL + NextAuth.js  
+**Demo Users:** 6 kullanıcı (hepsi: admin123)  
+**Database:** 15 tablo + demo data
+
+🚀 Başarılar!
+

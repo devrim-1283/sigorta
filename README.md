@@ -1,6 +1,6 @@
 # Sigorta Yönetim Sistemi
 
-Modern, full-stack sigorta yönetim platformu. Next.js 14 + Laravel 12 ile geliştirilmiştir.
+Modern, full-stack sigorta yönetim platformu. Next.js 14 (Full-Stack) + Prisma + PostgreSQL ile geliştirilmiştir.
 
 ## 🚀 Özellikler
 
@@ -14,15 +14,15 @@ Modern, full-stack sigorta yönetim platformu. Next.js 14 + Laravel 12 ile geli�
 - ✅ Responsive charts ve grafikler (Recharts)
 - ✅ Dark mode desteği hazır
 
-### Backend (Laravel 12)
-- ✅ RESTful API
-- ✅ Laravel Sanctum authentication
-- ✅ Rol bazlı yetkilendirme middleware
+### Backend (Next.js Full-Stack)
+- ✅ Server Components + Server Actions
+- ✅ NextAuth.js v5 authentication
+- ✅ Rol bazlı yetkilendirme
 - ✅ File upload ve storage yönetimi
-- ✅ 11 model, 14 migration
-- ✅ 13 API controller
-- ✅ CORS yapılandırması
-- ✅ SQLite (dev) / MySQL/PostgreSQL (prod) desteği
+- ✅ Prisma ORM (PostgreSQL)
+- ✅ Type-safe database queries
+- ✅ 15 database models
+- ✅ Monolithic architecture
 
 ## 📋 Teknoloji Stack
 
@@ -37,30 +37,35 @@ Modern, full-stack sigorta yönetim platformu. Next.js 14 + Laravel 12 ile geli�
 - **Charts:** Recharts
 
 ### Backend
-- **Framework:** Laravel 12
-- **Language:** PHP 8.2+
-- **Auth:** Laravel Sanctum
-- **Database:** PostgreSQL (Production) / SQLite (Development)
-- **Storage:** Local / S3 compatible
+- **Framework:** Next.js 14 (Server Components + Server Actions)
+- **Language:** TypeScript 5
+- **ORM:** Prisma
+- **Auth:** NextAuth.js v5
+- **Database:** PostgreSQL 14+
+- **Storage:** Local filesystem
 
 ## 🏗️ Proje Yapısı
 
 ```
 proje/
 ├── app/                    # Next.js pages (App Router)
+│   ├── api/               # API routes (file upload)
+│   ├── auth/              # Auth pages (NextAuth)
+│   └── dashboard/         # Protected pages
 ├── components/             # React components
 ├── hooks/                  # Custom React hooks
-├── lib/                    # Utilities & API client
-├── backend/                # Laravel backend
-│   ├── app/
-│   │   ├── Models/        # Eloquent models (11 adet)
-│   │   ├── Http/
-│   │   │   ├── Controllers/Api/  # API controllers (13 adet)
-│   │   │   └── Middleware/       # Custom middleware (2 adet)
-│   ├── database/
-│   │   ├── migrations/    # Database migrations (14 adet)
-│   │   └── seeders/       # Demo data seeders
-│   └── routes/api.php     # API routes
+├── lib/
+│   ├── actions/           # Server Actions (CRUD operations)
+│   ├── api-client.ts      # API wrapper (server actions)
+│   ├── auth-context.tsx   # Auth context (NextAuth)
+│   └── db.ts              # Prisma client singleton
+├── prisma/
+│   └── schema.prisma      # Database schema
+├── public/
+│   └── uploads/           # File uploads
+├── types/                 # TypeScript types
+├── auth.config.ts         # NextAuth configuration
+├── middleware.ts          # Auth middleware
 ├── nixpacks.toml          # Coolify deployment config
 └── DEPLOYMENT.md          # Deployment guide
 ```
@@ -80,60 +85,42 @@ proje/
 
 ### Gereksinimler
 - Node.js 20+
-- PHP 8.2+ (php-pgsql extension dahil)
-- Composer
-- PostgreSQL 14+ (Production) / SQLite (Local test)
+- PostgreSQL 14+ (Production veya Local)
+- npm veya yarn
 
-### 1. Backend Kurulumu
+### 1. Kurulum
 
 ```bash
-cd backend
+# Dependencies yükle
+npm install
 
 # ENV dosyası oluştur
-cp ENV_EXAMPLE.txt .env
-
-# Paketleri yükle
-composer install
-
-# Key oluştur
-php artisan key:generate
-
-# Database oluştur (Local test için SQLite)
-# Production'da PostgreSQL kullanılıyor
-touch database/database.sqlite
-
-# Migrations çalıştır
-php artisan migrate
-
-# Demo verileri yükle
-php artisan db:seed
-
-# Storage link oluştur
-php artisan storage:link
-
-# Sunucuyu başlat
-php artisan serve
-```
-
-### 2. Frontend Kurulumu
-
-```bash
-# Ana klasörde
 cp ENV_LOCAL_EXAMPLE.txt .env.local
 
-# Paketler zaten yüklü, sunucuyu başlat
+# .env.local'i düzenle ve şunları ayarla:
+# DATABASE_URL="postgresql://user:password@localhost:5432/sigorta_db"
+# NEXTAUTH_SECRET="openssl rand -base64 32 ile oluştur"
+# NEXTAUTH_URL="http://localhost:3000"
+
+# PostgreSQL database'i init.sql ile yükle
+psql -U postgres -d sigorta_db -f database/init.sql
+
+# Prisma client oluştur
+npx prisma generate
+
+# Development sunucusunu başlat
 npm run dev
 ```
 
-### 3. Giriş Yapın
+### 2. Giriş Yapın
 
 - URL: http://localhost:3000
 - Email: `admin@sigorta.com`
-- Şifre: `password`
+- Şifre: `admin123`
 
 ## 📝 Demo Kullanıcılar
 
-Tüm şifreler: `password`
+**Tüm şifreler: `admin123`**
 
 - **Süper Admin:** admin@sigorta.com
 - **Birincil Admin:** birincil@sigorta.com
@@ -144,43 +131,43 @@ Tüm şifreler: `password`
 
 ## 📚 Dokümantasyon
 
-- [Quick Start Guide](QUICKSTART.md) - Hızlı başlangıç
-- [Backend Setup](backend/SETUP_AND_TEST.md) - Backend detaylı kurulum
-- [Deployment Guide](DEPLOYMENT.md) - Production deployment
-- [Backend Implementation Plan](backend-implementation.plan.md) - Teknik plan
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Coolify deployment guide (Production + Local)
+- **[ENV_PRODUCTION.txt](ENV_PRODUCTION.txt)** - Environment variables template
+- **[database/init.sql](database/init.sql)** - PostgreSQL schema + demo data
+- **[prisma/schema.prisma](prisma/schema.prisma)** - Prisma schema
 
-## 🔌 API Endpoints
+## 🔌 Server Actions
 
-### Authentication
-- `POST /api/v1/auth/login` - Login
-- `POST /api/v1/auth/logout` - Logout
-- `GET /api/v1/auth/me` - Current user
+Bu proje Server Actions kullanır (REST API yok):
 
-### Customers
-- `GET /api/v1/customers` - List customers
-- `POST /api/v1/customers` - Create customer
-- `GET /api/v1/customers/{id}` - Get customer
-- `PUT /api/v1/customers/{id}` - Update customer
-- `DELETE /api/v1/customers/{id}` - Delete customer
-- `POST /api/v1/customers/{id}/close` - Close file
-- `POST /api/v1/customers/{id}/notes` - Add note
+### Authentication (`lib/actions/auth.ts`)
+- `authenticate()` - Login
+- `logoutUser()` - Logout
+- `getCurrentUser()` - Current user
+- `requireAuth()` - Auth guard
+- `requireRole()` - Role guard
 
-### Documents
-- `GET /api/v1/documents` - List documents
-- `POST /api/v1/documents/upload` - Upload document
-- `GET /api/v1/documents/{id}/download` - Download document
-- `DELETE /api/v1/documents/{id}` - Delete document
+### Customers (`lib/actions/customers.ts`)
+- `getCustomers()` - List customers
+- `getCustomer(id)` - Get customer
+- `createCustomer(data)` - Create customer
+- `updateCustomer(id, data)` - Update customer
+- `deleteCustomer(id)` - Delete customer
+- `closeCustomerFile(id, reason)` - Close file
+- `addCustomerNote(id, content)` - Add note
 
-### Dealers
-- `GET /api/v1/dealers` - List dealers
-- `POST /api/v1/dealers` - Create dealer
-- `GET /api/v1/dealers/{id}` - Get dealer
-- `PUT /api/v1/dealers/{id}` - Update dealer
+### Documents (`lib/actions/documents.ts`)
+- `getDocuments()` - List documents
+- `getDocument(id)` - Get document
+- `uploadDocument(formData)` - Upload (via `/api/upload`)
+- `updateDocument(id, data)` - Update document
+- `deleteDocument(id)` - Delete document
+- `getDocumentDownloadUrl(id)` - Download URL
 
-### Dashboard
-- `GET /api/v1/dashboard/stats` - Dashboard statistics
+### Dashboard (`lib/actions/dashboard.ts`)
+- `getDashboardStats()` - Dashboard statistics
 
-...ve daha fazlası! Tüm endpoint'ler için: `php artisan route:list --path=api`
+...ve daha fazlası! Tüm actions için: `lib/actions/` klasörü
 
 ## 🌐 Deployment (Coolify)
 
@@ -195,45 +182,55 @@ Detaylar için: [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ## 🛠️ Development
 
-### Backend Development
+### Development Commands
 ```bash
-cd backend
-
-# Real-time logs
-php artisan pail
-
-# Clear cache
-php artisan optimize:clear
-
-# Database reset
-php artisan migrate:fresh --seed
-```
-
-### Frontend Development
-```bash
-# Development server
+# Development server (Hot reload)
 npm run dev
 
 # Production build
 npm run build
 
+# Start production server
+npm start
+
 # Type check
 npm run lint
+
+# Prisma Studio (Database GUI)
+npx prisma studio
+
+# Database reset
+# 1. Drop all tables in PostgreSQL
+# 2. Re-run: psql -U postgres -d sigorta_db -f database/init.sql
+# 3. npx prisma generate
 ```
 
 ## 🧪 Testing
 
-### Backend API Test (PowerShell)
-```powershell
-# Login
-$response = Invoke-RestMethod -Uri "http://localhost:8000/api/v1/auth/login" `
-  -Method Post -ContentType "application/json" `
-  -Body '{"email":"admin@sigorta.com","password":"password"}'
+### Manual Testing
+1. **Login Test:**
+   - Go to http://localhost:3000
+   - Login with `admin@sigorta.com` / `password`
+   - Should redirect to dashboard
 
-# Dashboard Stats
-Invoke-RestMethod -Uri "http://localhost:8000/api/v1/dashboard/stats" `
-  -Headers @{"Authorization"="Bearer $($response.token)"}
-```
+2. **CRUD Test:**
+   - Navigate to Customers
+   - Create a new customer
+   - Edit the customer
+   - View customer details
+
+3. **File Upload Test:**
+   - Go to Documents
+   - Upload a file (PDF or image)
+   - Download the file
+   - Check `/public/uploads/documents/`
+
+4. **Prisma Studio:**
+   ```bash
+   npx prisma studio
+   # Opens http://localhost:5555
+   # Browse all database tables
+   ```
 
 ## 📊 Veritabanı Şeması
 

@@ -1,0 +1,118 @@
+'use server'
+
+import prisma from '@/lib/db'
+import { requireRole } from './auth'
+import { revalidatePath } from 'next/cache'
+import bcrypt from 'bcryptjs'
+
+export async function getUsers() {
+  await requireRole(['superadmin'])
+
+  const users = await prisma.user.findMany({
+    include: {
+      role: true,
+      dealer: true,
+    },
+    orderBy: { created_at: 'desc' },
+  })
+
+  return users.map(u => ({
+    ...u,
+    id: Number(u.id),
+    role_id: Number(u.role_id),
+    dealer_id: u.dealer_id ? Number(u.dealer_id) : null,
+    password: undefined, // Don't expose password
+  }))
+}
+
+export async function createUser(data: {
+  name: string
+  email?: string
+  phone?: string
+  tc_no?: string
+  password: string
+  role_id: number
+  dealer_id?: number
+  is_active?: boolean
+}) {
+  await requireRole(['superadmin'])
+
+  const hashedPassword = await bcrypt.hash(data.password, 12)
+
+  const user = await prisma.user.create({
+    data: {
+      ...data,
+      password: hashedPassword,
+      role_id: BigInt(data.role_id),
+      dealer_id: data.dealer_id ? BigInt(data.dealer_id) : null,
+    },
+    include: {
+      role: true,
+      dealer: true,
+    },
+  })
+
+  revalidatePath('/dashboard/users')
+
+  return {
+    ...user,
+    id: Number(user.id),
+    role_id: Number(user.role_id),
+    dealer_id: user.dealer_id ? Number(user.dealer_id) : null,
+    password: undefined,
+  }
+}
+
+export async function updateUser(id: number, data: Partial<{
+  name: string
+  email: string
+  phone: string
+  tc_no: string
+  password: string
+  role_id: number
+  dealer_id: number
+  is_active: boolean
+}>) {
+  await requireRole(['superadmin'])
+
+  const updateData: any = { ...data }
+  
+  if (data.password) {
+    updateData.password = await bcrypt.hash(data.password, 12)
+  }
+  
+  if (data.role_id) updateData.role_id = BigInt(data.role_id)
+  if (data.dealer_id) updateData.dealer_id = BigInt(data.dealer_id)
+
+  const user = await prisma.user.update({
+    where: { id: BigInt(id) },
+    data: updateData,
+    include: {
+      role: true,
+      dealer: true,
+    },
+  })
+
+  revalidatePath('/dashboard/users')
+
+  return {
+    ...user,
+    id: Number(user.id),
+    role_id: Number(user.role_id),
+    dealer_id: user.dealer_id ? Number(user.dealer_id) : null,
+    password: undefined,
+  }
+}
+
+export async function deleteUser(id: number) {
+  await requireRole(['superadmin'])
+
+  await prisma.user.delete({
+    where: { id: BigInt(id) },
+  })
+
+  revalidatePath('/dashboard/users')
+
+  return { success: true }
+}
+

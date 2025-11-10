@@ -1,205 +1,565 @@
-# Deployment Guide - Sigorta Yönetim Sistemi
+# 🚀 Deployment Guide - Sigorta Yönetim Sistemi
 
-## 🏗️ Mimari
+**Production Domain:** https://test-sms-link.com.tr  
+**Stack:** Next.js 14 + Prisma + PostgreSQL + NextAuth.js  
+**Platform:** Coolify
 
-**Teknolojiler:**
-- **Frontend:** Next.js 14 (App Router, TypeScript, Tailwind CSS)
-- **Backend:** Laravel 12 (API-only, PHP 8.2+)
-- **Database:** PostgreSQL 14+
-- **Auth:** Laravel Sanctum (Token-based)
-- **Deploy:** Coolify + Nixpacks (Monorepo, Single Container)
+---
 
-**Port Yapısı:**
-- Next.js: 3000 (Coolify otomatik yönlendirir)
-- Laravel API: 8000 (internal)
-- Domain: https://test-sms-link.com.tr
-- API Endpoint: https://test-sms-link.com.tr/api/v1
+## 📋 Hızlı Başlangıç (Coolify)
 
-## Coolify Deployment
+### 1️⃣ PostgreSQL Database Oluştur
 
-Bu proje Coolify ve Nixpacks ile deploy edilmek üzere yapılandırılmıştır.
+Coolify'da:
+1. **New Resource** → **PostgreSQL**
+2. Version: **14** veya üstü
+3. **Deploy**
+
+Database URL (Coolify otomatik oluşturur):
+```
+postgres://postgres:GENERATED_PASSWORD@SERVICE_NAME:5432/postgres
+```
+
+**Projenizin DATABASE_URL:**
+```
+postgres://postgres:s5CtgtRRl1z10S6feIbjixpjwnBTjh2LtBNY57sf883PIcvWa912Mz3ZC7Ed4v0F@f04k88w8koc44c4wossw04w4:5432/postgres
+```
+
+---
+
+### 2️⃣ Database Schema Yükle (ÇOK ÖNEMLİ!)
+
+**Method 1: Coolify UI (ÖNERİLEN)**
+
+1. Coolify → PostgreSQL Resource → **Query Editor**
+2. Bu repo'dan `database/init.sql` dosyasını aç
+3. **Tüm içeriği kopyala** (Ctrl+A → Ctrl+C)
+4. Query Editor'e **yapıştır**
+5. **Execute / Run** tıkla
+
+✅ Success mesajını göreceksiniz:
+```sql
+Database schema created successfully!
+Total tables: 15
+Demo users: 6 (password: password for all)
+Login with: admin@sigorta.com / password
+```
+
+**Method 2: psql (Local'den)**
+```bash
+psql "postgres://postgres:s5CtgtRRl1z10S6feIbjixpjwnBTjh2LtBNY57sf883PIcvWa912Mz3ZC7Ed4v0F@f04k88w8koc44c4wossw04w4:5432/postgres" < database/init.sql
+```
+
+---
+
+### 3️⃣ Next.js Uygulamasını Ekle
+
+Coolify'da:
+1. **New Resource** → **Application**
+2. **Git Repository:**
+   - URL: `https://github.com/YOUR_USERNAME/YOUR_REPO.git`
+   - Branch: `main`
+3. **Build Pack:** Nixpacks (otomatik seçilir)
+4. **Port:** 3000 (otomatik)
+
+---
+
+### 4️⃣ Environment Variables Ayarla
+
+Coolify → Application → **Environment Variables** → Add:
+
+```env
+DATABASE_URL=postgres://postgres:s5CtgtRRl1z10S6feIbjixpjwnBTjh2LtBNY57sf883PIcvWa912Mz3ZC7Ed4v0F@f04k88w8koc44c4wossw04w4:5432/postgres
+
+NEXTAUTH_SECRET=k8fJ3nP9mL2qR5tY7wX0zA1bC4dE6gH8iJ9kM2nP5qR7t
+
+NEXTAUTH_URL=https://test-sms-link.com.tr
+
+NODE_ENV=production
+```
+
+**NEXTAUTH_SECRET oluşturma:**
+```bash
+openssl rand -base64 32
+# Output'u kopyala ve NEXTAUTH_SECRET olarak kullan
+```
+
+---
+
+### 5️⃣ Persistent Volume (File Uploads)
+
+Coolify → Application → **Volumes** → Add Volume:
+
+- **Source:** `/app/public/uploads`
+- **Destination:** (Coolify otomatik)
+
+Bu şekilde upload edilen dosyalar deploy'lar arası korunur.
+
+---
+
+### 6️⃣ Domain Yapılandırma
+
+Coolify → Application → **Domains**:
+
+1. Domain: `test-sms-link.com.tr`
+2. **SSL Certificate:** Auto-generate (Let's Encrypt)
+3. **Save**
+
+---
+
+### 7️⃣ Deploy!
+
+1. **Deploy** butonuna tıkla
+2. Build logs'u izle
+3. **Build süresi:** ~2-3 dakika
+
+**Build adımları (Otomatik):**
+```bash
+npm install --production
+npx prisma generate
+npm run build
+npm start
+```
+
+---
+
+### 8️⃣ Test
+
+1. Tarayıcıda aç: **https://test-sms-link.com.tr**
+2. **Login:**
+   - Email: `admin@sigorta.com`
+   - Şifre: `password`
+3. ✅ Dashboard açılmalı ve data göstermeli
+
+---
+
+## 💻 Local Development
 
 ### Gereksinimler
-
 - Node.js 20+
-- PHP 8.2+
-- PHP PostgreSQL extension (php-pgsql)
-- Composer
-- PostgreSQL 14+ (Coolify tarafından sağlanıyor)
+- PostgreSQL 14+
+- npm
 
-### Environment Variables (Coolify'da Ayarlanacak)
+### Kurulum
 
-#### Backend (.env)
-```env
-APP_NAME="Sigorta Yönetim Sistemi"
-APP_ENV=production
-APP_KEY=base64:xxxxx  # php artisan key:generate ile oluştur
-APP_DEBUG=false
-APP_URL=https://test-sms-link.com.tr
-
-FRONTEND_URL=https://test-sms-link.com.tr
-
-# PostgreSQL Database (Coolify)
-DB_CONNECTION=pgsql
-DB_HOST=f04k88w8koc44c4wossw04w4
-DB_PORT=5432
-DB_DATABASE=postgres
-DB_USERNAME=postgres
-DB_PASSWORD=s5CtgtRRl1z10S6feIbjixpjwnBTjh2LtBNY57sf883PIcvWa912Mz3ZC7Ed4v0F
-
-# Veya DATABASE_URL olarak tek satırda:
-# DATABASE_URL=postgres://postgres:s5CtgtRRl1z10S6feIbjixpjwnBTjh2LtBNY57sf883PIcvWa912Mz3ZC7Ed4v0F@f04k88w8koc44c4wossw04w4:5432/postgres
-
-SANCTUM_STATEFUL_DOMAINS=test-sms-link.com.tr,www.test-sms-link.com.tr
-
-CORS_ALLOWED_ORIGINS=https://test-sms-link.com.tr,https://www.test-sms-link.com.tr
-
-CACHE_STORE=database
-SESSION_DRIVER=database
-QUEUE_CONNECTION=database
-
-LOG_CHANNEL=stack
-LOG_LEVEL=error
-```
-
-#### Frontend (.env.local)
-```env
-NEXT_PUBLIC_API_URL=https://test-sms-link.com.tr/api/v1
-```
-
-### Build Commands
-
-Nixpacks otomatik olarak şunları yapar:
-1. npm install
-2. composer install
-3. npm run build
-4. Laravel cache
-
-### PostgreSQL Schema Setup (ÖNEMLİ! - İLK ADIM)
-
-**Deploy sonrası PostgreSQL'e schema yükleyin:**
-
-Method 1: Copy-Paste (EN KOLAY)
-```
-1. backend/database/init.sql dosyasını açın
-2. Tüm içeriği kopyalayın (Ctrl+A, Ctrl+C)
-3. Coolify PostgreSQL Query Editor'e gidin
-4. Yapıştırın ve Run/Execute tıklayın
-```
-
-Method 2: psql (Local'den)
+#### 1. Clone Repository
 ```bash
-psql "postgres://postgres:PASSWORD@HOST:5432/postgres" < backend/database/init.sql
+git clone https://github.com/YOUR_USERNAME/REPO.git
+cd proje
 ```
 
-**init.sql içeriği:**
-- 15 tablo (roles, users, customers, documents, payments, vs.)
-- Foreign key'ler ve index'ler
-- Demo data (6 rol, 5 bayi, 6 kullanıcı, 5 müşteri)
+#### 2. Install Dependencies
+```bash
+npm install
+```
 
-### Post-Deployment Commands
+#### 3. Environment Variables
+```bash
+# .env.local oluştur
+cp ENV_LOCAL_EXAMPLE.txt .env.local
+```
 
-Schema yüklendikten sonra backend komutları:
+**`.env.local` içeriği düzenle:**
+```env
+DATABASE_URL="postgresql://postgres:password@localhost:5432/sigorta_db"
+NEXTAUTH_SECRET="your-local-secret-key"
+NEXTAUTH_URL="http://localhost:3000"
+NODE_ENV="development"
+```
+
+#### 4. PostgreSQL Setup
+```bash
+# Database oluştur
+psql -U postgres -c "CREATE DATABASE sigorta_db;"
+
+# Schema yükle
+psql -U postgres -d sigorta_db -f database/init.sql
+```
+
+#### 5. Prisma Generate
+```bash
+npx prisma generate
+```
+
+#### 6. Start Development Server
+```bash
+npm run dev
+```
+
+#### 7. Open Browser
+```
+http://localhost:3000
+```
+
+**Demo Login:**
+- Email: `admin@sigorta.com`
+- Şifre: `admin123`
+
+---
+
+## 🔧 Troubleshooting
+
+### ❌ "Database connection error"
+
+**Çözüm:**
+```bash
+# 1. DATABASE_URL doğru mu?
+echo $DATABASE_URL
+
+# 2. init.sql yüklendi mi?
+psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM users;"
+# 6 user görmelisin
+
+# 3. Prisma client oluşturuldu mu?
+npx prisma generate
+```
+
+---
+
+### ❌ "NextAuth configuration error"
+
+**Çözüm:**
+```bash
+# 1. NEXTAUTH_SECRET var mı?
+echo $NEXTAUTH_SECRET
+
+# Yoksa oluştur:
+openssl rand -base64 32
+
+# 2. NEXTAUTH_URL doğru mu?
+# Production: https://test-sms-link.com.tr
+# Local: http://localhost:3000
+```
+
+---
+
+### ❌ "Prisma Client not found"
+
+**Çözüm:**
+```bash
+# 1. Generate client
+npx prisma generate
+
+# 2. Rebuild
+npm run build
+```
+
+---
+
+### ❌ "File upload failed"
+
+**Çözüm:**
+```bash
+# 1. Upload klasörü oluştur
+mkdir -p public/uploads/documents
+
+# 2. Coolify'da Persistent Volume ekle
+# Source: /app/public/uploads
+```
+
+---
+
+### ❌ Build çok uzun sürüyor (>5 dakika)
+
+**Normal süre:** 2-4 dakika
+
+**Çözüm:**
+- Network bağlantınızı kontrol edin
+- Coolify server kaynaklarını check edin
+- Cache temizleyip rebuild edin
+
+---
+
+## 👥 Demo Kullanıcılar
+
+`database/init.sql` ile yüklenir:
+
+| Email | Rol | Şifre | Yetki |
+|-------|-----|-------|-------|
+| admin@sigorta.com | Süper Admin | admin123 | Tam erişim |
+| istanbul@sigorta.com | Yönetici | admin123 | Bayi yönetimi |
+| ankara@sigorta.com | Acente | admin123 | Müşteri işlemleri |
+| muhasebe@sigorta.com | Muhasebe | admin123 | Ödeme işlemleri |
+| izmir@sigorta.com | Görüntüleyici | admin123 | Sadece okuma |
+| bursa@sigorta.com | Müdür | admin123 | Şube yönetimi |
+
+**⚠️ PRODUCTION'DA ŞİFRELERİ DEĞİŞTİRİN!**
+
+### Şifre Değiştirme
 
 ```bash
-# Backend dizinine girin
-cd backend
+# 1. bcrypt hash oluştur
+node -e "const bcrypt = require('bcryptjs'); console.log(bcrypt.hashSync('YeniSifre123', 12));"
 
-# Application key oluştur (sadece ilk deploy)
-php artisan key:generate
-
-# PostgreSQL bağlantısını test et
-php artisan tinker --execute="DB::connection()->getPdo();"
-
-# Storage link oluştur
-php artisan storage:link
-
-# Cache'leri oluştur (optional, performans için)
-php artisan config:cache
-php artisan route:cache
+# 2. Database'de güncelle
+psql "$DATABASE_URL"
+UPDATE users SET password = '$2a$12$YENI_HASH' WHERE email = 'admin@sigorta.com';
 ```
 
-**NOT: Artık migration yok! init.sql kullanın.**
+Veya **Prisma Studio** ile:
+```bash
+npx prisma studio
+# http://localhost:5555
+# Users → Select user → Edit password field
+```
 
-### Port Configuration
+---
 
-**Önerilen Deployment Stratejisi:**
+## 📊 Database
 
-Coolify'da tek monorepo olarak deploy edilecek:
-- Coolify otomatik olarak `$PORT` değişkenini atar
-- Next.js `npm start` ile başlar ve Coolify'ın atadığı portu kullanır
-- Domain: https://test-sms-link.com.tr
+**15 Tablo:**
+- `roles` - Kullanıcı rolleri (6 rol)
+- `users` - Kullanıcılar
+- `dealers` - Bayiler
+- `customers` - Müşteriler
+- `file_types` - Dosya tipleri
+- `documents` - Belgeler
+- `payments` - Ödemeler
+- `notes` - Notlar
+- `notifications` - Bildirimler
+- `policies` - Poliçeler
+- `claims` - Hasar talepleri
+- `personal_access_tokens` - API tokens
+- `jobs` - Queue jobs
+- `cache` - Cache
+- `sessions` - Sessions
 
-**Backend API için:**
-Backend dizininde `php artisan serve` ile Laravel API başlatılır.
-İki seçenek var:
+**Schema Dosyaları:**
+- `database/init.sql` - PostgreSQL DDL + Demo data
+- `prisma/schema.prisma` - Prisma schema
 
-**Seçenek 1: Tek Container (Monorepo)**
-- Next.js 3000'de çalışır (Coolify proxy ile domain'e bağlı)
-- Laravel 8000'de çalışır (internal)
-- Next.js API route'ları `/api/*` ile backend'e proxy eder
+---
 
-**Seçenek 2: İki Ayrı Servis (Önerilen)**
-- Frontend: https://test-sms-link.com.tr
-- Backend API: Internal service veya subdomain
+## 🔄 Code Güncellemeleri
 
-Bu proje için **Seçenek 1** (monorepo) kurulu durumda.
+### Git Push Sonrası Otomatik Deploy
 
-### File Uploads
+```bash
+# 1. Local'de değişiklik yap
+git add .
+git commit -m "Feature: X eklendi"
+git push origin main
 
-Storage klasörü için persistent volume mount edin:
-- Path: `/app/backend/storage`
+# 2. Coolify otomatik detect eder
+# (Webhook aktifse)
 
-### Database
+# 3. Build başlar: ~2-3 dk
 
-PostgreSQL kullanılıyor (Coolify tarafından yönetiliyor):
-- Host: `f04k88w8koc44c4wossw04w4`
-- Port: `5432`
-- Database: `postgres`
-- Backup önerilir: `pg_dump` ile düzenli yedekler alın
+# 4. Zero-downtime deployment
+```
 
-### Monitoring
+### Manuel Redeploy
 
-- Logs: `cd backend && php artisan pail`
-- Queue: `php artisan queue:listen`
+```
+Coolify → Application → Redeploy
+```
 
-### Demo Kullanıcılar
+### Rollback
 
-Seeder çalıştırdıktan sonra bu kullanıcılarla giriş yapabilirsiniz:
+```
+Coolify → Application → Deployments
+→ Önceki deployment'ı seç
+→ "Redeploy"
+```
 
-- **Süper Admin:** admin@sigorta.com / password
-- **Birincil Admin:** birincil@sigorta.com / password
-- **İkincil Admin:** ikincil@sigorta.com / password
-- **Evrak Birimi:** evrak@sigorta.com / password
-- **Bayi:** bayi@sigorta.com / password
-- **Müşteri:** musteri@sigorta.com / password
+---
 
-### Troubleshooting
+## 🔐 Security Checklist
 
-1. **CORS Hatası:**
-   - SANCTUM_STATEFUL_DOMAINS'i doğru ayarladığınızdan emin olun
-   - CORS_ALLOWED_ORIGINS'e frontend URL'ini ekleyin
+Production'a deploy etmeden önce:
 
-2. **Database Hatası:**
-   - Migration'ları çalıştırdığınızdan emin olun
-   - PostgreSQL bağlantı bilgilerini kontrol edin
-   - PHP pgsql extension'ının yüklü olduğundan emin olun: `php -m | grep pgsql`
+- [ ] **NEXTAUTH_SECRET** benzersiz ve güçlü (32+ karakter)
+- [ ] **Demo şifreleri** değiştirildi
+- [ ] **DATABASE_URL** güvenli password
+- [ ] **HTTPS** aktif (Coolify auto SSL)
+- [ ] **File upload** size limiti ayarlandı
+- [ ] **Environment variables** Coolify'da, repo'da YOK
+- [ ] **PostgreSQL** external access kapalı
 
-3. **File Upload Hatası:**
-   - storage:link komutunu çalıştırdığınızdan emin olun
-   - Storage klasörü izinlerini kontrol edin (775)
+---
 
-4. **Build Hatası:**
-   - Node.js ve PHP versiyonlarını kontrol edin
-   - Composer ve npm bağımlılıklarını temizleyip yeniden yükleyin
+## 📈 Monitoring
 
-### Security Checklist
+### Coolify Logs
+```
+Coolify → Application → Logs (Real-time)
+```
 
-- [ ] APP_DEBUG=false
-- [ ] APP_KEY oluşturuldu
-- [ ] Güçlü database şifreleri
-- [ ] HTTPS kullanımı
-- [ ] CORS doğru yapılandırıldı
-- [ ] Rate limiting aktif
-- [ ] Backup stratejisi mevcut
+### Database Monitoring
+```bash
+# Connection count
+psql "$DATABASE_URL" -c "SELECT count(*) FROM pg_stat_activity;"
 
+# Database size
+psql "$DATABASE_URL" -c "SELECT pg_size_pretty(pg_database_size('postgres'));"
+```
+
+### Application Health
+```bash
+# Server çalışıyor mu?
+curl https://test-sms-link.com.tr
+
+# SSL valid mi?
+openssl s_client -connect test-sms-link.com.tr:443
+```
+
+---
+
+## 🛠️ Development Commands
+
+```bash
+# Development server (hot reload)
+npm run dev
+
+# Production build
+npm run build
+
+# Start production server
+npm start
+
+# Type check
+npm run lint
+
+# Prisma Studio (Database GUI)
+npx prisma studio  # → http://localhost:5555
+
+# Database reset
+psql -U postgres -c "DROP DATABASE sigorta_db;"
+psql -U postgres -c "CREATE DATABASE sigorta_db;"
+psql -U postgres -d sigorta_db -f database/init.sql
+npx prisma generate
+```
+
+---
+
+## 📦 Build Configuration
+
+**`nixpacks.toml` (Coolify otomatik kullanır):**
+```toml
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["npm install --production"]
+
+[phases.build]
+cmds = [
+    "npx prisma generate",
+    "npm run build"
+]
+
+[start]
+cmd = "npm start"
+```
+
+**Build süresi:** ~2-3 dakika  
+**Runtime:** Node.js 20  
+**Process:** 1 (Monolithic)
+
+---
+
+## 🎯 Teknoloji Stack
+
+| Katman | Teknoloji |
+|--------|-----------|
+| **Framework** | Next.js 14.2 (App Router) |
+| **Language** | TypeScript 5 |
+| **Auth** | NextAuth.js v5 |
+| **ORM** | Prisma |
+| **Database** | PostgreSQL 14+ |
+| **Styling** | Tailwind CSS + Radix UI |
+| **Forms** | React Hook Form + Zod |
+| **Charts** | Recharts |
+| **Deploy** | Coolify + Nixpacks |
+
+---
+
+## ✅ Success Criteria
+
+Deploy başarılı sayılır:
+
+- [x] Site açılıyor: https://test-sms-link.com.tr
+- [x] SSL aktif (HTTPS)
+- [x] Login çalışıyor
+- [x] Dashboard data gösteriyor
+- [x] CRUD operations çalışıyor
+- [x] File upload/download çalışıyor
+- [x] Database connection başarılı
+- [x] Rol bazlı erişim kontrol çalışıyor
+
+---
+
+## 📚 Dosya Yapısı
+
+```
+proje/
+├── app/                    # Next.js pages (App Router)
+│   ├── api/               # API routes (file upload)
+│   ├── auth/              # Auth pages
+│   └── dashboard/         # Protected pages
+├── components/             # React components
+├── lib/
+│   ├── actions/           # Server Actions (Backend logic)
+│   ├── api-client.ts      # API wrapper
+│   ├── auth-context.tsx   # Auth context
+│   └── db.ts              # Prisma client
+├── prisma/
+│   └── schema.prisma      # Prisma schema (15 models)
+├── database/
+│   └── init.sql           # PostgreSQL schema + demo data
+├── public/
+│   └── uploads/           # File uploads
+├── types/                 # TypeScript types
+├── auth.config.ts         # NextAuth config
+├── middleware.ts          # Auth middleware
+├── nixpacks.toml          # Coolify build config
+├── ENV_PRODUCTION.txt     # Environment variables template
+├── ENV_LOCAL_EXAMPLE.txt  # Local development template
+├── DEPLOYMENT.md          # Bu dosya
+└── README.md              # Proje özeti
+```
+
+---
+
+## 🔗 Linkler
+
+- **Production:** https://test-sms-link.com.tr
+- **Database:** PostgreSQL (Coolify managed)
+- **Prisma Studio (Local):** http://localhost:5555
+- **Next.js Docs:** https://nextjs.org/docs
+- **Prisma Docs:** https://www.prisma.io/docs
+- **NextAuth Docs:** https://next-auth.js.org
+- **Coolify Docs:** https://coolify.io/docs
+
+---
+
+## 🎉 Özet
+
+### Production Deployment (Coolify)
+1. ✅ PostgreSQL oluştur
+2. ✅ `database/init.sql` yükle (Query Editor)
+3. ✅ Next.js app ekle (Git repo)
+4. ✅ Environment variables ayarla (4 değişken)
+5. ✅ Persistent volume ekle (`/app/public/uploads`)
+6. ✅ Domain bağla (SSL otomatik)
+7. ✅ Deploy! (~2-3 dk)
+8. ✅ Test: admin@sigorta.com / password
+
+### Local Development
+1. ✅ `npm install`
+2. ✅ `.env.local` oluştur
+3. ✅ PostgreSQL database oluştur
+4. ✅ `database/init.sql` yükle
+5. ✅ `npx prisma generate`
+6. ✅ `npm run dev`
+7. ✅ Test: http://localhost:3000
+
+---
+
+**Hazır! 🚀**
+
+**Domain:** https://test-sms-link.com.tr  
+**Stack:** Next.js 14 Full-Stack + Prisma + PostgreSQL + NextAuth.js  
+**Demo Login:** admin@sigorta.com / password
+
+**Başarılar! 🎯**

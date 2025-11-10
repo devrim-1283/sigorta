@@ -1,7 +1,8 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { authApi, apiClient } from '@/lib/api-client'
+import { signIn as nextAuthSignIn, signOut as nextAuthSignOut, useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import type { UserRole } from '@/lib/role-config'
 
 interface User {
@@ -24,7 +25,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null
-  token: string | null
+  token: string | null // Deprecated, kept for compatibility
   login: (credentials: { email?: string; phone?: string; tc_no?: string; password: string }) => Promise<void>
   logout: () => Promise<void>
   isLoading: boolean
@@ -34,78 +35,65 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { data: session, status } = useSession()
   const [user, setUser] = useState<User | null>(null)
-  const [token, setToken] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
+  const isLoading = status === 'loading'
 
   useEffect(() => {
-    // Check for stored token on mount
-    if (typeof window !== 'undefined') {
-      const storedToken = localStorage.getItem('auth_token')
-      if (storedToken) {
-        setToken(storedToken)
-        apiClient.setToken(storedToken)
-        // Fetch user data
-        fetchUser()
-      } else {
-        setIsLoading(false)
-      }
+    if (session?.user) {
+      // Map NextAuth session to our User type
+      setUser({
+        id: parseInt(session.user.id),
+        name: session.user.name || '',
+        email: session.user.email || undefined,
+        role: {
+          id: session.user.roleId,
+          name: session.user.role as UserRole,
+          display_name: session.user.role,
+        },
+        dealer: session.user.dealerId ? {
+          id: session.user.dealerId,
+          dealer_name: ''
+        } : undefined,
+        is_active: session.user.isActive,
+      })
+    } else {
+      setUser(null)
     }
-  }, [])
-
-  const fetchUser = async () => {
-    try {
-      const response = await authApi.me()
-      setUser(response.user)
-    } catch (error) {
-      console.error('Failed to fetch user:', error)
-      // Clear invalid token
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('auth_token')
-      }
-      setToken(null)
-      apiClient.setToken(null)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  }, [session])
 
   const login = async (credentials: { email?: string; phone?: string; tc_no?: string; password: string }) => {
-    try {
-      const response = await authApi.login(credentials)
-      setToken(response.token)
-      setUser(response.user)
-      apiClient.setToken(response.token)
-    } catch (error) {
-      console.error('Login failed:', error)
-      throw error
+    const result = await nextAuthSignIn('credentials', {
+      ...credentials,
+      redirect: false,
+    })
+
+    if (result?.error) {
+      throw new Error(result.error)
     }
+
+    // Refresh session
+    router.push('/dashboard')
+    router.refresh()
   }
 
   const logout = async () => {
-    try {
-      await authApi.logout()
-    } catch (error) {
-      console.error('Logout failed:', error)
-    } finally {
-      setToken(null)
-      setUser(null)
-      apiClient.setToken(null)
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('auth_token')
-      }
-    }
+    await nextAuthSignOut({ redirect: false })
+    setUser(null)
+    router.push('/')
+    router.refresh()
   }
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        token,
+        token: null, // Deprecated, NextAuth uses httpOnly cookies
         login,
         logout,
         isLoading,
-        isAuthenticated: !!user && !!token,
+        isAuthenticated: !!user,
       }}
     >
       {children}
@@ -120,4 +108,3 @@ export function useAuth() {
   }
   return context
 }
-

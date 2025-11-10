@@ -1,33 +1,23 @@
-# Nixpacks Configuration for Laravel + Next.js Monorepo
+# Nixpacks Configuration for Next.js Full-Stack (Monolithic)
 # Coolify deployment için optimize edilmiş yapılandırma
 
 [phases.setup]
 nixPkgs = [
-    "nodejs_20", 
-    "php82", 
-    "php82Packages.composer", 
-    "php82Extensions.pgsql", 
-    "php82Extensions.pdo_pgsql",
-    "php82Extensions.mbstring",
-    "php82Extensions.bcmath"
+    "nodejs_20"
 ]
 
 [phases.install]
 cmds = [
-    "npm install --production",
-    "cd backend && composer install --no-dev --optimize-autoloader --no-interaction"
+    "npm install --production"
 ]
 
 [phases.build]
 cmds = [
-    "npm run build",
-    "cd backend && php artisan config:cache",
-    "cd backend && php artisan route:cache",
-    "cd backend && php artisan view:cache"
+    "npx prisma generate",
+    "npm run build"
 ]
 
 [start]
-# Coolify'da Next.js standalone + Laravel backend
-# Next.js port 3000'de başlar (Coolify otomatik yönlendirir)
-# Laravel API internal 8000'de çalışır
-cmd = "cd backend && php artisan serve --host=0.0.0.0 --port=8000 & cd .. && npm start"
+# Next.js standalone server
+# Coolify otomatik olarak PORT'u yönetir
+cmd = "npm start"

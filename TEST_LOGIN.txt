@@ -1,0 +1,31 @@
+# TEST LOGIN BILGILERI
+
+## URL
+http://localhost:3000
+
+## Kullanıcılar (Hepsi: admin123)
+
+| Email | Rol | Şifre |
+|-------|-----|-------|
+| admin@sigorta.com | Süper Admin | admin123 |
+| istanbul@sigorta.com | Yönetici | admin123 |
+| ankara@sigorta.com | Acente | admin123 |
+| muhasebe@sigorta.com | Muhasebe | admin123 |
+| izmir@sigorta.com | Görüntüleyici | admin123 |
+| bursa@sigorta.com | Müdür | admin123 |
+
+## Test Adımları
+
+1. npm run dev
+2. http://localhost:3000
+3. Login: admin@sigorta.com / admin123
+4. Dashboard açılmalı
+5. Customers, Documents test et
+
+## Debug Mode
+
+DEBUG=true
+NEXT_PUBLIC_DEBUG=true
+
+Console'da detaylı loglar görünür.
+
