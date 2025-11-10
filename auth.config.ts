@@ -141,11 +141,11 @@ export const authConfig: NextAuthConfig = {
           }
 
           if (!user) {
-            throw new Error('Kullanıcı bulunamadı')
+            throw new Error('Kullanıcı adı veya şifre hatalı')
           }
 
           if (!user.is_active) {
-            throw new Error('Hesabınız aktif değil')
+            throw new Error('Hesabınız aktif değil. Lütfen yönetici ile iletişime geçin.')
           }
 
           // Verify password (bcrypt hash)
@@ -155,7 +155,7 @@ export const authConfig: NextAuthConfig = {
           )
 
           if (!isPasswordValid) {
-            throw new Error('Geçersiz şifre')
+            throw new Error('Kullanıcı adı veya şifre hatalı')
           }
 
           // Clear rate limit on successful login
