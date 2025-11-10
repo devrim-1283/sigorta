@@ -40,33 +40,33 @@ export default function CustomerLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-start justify-center p-4 pt-8 sm:pt-12 md:pt-16">
       <div className="w-full max-w-md">
         {/* Back Button */}
-        <div className="mb-6">
-          <Link href="/" className="inline-flex items-center text-slate-600 hover:text-slate-800 transition-colors">
+        <div className="mb-4 sm:mb-6">
+          <Link href="/" className="inline-flex items-center text-slate-600 hover:text-slate-800 transition-colors text-sm sm:text-base">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Ana Sayfa
           </Link>
         </div>
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600">
-              <Users className="h-8 w-8 text-white" />
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="flex justify-center mb-3 sm:mb-4">
+            <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-blue-600">
+              <Users className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">Müşteri Girişi</h1>
-          <p className="text-sm text-slate-600 mt-2">Sigorta Müşteri Portalı</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Müşteri Girişi</h1>
+          <p className="text-xs sm:text-sm text-slate-600 mt-1 sm:mt-2">Sigorta Müşteri Portalı</p>
         </div>
 
         {/* Login Form */}
-        <Card className="rounded-3xl border-2 shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-center text-xl">Müşteri Paneli</CardTitle>
+        <Card className="rounded-2xl sm:rounded-3xl border-2 shadow-lg">
+          <CardHeader className="pb-4 sm:pb-6">
+            <CardTitle className="text-center text-lg sm:text-xl">Müşteri Paneli</CardTitle>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <CardContent className="pt-0">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
               {error && (
                 <Alert className="rounded-xl border-red-200 bg-red-50">
                   <AlertDescription className="text-red-700">

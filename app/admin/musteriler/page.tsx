@@ -175,10 +175,10 @@ export default function CustomersPage() {
   const fetchCustomers = async () => {
     try {
       setLoading(true)
-      const data = await customerApi.getAll({ search: searchTerm, status: statusFilter })
+      const data = await customerApi.list({ search: searchTerm, status: statusFilter })
 
       // Transform API data to Customer interface
-      const transformedCustomers: Customer[] = (data.data || data || []).map((item: any) => ({
+      const transformedCustomers: Customer[] = (data.customers || []).map((item: any) => ({
         id: item.id,
         ad_soyad: item.ad_soyad || item.name || 'Bilinmeyen',
         tc_no: item.tc_no || '',

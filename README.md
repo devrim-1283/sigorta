@@ -122,12 +122,14 @@ npm run dev
 
 **Tüm şifreler: `admin123`**
 
-- **Süper Admin:** admin@sigorta.com
-- **Birincil Admin:** birincil@sigorta.com
-- **İkincil Admin:** ikincil@sigorta.com
-- **Evrak Birimi:** evrak@sigorta.com
-- **Bayi:** bayi@sigorta.com
-- **Müşteri:** musteri@sigorta.com
+| Rol | Email | Giriş Sayfası |
+|-----|-------|---------------|
+| **Süper Admin** | `admin@sigorta.com` | `/yonetici-giris` |
+| **Birincil Admin** | `istanbul@sigorta.com` | `/yonetici-giris` |
+| **İkincil Admin** | `bursa@sigorta.com` | `/yonetici-giris` |
+| **Bayi** | `ankara@sigorta.com` | `/bayi-giris` |
+| **Evrak Birimi** | `muhasebe@sigorta.com` | `/yonetici-giris` |
+| **Müşteri/Görüntüleyici** | `izmir@sigorta.com` | `/musteri-giris` |
 
 ## 📚 Dokümantasyon
 

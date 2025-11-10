@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -50,6 +50,7 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const { isAuthenticated, user, isLoading, logout } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
   const userRole: UserRole = (user?.role?.name as UserRole) || "superadmin"
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -217,7 +218,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                           !sidebarOpen && "justify-center px-2 py-3",
                           "data-[active=true]:bg-[#F57C00] data-[active=true]:text-white data-[active=true]:hover:bg-[#F57C00]/90"
                         )}
-                        data-active={typeof window !== 'undefined' && window.location.pathname === item.route}
+                        data-active={pathname === item.route}
                       >
                         <div className={cn(
                           "flex items-center w-full",
@@ -248,7 +249,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                               "w-full justify-start rounded-xl px-3 py-2 text-left text-sm font-medium text-white/80 hover:bg-slate-800/50 hover:text-white transition-all",
                               "data-[active=true]:bg-[#F57C00] data-[active=true]:text-white data-[active=true]:hover:bg-[#F57C00]/90"
                             )}
-                            data-active={typeof window !== 'undefined' && window.location.pathname === subItem.route}
+                            data-active={pathname === subItem.route}
                           >
                             {subItem.label}
                           </Button>
@@ -362,7 +363,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                           "w-full justify-start rounded-2xl px-3 py-2 text-left font-normal text-white/90 hover:bg-slate-800/50 hover:text-white",
                           "data-[active=true]:bg-[#F57C00] data-[active=true]:text-white data-[active=true]:hover:bg-[#F57C00]/90"
                         )}
-                        data-active={typeof window !== 'undefined' && window.location.pathname === item.route}
+                        data-active={pathname === item.route}
                       >
                         <div className="flex items-center gap-3 w-full">
                           {renderIcon(item.icon)}
@@ -382,7 +383,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                               "w-full justify-start rounded-xl px-3 py-2 text-left text-sm font-medium text-white/80 hover:bg-slate-800/50 hover:text-white",
                               "data-[active=true]:bg-[#F57C00] data-[active=true]:text-white data-[active=true]:hover:bg-[#F57C00]/90"
                             )}
-                            data-active={typeof window !== 'undefined' && window.location.pathname === subItem.route}
+                            data-active={pathname === subItem.route}
                           >
                             {subItem.label}
                           </Button>
