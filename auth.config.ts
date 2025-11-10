@@ -5,6 +5,7 @@ import prisma from '@/lib/db'
 import { validateEmail, validatePhone, validateTCNo, validatePassword, checkRateLimit, clearRateLimit } from '@/lib/validation'
 
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
   pages: {
     signIn: '/yonetici-giris',
   },
