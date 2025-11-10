@@ -73,8 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(result.error)
     }
 
-    // Refresh session
-    router.push('/dashboard')
+    // Session will be updated automatically, wait a bit then redirect
+    // The router will be handled by the page component based on role
     router.refresh()
   }
 

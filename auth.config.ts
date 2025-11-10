@@ -2,6 +2,7 @@ import type { NextAuthConfig } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import prisma from '@/lib/db'
+import { validateEmail, validatePhone, validateTCNo, validatePassword, checkRateLimit, clearRateLimit } from '@/lib/validation'
 
 export const authConfig: NextAuthConfig = {
   pages: {
@@ -60,70 +61,125 @@ export const authConfig: NextAuthConfig = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        if (!credentials?.password) {
-          throw new Error('Şifre gerekli')
-        }
+        try {
+          // Validate password first
+          if (!credentials?.password) {
+            throw new Error('Şifre gerekli')
+          }
 
-        // Determine login type
-        let user
-        if (credentials.email) {
-          user = await prisma.user.findUnique({
-            where: { email: credentials.email as string },
-            include: {
-              role: true,
-              dealer: true,
-            },
+          const passwordValidation = validatePassword(credentials.password as string)
+          if (!passwordValidation.valid) {
+            throw new Error(passwordValidation.error || 'Geçersiz şifre formatı')
+          }
+
+          // Determine login type and validate input
+          let user
+          let identifier: string
+
+          if (credentials.email) {
+            const emailValidation = validateEmail(credentials.email as string)
+            if (!emailValidation.valid) {
+              throw new Error(emailValidation.error || 'Geçersiz e-posta')
+            }
+            identifier = emailValidation.sanitized
+
+            // Rate limiting
+            const rateLimit = checkRateLimit(identifier)
+            if (!rateLimit.allowed) {
+              throw new Error(`Çok fazla deneme. ${rateLimit.resetIn} saniye sonra tekrar deneyin.`)
+            }
+
+            user = await prisma.user.findUnique({
+              where: { email: identifier },
+              include: {
+                role: true,
+                dealer: true,
+              },
+            })
+          } else if (credentials.phone) {
+            const phoneValidation = validatePhone(credentials.phone as string)
+            if (!phoneValidation.valid) {
+              throw new Error(phoneValidation.error || 'Geçersiz telefon numarası')
+            }
+            identifier = phoneValidation.sanitized
+
+            // Rate limiting
+            const rateLimit = checkRateLimit(identifier)
+            if (!rateLimit.allowed) {
+              throw new Error(`Çok fazla deneme. ${rateLimit.resetIn} saniye sonra tekrar deneyin.`)
+            }
+
+            user = await prisma.user.findUnique({
+              where: { phone: identifier },
+              include: {
+                role: true,
+                dealer: true,
+              },
+            })
+          } else if (credentials.tc_no) {
+            const tcValidation = validateTCNo(credentials.tc_no as string)
+            if (!tcValidation.valid) {
+              throw new Error(tcValidation.error || 'Geçersiz TC Kimlik No')
+            }
+            identifier = tcValidation.sanitized
+
+            // Rate limiting
+            const rateLimit = checkRateLimit(identifier)
+            if (!rateLimit.allowed) {
+              throw new Error(`Çok fazla deneme. ${rateLimit.resetIn} saniye sonra tekrar deneyin.`)
+            }
+
+            user = await prisma.user.findUnique({
+              where: { tc_no: identifier },
+              include: {
+                role: true,
+                dealer: true,
+              },
+            })
+          } else {
+            throw new Error('E-posta, telefon veya TC Kimlik No gerekli')
+          }
+
+          if (!user) {
+            throw new Error('Kullanıcı bulunamadı')
+          }
+
+          if (!user.is_active) {
+            throw new Error('Hesabınız aktif değil')
+          }
+
+          // Verify password (bcrypt hash)
+          const isPasswordValid = await bcrypt.compare(
+            credentials.password as string,
+            user.password
+          )
+
+          if (!isPasswordValid) {
+            throw new Error('Geçersiz şifre')
+          }
+
+          // Clear rate limit on successful login
+          clearRateLimit(identifier!)
+
+          // Update last login
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { last_login_at: new Date() },
           })
-        } else if (credentials.phone) {
-          user = await prisma.user.findUnique({
-            where: { phone: credentials.phone as string },
-            include: {
-              role: true,
-              dealer: true,
-            },
-          })
-        } else if (credentials.tc_no) {
-          user = await prisma.user.findUnique({
-            where: { tc_no: credentials.tc_no as string },
-            include: {
-              role: true,
-              dealer: true,
-            },
-          })
-        }
 
-        if (!user) {
-          throw new Error('Kullanıcı bulunamadı')
-        }
-
-        if (!user.is_active) {
-          throw new Error('Hesabınız aktif değil')
-        }
-
-        // Verify password (bcrypt hash from Laravel)
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password as string,
-          user.password
-        )
-
-        if (!isPasswordValid) {
-          throw new Error('Geçersiz şifre')
-        }
-
-        // Update last login
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { last_login_at: new Date() },
-        })
-
-        return {
-          id: user.id.toString(),
-          name: user.name,
-          email: user.email || undefined,
-          role: user.role.name,
-          roleId: Number(user.role_id),
-          dealerId: user.dealer_id ? Number(user.dealer_id) : null,
-          isActive: user.is_active,
+          return {
+            id: user.id.toString(),
+            name: user.name,
+            email: user.email || undefined,
+            role: user.role.name,
+            roleId: Number(user.role_id),
+            dealerId: user.dealer_id ? Number(user.dealer_id) : null,
+            isActive: user.is_active,
+          }
+        } catch (error) {
+          // Log error for monitoring
+          console.error('[Auth Error]', error)
+          throw error
         }
       },
     }),
