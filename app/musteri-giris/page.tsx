@@ -29,10 +29,22 @@ export default function CustomerLoginPage() {
     setError("")
 
     try {
+      console.log('[Müşteri Giriş] Deneniyor:', email)
       await login({ email, password })
-      // Başarılı login sonrası müşteri panel'e yönlendir
+      
+      // Role kontrolü - sadece müşteri girişine izin ver
+      const { user } = useAuth()
+      if (user?.role?.name !== 'musteri') {
+        await logout()
+        setError('Bu giriş sayfası sadece müşteriler içindir. Lütfen doğru giriş sayfasını kullanın.')
+        setIsLoading(false)
+        return
+      }
+      
+      console.log('[Müşteri Giriş] Başarılı')
       router.push("/admin/dashboard")
     } catch (err: any) {
+      console.error('[Müşteri Giriş] Hata:', err)
       setError(err.message || "Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.")
     } finally {
       setIsLoading(false)

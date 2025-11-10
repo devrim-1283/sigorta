@@ -57,6 +57,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
   const [stats, setStats] = useState<any>(null)
 
+  // Theme color based on role
+  const themeColor = userRole === 'bayi' ? '#F57C00' : '#0B3D91'
+
   const menuItems = getMenuItemsForRole(userRole, stats)
 
   const toggleSubmenu = (title: string) => {
@@ -132,7 +135,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           "fixed top-0 left-0 z-30 h-screen transition-all duration-300 ease-in-out border-r border-slate-200",
           sidebarOpen ? "w-64" : "w-20"
         )}
-        style={{ backgroundColor: "#0B3D91" }}
+        style={{ backgroundColor: themeColor }}
       >
         <div className="flex h-full flex-col">
           {/* Logo */}
@@ -312,7 +315,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out md:hidden",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
         )}
-        style={{ backgroundColor: "#0B3D91" }}
+        style={{ backgroundColor: themeColor }}
       >
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between p-4 border-b border-white/10">

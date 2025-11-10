@@ -271,11 +271,11 @@ CREATE INDEX claims_status_index ON claims(status);
 -- Insert default roles
 INSERT INTO roles (name, display_name, description) VALUES
 ('superadmin', 'Süper Admin', 'Tam sistem erişimi'),
-('admin', 'Yönetici', 'Genel yönetim yetkisi'),
-('manager', 'Müdür', 'Şube/Bölge yönetimi'),
-('agent', 'Acente', 'Müşteri işlemleri'),
-('accountant', 'Muhasebe', 'Mali işlemler'),
-('viewer', 'Görüntüleyici', 'Sadece okuma yetkisi');
+('birincil-admin', 'Birincil Admin', 'Genel yönetim yetkisi'),
+('ikincil-admin', 'İkincil Admin', 'Şube/Bölge yönetimi'),
+('bayi', 'Bayi', 'Bayi işlemleri'),
+('evrak-birimi', 'Evrak Birimi', 'Mali işlemler'),
+('musteri', 'Müşteri', 'Sadece okuma yetkisi');
 
 -- Insert default file types
 INSERT INTO file_types (name, description, required_for_approval) VALUES

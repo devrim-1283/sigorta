@@ -87,3 +87,74 @@ export async function createPolicy(data: {
   }
 }
 
+export async function getPolicy(id: number) {
+  await requireAuth()
+
+  const policy = await prisma.policy.findUnique({
+    where: { id: BigInt(id) },
+    include: {
+      customer: true,
+    },
+  })
+
+  if (!policy) {
+    throw new Error('Poliçe bulunamadı')
+  }
+
+  return {
+    ...policy,
+    id: Number(policy.id),
+    customer_id: Number(policy.customer_id),
+    premium: policy.premium.toString(),
+    coverage_amount: policy.coverage_amount?.toString(),
+  }
+}
+
+export async function updatePolicy(
+  id: number,
+  data: Partial<{
+    policy_number: string
+    policy_type: string
+    company: string
+    premium: number | string
+    coverage_amount: number | string
+    start_date: Date
+    end_date: Date
+    status: string
+    notes: string
+  }>
+) {
+  await requireAuth()
+
+  const updateData: any = { ...data }
+  if (data.premium) updateData.premium = new Decimal(data.premium.toString())
+  if (data.coverage_amount) updateData.coverage_amount = new Decimal(data.coverage_amount.toString())
+
+  const policy = await prisma.policy.update({
+    where: { id: BigInt(id) },
+    data: updateData,
+  })
+
+  revalidatePath('/dashboard/policies')
+
+  return {
+    ...policy,
+    id: Number(policy.id),
+    customer_id: Number(policy.customer_id),
+    premium: policy.premium.toString(),
+    coverage_amount: policy.coverage_amount?.toString(),
+  }
+}
+
+export async function deletePolicy(id: number) {
+  await requireAuth()
+
+  await prisma.policy.delete({
+    where: { id: BigInt(id) },
+  })
+
+  revalidatePath('/dashboard/policies')
+
+  return { success: true }
+}
+

@@ -29,10 +29,22 @@ export default function DealerLoginPage() {
     setError("")
 
     try {
+      console.log('[Bayi Giriş] Deneniyor:', email)
       await login({ email, password })
-      // Başarılı login sonrası bayi panel'e yönlendir
+      
+      // Role kontrolü - sadece bayi girişine izin ver
+      const { user } = useAuth()
+      if (user?.role?.name !== 'bayi') {
+        await logout()
+        setError('Bu giriş sayfası sadece bayiler içindir. Lütfen doğru giriş sayfasını kullanın.')
+        setIsLoading(false)
+        return
+      }
+      
+      console.log('[Bayi Giriş] Başarılı')
       router.push("/admin/dashboard")
     } catch (err: any) {
+      console.error('[Bayi Giriş] Hata:', err)
       setError(err.message || "Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.")
     } finally {
       setIsLoading(false)

@@ -30,6 +30,17 @@ export default function AdminLoginPage() {
 
     try {
       await login({ email, password })
+      
+      // Role kontrolü - sadece yönetici rolleri girişine izin ver
+      const { user } = useAuth()
+      const allowedRoles = ['superadmin', 'birincil-admin', 'ikincil-admin', 'evrak-birimi']
+      if (user?.role?.name && !allowedRoles.includes(user.role.name)) {
+        await logout()
+        setError('Bu giriş sayfası sadece yöneticiler içindir. Lütfen doğru giriş sayfasını kullanın.')
+        setIsLoading(false)
+        return
+      }
+      
       // Başarılı login sonrası admin panel'e yönlendir
       router.push("/admin/dashboard")
     } catch (err: any) {

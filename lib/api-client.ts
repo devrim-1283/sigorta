@@ -232,8 +232,24 @@ export const policyApi = {
     return await policyActions.getPolicies(params)
   },
 
+  getRecent: async (limit: number = 5) => {
+    return await policyActions.getPolicies({ limit })
+  },
+
+  get: async (id: number) => {
+    return await policyActions.getPolicy(id)
+  },
+
   create: async (data: any) => {
     return await policyActions.createPolicy(data)
+  },
+
+  update: async (id: number, data: any) => {
+    return await policyActions.updatePolicy(id, data)
+  },
+
+  delete: async (id: number) => {
+    return await policyActions.deletePolicy(id)
   },
 }
 
