@@ -3,8 +3,62 @@
 -- Mevcut production DB'yi günceller
 -- ========================================
 
--- 0. Documents tablosuna default NOW() ekle (evrak yükleme hatası düzeltmesi)
+-- 0. Tüm tablolara default NOW() ekle (Server Components render hataları düzeltmesi)
+-- Bu, tüm create işlemlerinde created_at ve updated_at'ın otomatik doldurulmasını sağlar
+
+ALTER TABLE roles
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
+ALTER TABLE dealers
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
+ALTER TABLE users
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
+ALTER TABLE file_types
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
+ALTER TABLE customers
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
 ALTER TABLE documents 
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
+ALTER TABLE payments
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
+ALTER TABLE notes
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
+ALTER TABLE notifications
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
+ALTER TABLE policies
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
+ALTER TABLE claims
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
+ALTER TABLE required_documents
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
+ALTER TABLE result_document_types
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
+ALTER TABLE accounting_transactions
   ALTER COLUMN created_at SET DEFAULT NOW(),
   ALTER COLUMN updated_at SET DEFAULT NOW();
 

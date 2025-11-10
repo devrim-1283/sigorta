@@ -15,8 +15,8 @@ model Role {
   name         String   @unique @db.VarChar(255)
   display_name String   @db.VarChar(255)
   description  String?  @db.Text
-  created_at   DateTime? @db.Timestamp()
-  updated_at   DateTime? @db.Timestamp()
+  created_at   DateTime? @default(now()) @db.Timestamp()
+  updated_at   DateTime? @default(now()) @db.Timestamp()
   
   users        User[]
   
@@ -33,8 +33,8 @@ model Dealer {
   city            String?   @db.VarChar(100)
   tax_number      String?   @db.VarChar(50)
   status          String    @default("active") @db.VarChar(20)
-  created_at      DateTime? @db.Timestamp()
-  updated_at      DateTime? @db.Timestamp()
+  created_at      DateTime? @default(now()) @db.Timestamp()
+  updated_at      DateTime? @default(now()) @db.Timestamp()
   deleted_at      DateTime? @db.Timestamp()
   
   users           User[]
@@ -56,8 +56,8 @@ model User {
   is_active         Boolean   @default(true)
   last_login_at     DateTime? @db.Timestamp()
   remember_token    String?   @db.VarChar(100)
-  created_at        DateTime? @db.Timestamp()
-  updated_at        DateTime? @db.Timestamp()
+  created_at        DateTime? @default(now()) @db.Timestamp()
+  updated_at        DateTime? @default(now()) @db.Timestamp()
   
   role              Role       @relation(fields: [role_id], references: [id], onDelete: Restrict)
   dealer            Dealer?    @relation(fields: [dealer_id], references: [id], onDelete: SetNull)
@@ -78,8 +78,8 @@ model FileType {
   name                   String     @unique @db.VarChar(255)
   description            String?    @db.Text
   required_for_approval  Boolean    @default(false)
-  created_at             DateTime?  @db.Timestamp()
-  updated_at             DateTime?  @db.Timestamp()
+  created_at             DateTime?  @default(now()) @db.Timestamp()
+  updated_at             DateTime?  @default(now()) @db.Timestamp()
   
   customers              Customer[]
   required_documents     RequiredDocument[]
@@ -130,8 +130,8 @@ model Customer {
   dosya_kapanma_nedeni    String?   @db.Text
   dosya_kapanma_tarihi    DateTime? @db.Timestamp()
   notlar                  String?   @db.Text
-  created_at              DateTime? @db.Timestamp()
-  updated_at              DateTime? @db.Timestamp()
+  created_at              DateTime? @default(now()) @db.Timestamp()
+  updated_at              DateTime? @default(now()) @db.Timestamp()
   
   file_type               FileType  @relation(fields: [file_type_id], references: [id], onDelete: Restrict)
   dealer                  Dealer?   @relation(fields: [dealer_id], references: [id], onDelete: SetNull)
@@ -184,8 +184,8 @@ model Payment {
   ödeme_yöntemi   String?   @db.VarChar(255)
   referans_no     String?   @db.VarChar(255)
   kaydeden_id     BigInt
-  created_at      DateTime? @db.Timestamp()
-  updated_at      DateTime? @db.Timestamp()
+  created_at      DateTime? @default(now()) @db.Timestamp()
+  updated_at      DateTime? @default(now()) @db.Timestamp()
   deleted_at      DateTime? @db.Timestamp()
   
   customer        Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)
@@ -200,8 +200,8 @@ model Note {
   user_id      BigInt
   içerik       String    @db.Text
   is_important Boolean   @default(false)
-  created_at   DateTime? @db.Timestamp()
-  updated_at   DateTime? @db.Timestamp()
+  created_at   DateTime? @default(now()) @db.Timestamp()
+  updated_at   DateTime? @default(now()) @db.Timestamp()
   
   customer     Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)
   user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -218,8 +218,8 @@ model Notification {
   link       String?   @db.VarChar(255)
   is_read    Boolean   @default(false)
   read_at    DateTime? @db.Timestamp()
-  created_at DateTime? @db.Timestamp()
-  updated_at DateTime? @db.Timestamp()
+  created_at DateTime? @default(now()) @db.Timestamp()
+  updated_at DateTime? @default(now()) @db.Timestamp()
   
   user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   
@@ -238,8 +238,8 @@ model Policy {
   end_date         DateTime  @db.Date
   status           String    @default("active") @db.VarChar(20)
   notes            String?   @db.Text
-  created_at       DateTime? @db.Timestamp()
-  updated_at       DateTime? @db.Timestamp()
+  created_at       DateTime? @default(now()) @db.Timestamp()
+  updated_at       DateTime? @default(now()) @db.Timestamp()
   deleted_at       DateTime? @db.Timestamp()
   
   customer         Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)
@@ -261,8 +261,8 @@ model Claim {
   handled_by       BigInt?
   approved_at      DateTime? @db.Timestamp()
   paid_at          DateTime? @db.Timestamp()
-  created_at       DateTime? @db.Timestamp()
-  updated_at       DateTime? @db.Timestamp()
+  created_at       DateTime? @default(now()) @db.Timestamp()
+  updated_at       DateTime? @default(now()) @db.Timestamp()
   deleted_at       DateTime? @db.Timestamp()
   
   customer         Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)

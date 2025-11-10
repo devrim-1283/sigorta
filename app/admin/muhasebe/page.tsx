@@ -21,12 +21,21 @@ export default function AccountingPage() {
   const userRole: UserRole = (user?.role?.name as UserRole) || "superadmin"
   const [dateRange, setDateRange] = useState("last-30-days")
   const [transactionType, setTransactionType] = useState("all")
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push("/")
     }
   }, [isAuthenticated, isLoading, router])
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchAccountingData()
+    }
+  }, [isAuthenticated, dateRange, transactionType])
 
   const handleLogout = async () => {
     try {
@@ -37,43 +46,90 @@ export default function AccountingPage() {
     }
   }
 
-  // Mock financial data
-  const financialStats = [
+  const fetchAccountingData = async () => {
+    try {
+      setLoading(true)
+      
+      // Fetch from accounting API (using payments as accounting transactions for now)
+      const paymentsData = await fetch('/api/payments').then(res => res.json())
+      const payments = paymentsData.payments || []
+      
+      // Calculate stats
+      const totalIncome = payments
+        .filter((p: any) => p.odeme_turu === 'Gelir' || p.durum === 'Ödendi')
+        .reduce((sum: number, p: any) => sum + parseFloat(p.tutar || 0), 0)
+      
+      const totalExpense = payments
+        .filter((p: any) => p.odeme_turu === 'Gider')
+        .reduce((sum: number, p: any) => sum + parseFloat(p.tutar || 0), 0)
+      
+      const pendingPayments = payments
+        .filter((p: any) => p.durum === 'Bekliyor')
+        .reduce((sum: number, p: any) => sum + parseFloat(p.tutar || 0), 0)
+      
+      setStats({
+        totalIncome,
+        totalExpense,
+        netProfit: totalIncome - totalExpense,
+        pendingPayments
+      })
+      
+      // Transform payments to transactions format
+      const transformedTransactions = payments.slice(0, 10).map((p: any) => ({
+        id: p.id,
+        description: p.aciklama || 'Ödeme',
+        amount: `₺${parseFloat(p.tutar || 0).toLocaleString('tr-TR')}`,
+        date: new Date(p.odeme_tarihi).toLocaleDateString('tr-TR'),
+        type: p.durum === 'Ödendi' ? 'income' : 'expense',
+        status: p.durum === 'Ödendi' ? 'completed' : p.durum === 'Bekliyor' ? 'pending' : 'overdue',
+        category: p.odeme_turu || 'Diğer'
+      }))
+      
+      setTransactions(transformedTransactions)
+    } catch (error) {
+      console.error('Failed to fetch accounting data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Financial stats from real data
+  const financialStats = loading || !stats ? [] : [
     {
       title: "Toplam Gelir",
-      value: "₺2.4M",
-      change: "+15%",
+      value: `₺${stats.totalIncome.toLocaleString('tr-TR')}`,
+      change: "",
       icon: TrendingUp,
       color: "#10b981",
       positive: true
     },
     {
       title: "Toplam Gider",
-      value: "₺890K",
-      change: "+8%",
+      value: `₺${stats.totalExpense.toLocaleString('tr-TR')}`,
+      change: "",
       icon: TrendingDown,
       color: "#ef4444",
       positive: false
     },
     {
       title: "Net Kâr",
-      value: "₺1.51M",
-      change: "+18%",
+      value: `₺${stats.netProfit.toLocaleString('tr-TR')}`,
+      change: "",
       icon: DollarSign,
       color: "#0B3D91",
-      positive: true
+      positive: stats.netProfit >= 0
     },
     {
       title: "Bekleyen Ödemeler",
-      value: "₺245K",
-      change: "-12%",
+      value: `₺${stats.pendingPayments.toLocaleString('tr-TR')}`,
+      change: "",
       icon: CreditCard,
       color: "#F57C00",
-      positive: true
+      positive: false
     }
   ]
 
-  const recentTransactions = [
+  const recentTransactions = transactions.length > 0 ? transactions : [
     {
       id: 1,
       description: "Müşteri Ödemesi - Ahmet Yılmaz",

@@ -103,6 +103,8 @@ export async function createPolicy(data: {
         end_date: new Date(data.end_date),
         status: data.status || 'active',
         notes: data.notes || null,
+        created_at: new Date(),
+        updated_at: new Date(),
       },
       include: {
         customer: true,

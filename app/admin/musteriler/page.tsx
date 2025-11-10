@@ -170,8 +170,13 @@ export default function CustomersPage() {
   const moduleLabel = getModuleLabel(userRole, "customer-management")
 
   // Simulate current dealer ID for bayi role
-  const currentDealerId = userRole === "bayi" ? "DEALER-001" : null
-  const currentCustomerId = userRole === "musteri" ? "CUST-001" : null
+  // Get actual dealer_id or customer_id from user
+  const currentDealerId = userRole === "bayi" && user?.dealer_id ? String(user.dealer_id) : null
+  const currentCustomerId = userRole === "musteri" && user?.id ? String(user.id) : null
+  
+  console.log('[Auth Debug] User role:', userRole)
+  console.log('[Auth Debug] Current dealer ID:', currentDealerId)
+  console.log('[Auth Debug] Current customer ID:', currentCustomerId)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -212,6 +217,7 @@ export default function CustomersPage() {
       }))
 
       console.log('[Müşteri Listesi] Transformed customers:', transformedCustomers.length)
+      console.log('[Müşteri Listesi] First customer sample:', transformedCustomers[0])
       setCustomers(transformedCustomers)
       setError("")
     } catch (err: any) {
@@ -279,6 +285,12 @@ export default function CustomersPage() {
   }
 
   const filteredCustomers = getFilteredCustomers()
+  
+  console.log('[Müşteri Listesi] Total customers:', customers.length)
+  console.log('[Müşteri Listesi] Filtered customers:', filteredCustomers.length)
+  console.log('[Müşteri Listesi] Search term:', searchTerm)
+  console.log('[Müşteri Listesi] Status filter:', statusFilter)
+  console.log('[Müşteri Listesi] User role:', userRole)
 
   // Check if dealer info should be shown
   const shouldShowDealerInfo = userRole === "bayi" || userRole === "superadmin"

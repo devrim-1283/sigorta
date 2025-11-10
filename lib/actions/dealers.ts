@@ -78,10 +78,13 @@ export async function createDealer(data: {
     data: {
       ...data,
       status: data.status || 'active',
+      created_at: new Date(),
+      updated_at: new Date(),
     },
   })
 
   revalidatePath('/dashboard/dealers')
+  revalidatePath('/admin/bayiler')
 
   return {
     ...dealer,
