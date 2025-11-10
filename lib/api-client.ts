@@ -251,6 +251,34 @@ export const fileTypeApi = {
   },
 }
 
+// Reports API (alias for dashboard)
+export const reportsApi = {
+  getStats: async () => {
+    return await dashboardActions.getDashboardStats()
+  },
+}
+
+// Documents API (alias for documentApi for compatibility)
+export const documentsApi = documentApi
+
+// Claims API (alias for claimApi for compatibility)
+export const claimsApi = claimApi
+
+// Accounting API (placeholder - to be implemented)
+export const accountingApi = {
+  list: async (params?: any) => {
+    return { transactions: [] }
+  },
+  getStats: async () => {
+    return { 
+      totalRevenue: 0,
+      totalExpenses: 0,
+      pendingPayments: 0,
+      balance: 0
+    }
+  },
+}
+
 // Export all APIs
 export default {
   auth: authApi,
@@ -264,4 +292,6 @@ export default {
   policies: policyApi,
   claims: claimApi,
   fileTypes: fileTypeApi,
+  reports: reportsApi,
+  accounting: accountingApi,
 }

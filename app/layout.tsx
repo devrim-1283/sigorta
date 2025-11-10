@@ -3,8 +3,7 @@ import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
-import { SessionProvider } from "next-auth/react"
-import { AuthProvider } from "@/lib/auth-context"
+import { Providers } from "@/components/providers"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
@@ -34,12 +33,10 @@ export default function RootLayout({
   return (
     <html lang="tr" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className={`${inter.variable} ${jetbrainsMono.variable} antialiased font-sans`}>
-        <SessionProvider>
-          <AuthProvider>
-            <Suspense fallback={null}>{children}</Suspense>
-            <Toaster />
-          </AuthProvider>
-        </SessionProvider>
+        <Providers>
+          <Suspense fallback={null}>{children}</Suspense>
+          <Toaster />
+        </Providers>
         <Analytics />
       </body>
     </html>
