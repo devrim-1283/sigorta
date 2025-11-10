@@ -12,6 +12,9 @@ import { Separator } from "@/components/ui/separator"
 import { Save, User, Bell, Shield, Database, Palette, Globe } from "lucide-react"
 import type { UserRole } from "@/lib/role-config"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default function SettingsPage() {
   const { isAuthenticated, user, isLoading, logout } = useAuth()
   const router = useRouter()

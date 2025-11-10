@@ -16,6 +16,9 @@ import { BarChart3, Users, Building2, CreditCard, TrendingUp, Shield, DollarSign
 import { dashboardApi, policyApi, claimsApi, reportsApi } from "@/lib/api-client"
 import type { UserRole } from "@/lib/role-config"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default function AdminDashboardPage() {
   const { isAuthenticated, user, isLoading } = useAuth()
   const router = useRouter()

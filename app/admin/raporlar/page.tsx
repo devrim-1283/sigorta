@@ -12,6 +12,9 @@ import { BarChart3, Download, FileText, TrendingUp, Users, DollarSign, Calendar,
 import { dashboardApi, reportsApi } from "@/lib/api-client"
 import type { UserRole } from "@/lib/role-config"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default function ReportsPage() {
   const { isAuthenticated, user, isLoading, logout } = useAuth()
   const router = useRouter()

@@ -13,6 +13,9 @@ import { Plus, Search, Filter, MoreHorizontal, Building2, MapPin, Phone, Mail, S
 import { dealerApi } from "@/lib/api-client"
 import type { UserRole } from "@/lib/role-config"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default function DealersPage() {
   const { isAuthenticated, user, isLoading, logout } = useAuth()
   const router = useRouter()

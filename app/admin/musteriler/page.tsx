@@ -23,6 +23,9 @@ import {
   Trash2,
 } from "lucide-react"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

@@ -11,6 +11,9 @@ import { Shield, Lock, Mail, Eye, EyeOff, ArrowLeft } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")

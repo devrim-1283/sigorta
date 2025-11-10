@@ -28,6 +28,9 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
+// Force dynamic rendering to avoid static generation with useContext
+export const dynamic = 'force-dynamic'
+
 const iconMap: Record<string, any> = {
   Home,
   Users,

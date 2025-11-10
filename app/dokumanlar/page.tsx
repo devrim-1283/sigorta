@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button"
 import { DocumentManagementPage } from "@/components/document-management-page"
 import type { UserRole } from "@/lib/role-config"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default function DocumentsRoutePage() {
   const { isAuthenticated, user, isLoading, logout } = useAuth()
   const router = useRouter()

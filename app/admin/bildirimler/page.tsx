@@ -11,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Bell, Check, X, Filter, Trash2, User, FileText, DollarSign, Settings, Info, AlertTriangle } from "lucide-react"
 import type { UserRole } from "@/lib/role-config"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default function NotificationsPage() {
   const { isAuthenticated, user, isLoading, logout } = useAuth()
   const router = useRouter()

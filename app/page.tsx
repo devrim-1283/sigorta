@@ -7,6 +7,9 @@ import { Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
+// Force dynamic rendering to avoid static generation with useContext
+export const dynamic = 'force-dynamic'
+
 export default function Home() {
   const { isAuthenticated, user } = useAuth()
   const router = useRouter()

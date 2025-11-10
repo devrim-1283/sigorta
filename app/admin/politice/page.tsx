@@ -12,6 +12,9 @@ import { Plus, Search, Filter, Eye, Edit, Trash2, FileText } from "lucide-react"
 import { policyApi } from "@/lib/api-client"
 import type { UserRole } from "@/lib/role-config"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default function PoliciesPage() {
   const { isAuthenticated, user, isLoading, logout } = useAuth()
   const router = useRouter()

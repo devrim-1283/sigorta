@@ -12,6 +12,9 @@ import { DollarSign, TrendingUp, TrendingDown, CreditCard, Calendar, Download, F
 import { accountingApi } from "@/lib/api-client"
 import type { UserRole } from "@/lib/role-config"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default function AccountingPage() {
   const { isAuthenticated, user, isLoading, logout } = useAuth()
   const router = useRouter()
