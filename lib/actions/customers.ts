@@ -43,7 +43,7 @@ export async function getCustomers(params?: {
     ]
   }
 
-  if (params?.status) {
+  if (params?.status && params.status !== 'all') {
     where.başvuru_durumu = params.status
   }
 
