@@ -57,7 +57,7 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { type UserRole, hasPermission, getModuleLabel } from "@/lib/role-config"
 import { FILE_TYPES, getFileTypeConfig, type FileType, type DocumentType as FileDocType } from "@/lib/file-types-config"
-import { DocumentCard, type DocumentType } from "@/components/document-card"
+import { DocumentCard, type DocumentType, type DocumentStatus } from "@/components/document-card"
 import { DocumentUploadModal } from "@/components/document-upload-modal"
 import { customerApi, documentsApi, documentApi, dealerApi } from "@/lib/api-client"
 
@@ -481,6 +481,21 @@ export default function CustomersPage() {
 
   const filteredCustomers = getFilteredCustomers()
   
+  const mapDocuments = (docs: any[] = []) =>
+    docs.map((d) => ({
+      id: d.id?.toString?.() ?? String(d.id ?? ''),
+      tip: d.tip as DocumentType,
+      dosya_adı: d.dosya_adı || d.belge_adi || 'Belge',
+      dosya_yolu: d.dosya_yolu,
+      mime_type: d.mime_type,
+      yüklenme_tarihi: d.yüklenme_tarihi
+        ? new Date(d.yüklenme_tarihi).toLocaleString('tr-TR')
+        : d.created_at
+          ? new Date(d.created_at).toLocaleString('tr-TR')
+          : undefined,
+      durum: (d.durum || 'Beklemede') as DocumentStatus,
+    }))
+  
   console.log('[Müşteri Listesi] Total customers:', customers.length)
   console.log('[Müşteri Listesi] Filtered customers:', filteredCustomers.length)
   console.log('[Müşteri Listesi] Search term:', searchTerm)
@@ -530,7 +545,7 @@ export default function CustomersPage() {
             hasar_tarihi: response.hasar_tarihi || response.damage_date || '',
             başvuru_durumu: response.başvuru_durumu || 'İnceleniyor',
             ödemeler: response.ödemeler || [],
-            evraklar: response.evraklar || response.documents || [],
+            evraklar: mapDocuments(response.evraklar || response.documents || []),
             bağlı_bayi_id: response.bağlı_bayi_id || '',
             bağlı_bayi_adı: response.bağlı_bayi_adı || 'Belirtilmemiş',
             notlar: response.notlar || response.notes || [],
@@ -661,7 +676,7 @@ export default function CustomersPage() {
                 hasar_tarihi: response.hasar_tarihi || response.damage_date || '',
                 başvuru_durumu: response.başvuru_durumu || 'İnceleniyor',
                 ödemeler: response.ödemeler || [],
-                evraklar: response.evraklar || response.documents || [],
+                evraklar: mapDocuments(response.evraklar || response.documents || []),
                 bağlı_bayi_id: response.bağlı_bayi_id || '',
                 bağlı_bayi_adı: response.bağlı_bayi_adı || 'Belirtilmemiş',
                 notlar: response.notlar || response.notes || [],
@@ -918,7 +933,7 @@ export default function CustomersPage() {
           hasar_tarihi: response.hasar_tarihi || response.damage_date || '',
           başvuru_durumu: response.başvuru_durumu || 'İnceleniyor',
           ödemeler: response.ödemeler || [],
-          evraklar: response.evraklar || response.documents || [],
+          evraklar: mapDocuments(response.evraklar || response.documents || []),
           bağlı_bayi_id: response.bağlı_bayi_id || '',
           bağlı_bayi_adı: response.bağlı_bayi_adı || 'Belirtilmemiş',
           notlar: response.notlar || response.notes || [],

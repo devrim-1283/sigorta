@@ -191,6 +191,7 @@ export async function uploadDocument(formData: FormData) {
 
     revalidatePath('/admin/musteriler')
     revalidatePath('/dashboard/documents')
+    revalidatePath('/dashboard/customers')
 
     return {
       ...document,

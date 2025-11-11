@@ -40,7 +40,7 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { type UserRole, hasPermission, getModuleLabel } from "@/lib/role-config"
 import { FILE_TYPES, getFileTypeConfig, type FileType, type DocumentType as FileDocType } from "@/lib/file-types-config"
-import { DocumentCard, type DocumentType } from "./document-card"
+import { DocumentCard, type DocumentType, type DocumentStatus } from "./document-card"
 import { DocumentUploadModal } from "./document-upload-modal"
 import { useCustomers } from "@/hooks/use-customers"
 import { customerApi, fileTypeApi, documentApi, dealerApi } from "@/lib/api-client"
@@ -262,11 +262,17 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
         durum: p.durum,
       })),
       evraklar: (apiCustomer.documents || []).map((d: any) => ({
-        id: d.id.toString(),
-        tip: d.tip,
-        dosya_adı: d.dosya_adı,
-        yüklenme_tarihi: d.yüklenme_tarihi,
-        durum: d.durum,
+        id: d.id?.toString?.() ?? String(d.id ?? ''),
+        tip: d.tip as DocumentType,
+        dosya_adı: d.dosya_adı || d.belge_adi || 'Belge',
+        yüklenme_tarihi: d.yüklenme_tarihi
+          ? new Date(d.yüklenme_tarihi).toLocaleString('tr-TR')
+          : d.created_at
+            ? new Date(d.created_at).toLocaleString('tr-TR')
+            : undefined,
+        durum: (d.durum || 'Beklemede') as DocumentStatus,
+        dosya_yolu: d.dosya_yolu,
+        mime_type: d.mime_type,
       })),
       notlar: (apiCustomer.notes || []).map((n: any) => ({
         id: n.id?.toString?.() ?? String(n.id ?? ''),

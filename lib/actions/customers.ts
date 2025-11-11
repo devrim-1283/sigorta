@@ -101,11 +101,14 @@ export async function getCustomers(params?: {
         id: Number(c.dealer.id),
         dealer_name: c.dealer.dealer_name,
       } : null,
-      documents: c.documents?.map(d => ({
+      documents: c.documents?.filter((d: any) => !d.deleted_at).map(d => ({
         id: Number(d.id),
         tip: d.tip,
-        dosya_adı: (d as any).dosya_adı || 'Belge',
+        dosya_adı: (d as any).dosya_adı || (d as any).belge_adi || 'Belge',
+        dosya_yolu: d.dosya_yolu,
         durum: d.durum,
+        mime_type: d.mime_type,
+        yüklenme_tarihi: d.created_at ? d.created_at.toISOString() : null,
       })) || [],
       payments: c.payments?.map(p => ({
         id: Number(p.id),

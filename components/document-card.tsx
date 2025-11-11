@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import type { UserRole } from "@/lib/role-config"
 
-export type DocumentType = "Kimlik" | "Ruhsat" | "Kaza Fotoğrafları" | "Vekaletname" | "Diğer"
+export type DocumentType = "Kimlik" | "Ruhsat" | "Kaza Fotoğrafları" | "Vekaletname" | "Diğer" | string
 export type DocumentStatus = "Onaylandı" | "Beklemede" | "Reddedildi" | "Eksik"
 
 export interface DocumentData {
@@ -19,6 +19,8 @@ export interface DocumentData {
   durum: DocumentStatus
   müşteri_adı?: string
   bayi_adı?: string
+  dosya_yolu?: string
+  mime_type?: string
 }
 
 interface DocumentCardProps {
