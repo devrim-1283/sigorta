@@ -224,38 +224,35 @@ export default function AccountingPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4 md:p-6 pb-20 md:pb-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <img src="/oksijen-logo.png" alt="Logo" className="h-12 w-12 object-contain" />
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 md:mb-8">
+          <div className="flex items-center gap-3 md:gap-4">
+            <img src="/oksijen-logo.png" alt="Logo" className="h-10 w-10 md:h-12 md:w-12 object-contain" />
             <div>
-              <h1 className="text-3xl font-bold text-slate-800">Muhasebe</h1>
-              <p className="text-sm text-slate-600">Finansal yönetim ve raporlama</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Muhasebe</h1>
+              <p className="text-xs md:text-sm text-slate-600">Finansal yönetim ve raporlama</p>
             </div>
           </div>
           <Button
             onClick={handleLogout}
             variant="outline"
-            className="rounded-2xl border-2 font-medium bg-transparent"
+            className="rounded-2xl border-2 font-medium bg-transparent hidden md:inline-flex"
           >
             Çıkış Yap
           </Button>
         </div>
 
         {/* Header Actions */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
-          <div></div>
-          <div className="flex gap-3">
-            <Button variant="outline" className="rounded-2xl bg-transparent">
-              <Download className="mr-2 h-4 w-4" />
-              Rapor İndir
-            </Button>
-            <Button className="rounded-2xl" style={{ backgroundColor: "#F57C00", color: "white" }}>
-              <Plus className="mr-2 h-4 w-4" />
-              Yeni İşlem
-            </Button>
-          </div>
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <Button variant="outline" className="rounded-2xl bg-transparent w-full sm:w-auto">
+            <Download className="mr-2 h-4 w-4" />
+            Rapor İndir
+          </Button>
+          <Button className="rounded-2xl w-full sm:w-auto" style={{ backgroundColor: "#F57C00", color: "white" }}>
+            <Plus className="mr-2 h-4 w-4" />
+            Yeni İşlem
+          </Button>
         </div>
 
         {/* Filters */}
@@ -335,50 +332,50 @@ export default function AccountingPage() {
         {/* Recent Transactions */}
         <Card className="rounded-3xl border-2 mb-6">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" style={{ color: "#0B3D91" }} />
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <DollarSign className="h-4 w-4 md:h-5 md:w-5" style={{ color: "#0B3D91" }} />
               Son İşlemler
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+          <CardContent className="p-3 md:p-6">
+            <div className="space-y-3 md:space-y-4">
               {recentTransactions.map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center justify-between p-4 rounded-2xl border-2 hover:border-primary/50 transition-all"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 md:p-4 rounded-2xl border-2 hover:border-primary/50 transition-all"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3 md:gap-4">
                     <div
-                      className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+                      className={`flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-2xl shrink-0 ${
                         transaction.type === 'income' ? 'bg-green-600' : 'bg-red-600'
                       }`}
                     >
                       {transaction.type === 'income' ? (
-                        <TrendingUp className="h-6 w-6 text-white" />
+                        <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-white" />
                       ) : (
-                        <TrendingDown className="h-6 w-6 text-white" />
+                        <TrendingDown className="h-5 w-5 md:h-6 md:w-6 text-white" />
                       )}
                     </div>
-                    <div>
-                      <p className="font-semibold">{transaction.description}</p>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm md:text-base truncate">{transaction.description}</p>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="text-xs md:text-sm text-muted-foreground flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           {transaction.date}
                         </span>
-                        <Badge variant="outline" className={
+                        <Badge variant="outline" className={`text-xs ${
                           transaction.status === 'completed' ? 'bg-green-100 text-green-800 border-green-200' :
                           transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
                           'bg-red-100 text-red-800 border-red-200'
-                        }>
+                        }`}>
                           {transaction.status === 'completed' ? 'Tamamlandı' :
                            transaction.status === 'pending' ? 'Beklemede' : 'Gecikmiş'}
                         </Badge>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`text-xl font-bold ${
+                  <div className="text-left sm:text-right">
+                    <p className={`text-lg md:text-xl font-bold ${
                       transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
                     }`}>
                       {transaction.type === 'income' ? '+' : '-'}{transaction.amount}
@@ -393,13 +390,13 @@ export default function AccountingPage() {
         {/* Invoices */}
         <Card className="rounded-3xl border-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" style={{ color: "#0B3D91" }} />
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <FileText className="h-4 w-4 md:h-5 md:w-5" style={{ color: "#0B3D91" }} />
               Faturalar
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
+          <CardContent className="p-3 md:p-6">
+            <div className="overflow-x-auto -mx-3 md:mx-0">
               <table className="w-full">
                 <thead>
                   <tr className="border-b-2 border-slate-200">
