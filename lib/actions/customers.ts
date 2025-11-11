@@ -372,7 +372,7 @@ export async function updateCustomer(id: number, data: Partial<{
   telefon: string
   email: string
   plaka: string
-  hasar_tarihi: Date
+  hasar_tarihi: Date | string
   file_type_id: number
   dealer_id: number
   başvuru_durumu: string
@@ -385,6 +385,12 @@ export async function updateCustomer(id: number, data: Partial<{
   const updateData: any = { ...data }
   if (data.file_type_id) updateData.file_type_id = BigInt(data.file_type_id)
   if (data.dealer_id) updateData.dealer_id = BigInt(data.dealer_id)
+  if (data.hasar_tarihi) {
+    updateData.hasar_tarihi =
+      typeof data.hasar_tarihi === 'string'
+        ? new Date(data.hasar_tarihi)
+        : data.hasar_tarihi
+  }
 
   const customer = await prisma.customer.update({
     where: { id: BigInt(id) },
