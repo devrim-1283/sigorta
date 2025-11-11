@@ -61,12 +61,48 @@ export async function getCustomers(params?: {
     prisma.customer.count({ where }),
   ])
 
+  // Serialize customers for Next.js (convert BigInt and Date to JSON-safe types)
   return {
     customers: customers.map(c => ({
-      ...c,
       id: Number(c.id),
+      ad_soyad: c.ad_soyad,
+      tc_no: c.tc_no,
+      telefon: c.telefon,
+      email: c.email,
+      plaka: c.plaka,
+      hasar_tarihi: c.hasar_tarihi.toISOString().split('T')[0],
       file_type_id: Number(c.file_type_id),
       dealer_id: c.dealer_id ? Number(c.dealer_id) : null,
+      başvuru_durumu: c.başvuru_durumu,
+      evrak_durumu: c.evrak_durumu,
+      dosya_kilitli: c.dosya_kilitli,
+      created_at: c.created_at.toISOString(),
+      updated_at: c.updated_at.toISOString(),
+      file_type: c.file_type ? {
+        id: Number(c.file_type.id),
+        name: c.file_type.name,
+      } : null,
+      dealer: c.dealer ? {
+        id: Number(c.dealer.id),
+        dealer_name: c.dealer.dealer_name,
+      } : null,
+      documents: c.documents?.map(d => ({
+        id: Number(d.id),
+        tip: d.tip,
+        dosya_adı: d.dosya_adi_orijinal,
+        durum: d.durum,
+      })) || [],
+      payments: c.payments?.map(p => ({
+        id: Number(p.id),
+        tutar: Number(p.tutar),
+        tarih: p.tarih.toISOString().split('T')[0],
+        durum: p.durum,
+      })) || [],
+      notes: c.notes?.map(n => ({
+        id: Number(n.id),
+        note: n.note,
+        created_at: n.created_at.toISOString(),
+      })) || [],
     })),
     total,
   }
@@ -176,82 +212,106 @@ export async function createCustomer(data: {
 
     console.log('[createCustomer] Customer created successfully:', customer.id)
 
-  // Auto-create user account for customer with role 'musteri'
-  try {
-    // Get musteri role
-    const musteriRole = await prisma.role.findFirst({
-      where: { name: 'musteri' }
-    })
-
-    if (!musteriRole) {
-      console.error('Musteri role not found in database')
-    } else {
-      // Check if user already exists with this TC No or phone
-      const existingUser = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { tc_no: data.tc_no },
-            { phone: data.telefon },
-            ...(data.email ? [{ email: data.email }] : [])
-          ]
-        }
+    // Auto-create user account for customer with role 'musteri'
+    let loginCredentials = null
+    try {
+      // Get musteri role
+      const musteriRole = await prisma.role.findFirst({
+        where: { name: 'musteri' }
       })
 
-      if (!existingUser) {
-        // Generate random password
-        const randomPassword = generateRandomPassword(12)
-        const hashedPassword = await bcrypt.hash(randomPassword, 12)
-
-        // Create user account
-        const newUser = await prisma.user.create({
-          data: {
-            name: data.ad_soyad,
-            tc_no: data.tc_no,
-            phone: data.telefon,
-            email: data.email || null,
-            password: hashedPassword,
-            role_id: musteriRole.id,
-            is_active: true,
+      if (!musteriRole) {
+        console.error('Musteri role not found in database')
+      } else {
+        // Check if user already exists with this TC No or phone
+        const existingUser = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { tc_no: data.tc_no },
+              { phone: data.telefon },
+              ...(data.email ? [{ email: data.email }] : [])
+            ]
           }
         })
 
-        console.log('Customer user account created:', {
-          userId: Number(newUser.id),
-          username: data.tc_no || data.telefon || data.email,
-          password: randomPassword, // This will be shown to Evrak Birimi
-        })
+        if (!existingUser) {
+          // Generate random password
+          const randomPassword = generateRandomPassword(12)
+          const hashedPassword = await bcrypt.hash(randomPassword, 12)
 
-        // Return customer with login credentials
-        revalidatePath('/dashboard/customers')
+          // Create user account
+          const newUser = await prisma.user.create({
+            data: {
+              name: data.ad_soyad,
+              tc_no: data.tc_no,
+              phone: data.telefon,
+              email: data.email || null,
+              password: hashedPassword,
+              role_id: musteriRole.id,
+              is_active: true,
+            }
+          })
 
-        return {
-          ...customer,
-          id: Number(customer.id),
-          file_type_id: Number(customer.file_type_id),
-          dealer_id: customer.dealer_id ? Number(customer.dealer_id) : null,
-          loginCredentials: {
+          console.log('Customer user account created:', {
+            userId: Number(newUser.id),
+            username: data.tc_no || data.telefon || data.email,
+            password: randomPassword,
+          })
+
+          loginCredentials = {
             username: data.tc_no || data.telefon || data.email,
             password: randomPassword,
             loginUrl: '/musteri-giris'
           }
+        } else {
+          console.log('User already exists for this customer, skipping user creation')
         }
-      } else {
-        console.log('User already exists for this customer, skipping user creation')
       }
+    } catch (error) {
+      console.error('Failed to create user account for customer:', error)
+      // Continue even if user creation fails - customer is already created
     }
-  } catch (error) {
-    console.error('Failed to create user account for customer:', error)
-    // Continue even if user creation fails - customer is already created
-  }
 
     revalidatePath('/dashboard/customers')
 
-    return {
-      ...customer,
+    // Serialize the customer object for Next.js (convert BigInt and Date to JSON-safe types)
+    const result = {
       id: Number(customer.id),
+      ad_soyad: customer.ad_soyad,
+      tc_no: customer.tc_no,
+      telefon: customer.telefon,
+      email: customer.email,
+      plaka: customer.plaka,
+      hasar_tarihi: customer.hasar_tarihi.toISOString().split('T')[0],
       file_type_id: Number(customer.file_type_id),
       dealer_id: customer.dealer_id ? Number(customer.dealer_id) : null,
+      başvuru_durumu: customer.başvuru_durumu,
+      evrak_durumu: customer.evrak_durumu,
+      dosya_kilitli: customer.dosya_kilitli,
+      dosya_kapanma_nedeni: customer.dosya_kapanma_nedeni,
+      dosya_kapanma_tarihi: customer.dosya_kapanma_tarihi?.toISOString() || null,
+      notlar: customer.notlar,
+      created_at: customer.created_at.toISOString(),
+      updated_at: customer.updated_at.toISOString(),
+      file_type: customer.file_type ? {
+        id: Number(customer.file_type.id),
+        name: customer.file_type.name,
+        description: customer.file_type.description,
+        required_for_approval: customer.file_type.required_for_approval,
+      } : null,
+      dealer: customer.dealer ? {
+        id: Number(customer.dealer.id),
+        dealer_name: customer.dealer.dealer_name,
+        contact_person: customer.dealer.contact_person,
+        phone: customer.dealer.phone,
+        email: customer.dealer.email,
+      } : null,
+      ...(loginCredentials && { loginCredentials })
     }
+
+    console.log('[createCustomer] Returning serialized result')
+    
+    return result
   } catch (error: any) {
     console.error('[createCustomer] Error occurred:', error)
     console.error('[createCustomer] Error stack:', error.stack)

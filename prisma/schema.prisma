@@ -124,14 +124,14 @@ model Customer {
   hasar_tarihi            DateTime  @db.Date
   file_type_id            BigInt
   dealer_id               BigInt?
-  başvuru_durumu          String    @default("Evrak Aşamasında") @db.VarChar(50)
+  başvuru_durumu          String    @default("İnceleniyor") @db.VarChar(100)
   evrak_durumu            String    @default("Eksik") @db.VarChar(20)
   dosya_kilitli           Boolean   @default(false)
   dosya_kapanma_nedeni    String?   @db.Text
   dosya_kapanma_tarihi    DateTime? @db.Timestamp()
   notlar                  String?   @db.Text
-  created_at              DateTime? @default(now()) @db.Timestamp()
-  updated_at              DateTime? @default(now()) @db.Timestamp()
+  created_at              DateTime  @default(now()) @db.Timestamp()
+  updated_at              DateTime  @default(now()) @db.Timestamp()
   
   file_type               FileType  @relation(fields: [file_type_id], references: [id], onDelete: Restrict)
   dealer                  Dealer?   @relation(fields: [dealer_id], references: [id], onDelete: SetNull)
