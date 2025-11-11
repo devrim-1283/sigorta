@@ -91,15 +91,30 @@ export async function createDealer(data: {
 }) {
   await requireAuth()
 
+  // Validate that email and password are provided for dealer login
+  if (!data.email || !data.email.trim()) {
+    throw new Error('Bayi girişi için e-posta adresi gereklidir')
+  }
+
+  if (!data.password || !data.password.trim()) {
+    throw new Error('Bayi girişi için şifre gereklidir')
+  }
+
+  if (data.password.trim().length < 8) {
+    throw new Error('Şifre en az 8 karakter olmalıdır')
+  }
+
   try {
     return await prisma.$transaction(async (tx) => {
+      const trimmedEmail = data.email.trim().toLowerCase()
+
       // Check for duplicate dealer phone or tax number before creation
       const existingDealer = await tx.dealer.findFirst({
         where: {
           OR: [
             { phone: data.phone },
             ...(data.tax_number ? [{ tax_number: data.tax_number }] : []),
-            ...(data.email ? [{ email: data.email }] : []),
+            { email: trimmedEmail },
           ],
         },
         select: { id: true, dealer_name: true },
@@ -109,28 +124,28 @@ export async function createDealer(data: {
         throw new Error('Bu telefon, vergi numarası veya e-posta ile kayıtlı bir bayi zaten var')
       }
 
-      if (data.email) {
-        const existingUserWithEmail = await tx.user.findFirst({
-          where: {
-            OR: [
-              { email: data.email },
-              { phone: data.phone },
-            ],
-          },
-          select: { id: true },
-        })
+      // Check if email or phone is already used by another user
+      const existingUserWithEmail = await tx.user.findFirst({
+        where: {
+          OR: [
+            { email: trimmedEmail },
+            { phone: data.phone },
+          ],
+        },
+        select: { id: true },
+      })
 
-        if (existingUserWithEmail) {
-          throw new Error('Bu e-posta veya telefon numarası başka bir kullanıcı tarafından kullanılıyor')
-        }
+      if (existingUserWithEmail) {
+        throw new Error('Bu e-posta veya telefon numarası başka bir kullanıcı tarafından kullanılıyor')
       }
 
+      // Create dealer
       const dealer = await tx.dealer.create({
         data: {
           dealer_name: data.dealer_name,
           contact_person: data.contact_person || null,
           phone: data.phone,
-          email: data.email || null,
+          email: trimmedEmail,
           address: data.address || null,
           city: data.city || null,
           tax_number: data.tax_number || null,
@@ -140,23 +155,23 @@ export async function createDealer(data: {
         },
       })
 
-      if (data.email && data.password) {
-        const hashedPassword = await bcrypt.hash(data.password, 12)
-        const dealerRoleId = await getDealerRoleId(tx)
-        await tx.user.create({
-          data: {
-            name: data.dealer_name,
-            email: data.email,
-            phone: data.phone,
-            password: hashedPassword,
-            role_id: dealerRoleId,
-            dealer_id: dealer.id,
-            is_active: true,
-            created_at: new Date(),
-            updated_at: new Date(),
-          },
-        })
-      }
+      // Always create user account for dealer login (email and password are required)
+      const hashedPassword = await bcrypt.hash(data.password.trim(), 12)
+      const dealerRoleId = await getDealerRoleId(tx)
+      
+      await tx.user.create({
+        data: {
+          name: data.dealer_name,
+          email: trimmedEmail,
+          phone: data.phone,
+          password: hashedPassword,
+          role_id: dealerRoleId,
+          dealer_id: dealer.id,
+          is_active: true,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      })
 
       revalidatePath('/dashboard/dealers')
       revalidatePath('/admin/bayiler')

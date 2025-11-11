@@ -104,7 +104,7 @@ export async function getCustomers(params?: {
         id: Number(c.dealer.id),
         dealer_name: c.dealer.dealer_name,
       } : null,
-      documents: c.documents?.filter((d: any) => !d.deleted_at).map(d => ({
+      documents: c.documents?.map(d => ({
         id: Number(d.id),
         tip: d.tip,
         dosya_adı: (d as any).dosya_adı || (d as any).belge_adi || 'Belge',
@@ -218,7 +218,6 @@ export async function getCustomer(id: number) {
       : null,
     documents:
       customer.documents
-        ?.filter((doc: any) => !doc.deleted_at)
         .map((doc: any) => ({
           id: Number(doc.id),
           customer_id: Number(doc.customer_id),

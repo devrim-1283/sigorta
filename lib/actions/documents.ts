@@ -37,7 +37,6 @@ function serializeDocument(doc: NonNullable<DocumentRecord>) {
     onay_tarihi: serializeDate(doc.onay_tarihi),
     created_at: serializeDate(doc.created_at),
     updated_at: serializeDate(doc.updated_at),
-    deleted_at: serializeDate((doc as any).deleted_at ?? null),
   }
 }
 
@@ -273,14 +272,20 @@ export async function deleteDocument(id: number) {
     throw new Error('Döküman bulunamadı')
   }
 
-  const filePath = resolveDocumentPath(document.dosya_yolu)
-  if (filePath && existsSync(filePath)) {
-    await unlink(filePath)
+  // Try to delete physical file
+  try {
+    const filePath = resolveDocumentPath(document.dosya_yolu)
+    if (filePath && existsSync(filePath)) {
+      await unlink(filePath)
+    }
+  } catch (fileError) {
+    console.error('File deletion error (continuing with DB delete):', fileError)
+    // Continue even if file deletion fails
   }
 
-  await prisma.document.update({
+  // Hard delete from database (deleted_at field doesn't exist in schema)
+  await prisma.document.delete({
     where: { id: BigInt(id) },
-    data: { deleted_at: new Date() },
   })
 
   revalidatePath('/dashboard/documents')

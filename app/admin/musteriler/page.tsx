@@ -740,6 +740,26 @@ export default function CustomersPage() {
   // New file creation handler
   const handleCreateNewFile = async () => {
     try {
+      // Client-side validation before API call
+      const tcNoDigits = newFileData.tc_no.replace(/\D/g, '')
+      if (tcNoDigits.length > 11) {
+        toast({
+          title: 'Geçersiz TC Kimlik No',
+          description: 'TC Kimlik No 11 haneli olmalıdır. Lütfen kontrol edin.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      if (tcNoDigits.length < 11 && tcNoDigits.length > 0) {
+        toast({
+          title: 'Geçersiz TC Kimlik No',
+          description: 'TC Kimlik No 11 haneli olmalıdır. Lütfen eksik haneleri tamamlayın.',
+          variant: 'destructive',
+        })
+        return
+      }
+
       const fileTypeConfig = newFileData.dosya_tipi ? getFileTypeConfig(Number(newFileData.dosya_tipi)) : null
       let initialStatus: ApplicationStatus = "İnceleniyor"
 
@@ -820,6 +840,7 @@ export default function CustomersPage() {
         
         let errorMessage = 'Bilinmeyen hata oluştu'
         
+        // Extract error message from various error formats
         if (error?.message) {
           errorMessage = error.message
         } else if (error?.error) {
@@ -830,19 +851,50 @@ export default function CustomersPage() {
           errorMessage = error.toString()
         }
         
-        // Show toast notification instead of setError
+        // Remove "Server Components render" prefix if present
+        if (errorMessage.includes('Server Components render')) {
+          // Try to extract the actual error message
+          const match = errorMessage.match(/Error: (.+)/)
+          if (match && match[1]) {
+            errorMessage = match[1]
+          }
+        }
+        
+        // Normalize error message for checking
         const normalized = errorMessage.toLowerCase()
         const isAlreadyExists =
           normalized.includes('zaten var') ||
           normalized.includes('kayıtlı') ||
           normalized.includes('unique') ||
           normalized.includes('benzersiz') ||
-          normalized.includes('mevcut kaydı')
+          normalized.includes('mevcut kaydı') ||
+          normalized.includes('duplicate')
         
+        const isTCError = 
+          normalized.includes('tc') ||
+          normalized.includes('kimlik') ||
+          normalized.includes('11 haneli')
+        
+        const isPhoneError = 
+          normalized.includes('telefon') ||
+          normalized.includes('phone')
+        
+        // Determine toast title based on error type
+        let toastTitle = 'Hata'
+        if (isAlreadyExists) {
+          toastTitle = 'Müşteri Zaten Kayıtlı'
+        } else if (isTCError) {
+          toastTitle = 'TC Kimlik No Hatası'
+        } else if (isPhoneError) {
+          toastTitle = 'Telefon Numarası Hatası'
+        }
+        
+        // Show toast notification
         toast({
-          title: isAlreadyExists ? 'Müşteri Zaten Kayıtlı' : 'Hata',
+          title: toastTitle,
           description: errorMessage,
           variant: 'destructive',
+          duration: 5000, // Show for 5 seconds
         })
         
         setError("") // Clear error state
@@ -1945,15 +1997,27 @@ export default function CustomersPage() {
                 </div>
                 <div>
                   <Label htmlFor="tc_no" className="text-sm font-semibold mb-2">
-                    TC Kimlik No *
+                    TC Kimlik No * {newFileData.tc_no && (
+                      <span className="text-xs text-gray-500 ml-2">
+                        ({newFileData.tc_no.replace(/\D/g, '').length}/11)
+                      </span>
+                    )}
                   </Label>
                   <Input
                     id="tc_no"
                     placeholder="12345678901"
                     value={newFileData.tc_no}
-                    onChange={(e) => setNewFileData({ ...newFileData, tc_no: e.target.value })}
+                    onChange={(e) => {
+                      // Only allow digits and limit to 11 characters
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 11)
+                      setNewFileData({ ...newFileData, tc_no: value })
+                    }}
+                    maxLength={11}
                     className="rounded-2xl mt-2"
                   />
+                  {newFileData.tc_no && newFileData.tc_no.replace(/\D/g, '').length > 11 && (
+                    <p className="text-xs text-red-600 mt-1">TC Kimlik No 11 haneli olmalıdır</p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="telefon" className="text-sm font-semibold mb-2">
