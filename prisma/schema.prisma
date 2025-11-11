@@ -64,7 +64,7 @@ model User {
   
   documents_uploaded      Document[]              @relation("uploaded_by")
   documents_approved      Document[]              @relation("approved_by")
-  payments_recorded       Payment[]               @relation("recorded_by")
+  payments_created        Payment[]               @relation("payment_creator")
   notes                   Note[]
   notifications           Notification[]
   claims_handled          Claim[]                 @relation("handled_by")
@@ -175,18 +175,17 @@ model Payment {
   id              BigInt    @id @default(autoincrement())
   customer_id     BigInt
   tarih           DateTime  @db.Date
-  tutar           Decimal   @db.Decimal(12, 2)
+  tutar           Decimal   @db.Decimal(15, 2)
   açıklama        String?   @db.Text
-  durum           String    @default("Bekliyor") @db.VarChar(20)
-  ödeme_yöntemi   String?   @db.VarChar(255)
+  durum           String    @default("Bekliyor") @db.VarChar(50)
+  ödeme_yöntemi   String?   @db.VarChar(100)
   referans_no     String?   @db.VarChar(255)
-  kaydeden_id     BigInt
-  created_at      DateTime? @default(now()) @db.Timestamp()
-  updated_at      DateTime? @default(now()) @db.Timestamp()
-  deleted_at      DateTime? @db.Timestamp()
+  created_by      BigInt?
+  created_at      DateTime  @default(now()) @db.Timestamp()
+  updated_at      DateTime  @default(now()) @db.Timestamp()
   
   customer        Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)
-  recorder        User      @relation("recorded_by", fields: [kaydeden_id], references: [id], onDelete: Restrict)
+  creator         User?     @relation("payment_creator", fields: [created_by], references: [id], onDelete: SetNull)
   
   @@map("payments")
 }
