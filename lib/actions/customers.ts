@@ -95,7 +95,7 @@ export async function getCustomers(params?: {
       documents: c.documents?.map(d => ({
         id: Number(d.id),
         tip: d.tip,
-        dosya_adı: d.dosya_adi_orijinal,
+        dosya_adı: (d as any).dosya_adı || 'Belge',
         durum: d.durum,
       })) || [],
       payments: c.payments?.map(p => ({

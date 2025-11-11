@@ -116,7 +116,7 @@ export async function getDashboardStats() {
     recent_documents: recentDocuments.map(d => ({
       id: Number(d.id),
       tip: d.tip,
-      dosya_adi_orijinal: d.dosya_adi_orijinal,
+      dosya_adi_orijinal: (d as any).dosya_adı || 'Belge',
       durum: d.durum,
       customer_id: Number(d.customer_id),
       uploaded_by: Number(d.uploaded_by),

@@ -148,22 +148,21 @@ model Customer {
 model Document {
   id                        BigInt              @id @default(autoincrement())
   customer_id               BigInt
-  belge_adi                 String              @db.VarChar(255)
-  dosya_yolu                String              @db.VarChar(255)
-  dosya_adi_orijinal        String              @db.VarChar(255)
-  mime_type                 String?             @db.VarChar(255)
-  dosya_boyutu              BigInt?
   tip                       String              @db.VarChar(100)
+  dosya_adı                 String              @db.VarChar(255)  // Actual DB column name
+  dosya_yolu                String              @db.Text
+  dosya_boyutu              BigInt?
+  mime_type                 String?             @db.VarChar(255)
   durum                     String              @default("Beklemede") @db.VarChar(20)
   red_nedeni                String?             @db.Text
-  uploaded_by               BigInt
-  onay_tarihi               DateTime?           @db.Timestamp()
-  onaylayan_id              BigInt?
   document_type             String?             @default("Standart Evrak") @db.VarChar(100)
   is_result_document        Boolean             @default(false)
   result_document_type_id   BigInt?
-  created_at                DateTime?           @default(now()) @db.Timestamp()
-  updated_at                DateTime?           @default(now()) @db.Timestamp()
+  uploaded_by               BigInt
+  onaylayan_id              BigInt?
+  onay_tarihi               DateTime?           @db.Timestamp()
+  created_at                DateTime            @default(now()) @db.Timestamp()
+  updated_at                DateTime            @default(now()) @db.Timestamp()
   deleted_at                DateTime?           @db.Timestamp()
   
   customer                  Customer            @relation(fields: [customer_id], references: [id], onDelete: Cascade)
