@@ -77,36 +77,45 @@ export const customerApi = {
     return await customerActions.getCustomers(params)
   },
 
-  get: async (id: number) => {
-    return await customerActions.getCustomer(id)
+  getAll: async (params?: { search?: string; status?: string; page?: number; per_page?: number }) => {
+    // Map per_page to perPage for compatibility
+    const mappedParams = params ? {
+      ...params,
+      perPage: params.per_page || params.page,
+    } : undefined
+    return await customerActions.getCustomers(mappedParams)
+  },
+
+  get: async (id: number | string) => {
+    return await customerActions.getCustomer(typeof id === 'string' ? parseInt(id) : id)
   },
 
   create: async (data: any) => {
     return await customerActions.createCustomer(data)
   },
 
-  update: async (id: number, data: any) => {
-    return await customerActions.updateCustomer(id, data)
+  update: async (id: number | string, data: any) => {
+    return await customerActions.updateCustomer(typeof id === 'string' ? parseInt(id) : id, data)
   },
 
-  delete: async (id: number) => {
-    return await customerActions.deleteCustomer(id)
+  delete: async (id: number | string) => {
+    return await customerActions.deleteCustomer(typeof id === 'string' ? parseInt(id) : id)
   },
 
-  closeFile: async (id: number, reason?: string) => {
-    return await customerActions.closeCustomerFile(id, reason)
+  closeFile: async (id: number | string, reason?: string) => {
+    return await customerActions.closeCustomerFile(typeof id === 'string' ? parseInt(id) : id, reason || '')
   },
 
-  addNote: async (id: number, content: string) => {
-    return await customerActions.addCustomerNote(id, content)
+  addNote: async (id: number | string, content: string) => {
+    return await customerActions.addCustomerNote(typeof id === 'string' ? parseInt(id) : id, content)
   },
 
-  getById: async (id: number) => {
-    return await customerActions.getCustomer(id)
+  getById: async (id: number | string) => {
+    return await customerActions.getCustomer(typeof id === 'string' ? parseInt(id) : id)
   },
 
-  checkAndUpdateStatus: async (id: number) => {
-    return await customerActions.checkAndUpdateCustomerStatus(id)
+  checkAndUpdateStatus: async (id: number | string) => {
+    return await customerActions.checkAndUpdateCustomerStatus(typeof id === 'string' ? parseInt(id) : id)
   },
 }
 
@@ -281,6 +290,10 @@ export const claimApi = {
 // File Type API
 export const fileTypeApi = {
   list: async () => {
+    return await fileTypeActions.getFileTypes()
+  },
+  
+  getAll: async () => {
     return await fileTypeActions.getFileTypes()
   },
 }

@@ -79,6 +79,13 @@ export function getFileTypeConfig(fileTypeId: number): FileTypeConfig | undefine
 }
 
 /**
+ * Get file type configuration by name
+ */
+export function getFileTypeConfigByName(fileTypeName: string): FileTypeConfig | undefined {
+  return FILE_TYPES.find((ft) => ft.name === fileTypeName)
+}
+
+/**
  * Get required documents for a file type
  */
 export function getRequiredDocuments(fileTypeId: number): RequiredDocument[] {

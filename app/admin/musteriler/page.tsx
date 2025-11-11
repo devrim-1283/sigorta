@@ -194,27 +194,48 @@ export default function CustomersPage() {
       console.log('[Müşteri Listesi] Müşteri sayısı:', data.customers?.length || 0)
 
       // Transform API data to Customer interface
-      const transformedCustomers: Customer[] = (data.customers || []).map((item: any) => ({
-        id: String(item.id), // Convert to string
-        ad_soyad: item.ad_soyad || item.name || 'Bilinmeyen',
-        tc_no: item.tc_no || '',
-        telefon: item.telefon || item.phone || '',
-        email: item.email || '',
-        plaka: item.plaka || '',
-        hasar_tarihi: item.hasar_tarihi || item.damage_date || new Date().toISOString().split('T')[0],
-        başvuru_durumu: item.başvuru_durumu || 'İnceleniyor',
-        ödemeler: item.ödemeler || item.payments || [],
-        evraklar: item.evraklar || item.documents || [],  // Handle both Turkish and English field names
-        bağlı_bayi_id: item.dealer_id ? String(item.dealer_id) : (item.bağlı_bayi_id || ''),
-        bağlı_bayi_adı: item.dealer?.dealer_name || item.bağlı_bayi_adı || 'Belirtilmemiş',
-        notlar: item.notlar || item.notes || [],
-        son_güncelleme: item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : (item.son_güncelleme || new Date().toLocaleDateString('tr-TR')),
-        evrak_durumu: item.evrak_durumu || 'Eksik',
-        eksik_evraklar: item.eksik_evraklar || [],
-        dosya_kilitli: item.dosya_kilitli || false,
-        dosya_tipi: item.file_type?.name || item.dosya_tipi || 'deger-kaybi',
-        yüklenen_evraklar: item.yüklenen_evraklar || [],
-      }))
+      const transformedCustomers: Customer[] = (data.customers || []).map((item: any) => {
+        console.log('[Müşteri Transform] Raw item:', item)
+        
+        return {
+          id: String(item.id), // Convert to string
+          ad_soyad: item.ad_soyad || item.name || 'Bilinmeyen',
+          tc_no: item.tc_no || '',
+          telefon: item.telefon || item.phone || '',
+          email: item.email || '',
+          plaka: item.plaka || '',
+          hasar_tarihi: item.hasar_tarihi || item.damage_date || new Date().toISOString().split('T')[0],
+          başvuru_durumu: (item.başvuru_durumu || 'İnceleniyor') as ApplicationStatus,
+          ödemeler: (item.payments || item.ödemeler || []).map((p: any) => ({
+            id: String(p.id),
+            tarih: p.date || p.tarih || new Date().toLocaleDateString('tr-TR'),
+            tutar: p.amount ? `₺${p.amount.toLocaleString('tr-TR')}` : (p.tutar || '₺0'),
+            açıklama: p.description || p.açıklama || '',
+            durum: (p.durum || 'Bekliyor') as "Ödendi" | "Bekliyor",
+          })),
+          evraklar: (item.documents || item.evraklar || []).map((d: any) => ({
+            id: String(d.id),
+            tip: d.tip || d.type || 'Belge',
+            dosya_adı: d.dosya_adı || d.file_name || 'dosya',
+            yüklenme_tarihi: d.yüklenme_tarihi || d.uploaded_at || new Date().toLocaleDateString('tr-TR'),
+            durum: (d.durum || 'Beklemede') as "Onaylandı" | "Beklemede" | "Reddedildi",
+          })),
+          bağlı_bayi_id: item.dealer_id ? String(item.dealer_id) : (item.bağlı_bayi_id || ''),
+          bağlı_bayi_adı: item.dealer?.dealer_name || item.bağlı_bayi_adı || 'Belirtilmemiş',
+          notlar: (item.notes || item.notlar || []).map((n: any) => ({
+            id: String(n.id),
+            yazar: n.user?.name || n.yazar || 'Sistem',
+            tarih: n.created_at || n.tarih || new Date().toLocaleDateString('tr-TR'),
+            içerik: n.içerik || n.content || n.note || '',
+          })),
+          son_güncelleme: item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : (item.son_güncelleme || new Date().toLocaleDateString('tr-TR')),
+          evrak_durumu: (item.evrak_durumu || 'Eksik') as "Tamam" | "Eksik",
+          eksik_evraklar: item.eksik_evraklar || [],
+          dosya_kilitli: item.dosya_kilitli || false,
+          dosya_tipi: (item.file_type?.name || item.dosya_tipi) as FileType,
+          yüklenen_evraklar: (item.documents || item.evraklar || []).map((d: any) => d.tip || d.type) as FileDocType[],
+        }
+      })
 
       console.log('[Müşteri Listesi] Transformed customers:', transformedCustomers.length)
       console.log('[Müşteri Listesi] First customer sample:', transformedCustomers[0])
@@ -544,7 +565,7 @@ export default function CustomersPage() {
   // New file creation handler
   const handleCreateNewFile = async () => {
     try {
-      const fileTypeConfig = newFileData.dosya_tipi ? getFileTypeConfig(newFileData.dosya_tipi) : null
+      const fileTypeConfig = newFileData.dosya_tipi ? getFileTypeConfig(Number(newFileData.dosya_tipi)) : null
       let initialStatus: ApplicationStatus = "İnceleniyor"
 
       if (fileTypeConfig) {
@@ -1621,42 +1642,38 @@ export default function CustomersPage() {
 
               {newFileData.dosya_tipi &&
                 (() => {
-                  const fileTypeConfig = getFileTypeConfig(newFileData.dosya_tipi as FileType)
+                  const fileTypeConfig = getFileTypeConfig(Number(newFileData.dosya_tipi))
                   if (!fileTypeConfig) return null
 
                   return (
                     <div className="space-y-4">
                       <div
-                        className={cn(
-                          "p-4 border-2 rounded-2xl",
-                          fileTypeConfig.color.replace("bg-", "border-").replace("-500", "-200"),
-                          fileTypeConfig.color.replace("-500", "-50"),
-                        )}
+                        className="p-4 border-2 rounded-2xl bg-slate-50 border-slate-200"
                       >
                         <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                          <div className={cn("w-3 h-3 rounded-full", fileTypeConfig.color)} />
+                          <div className="w-3 h-3 rounded-full bg-blue-500" />
                           Zorunlu Belgeler (Yükleme Alanları):
                         </p>
                         <div className="space-y-3">
-                          {fileTypeConfig.requiredDocuments.map((doc) => (
+                          {fileTypeConfig.requiredDocuments.map((doc, index) => (
                             <div
-                              key={doc.id}
+                              key={`${doc.name}-${index}`}
                               className="flex items-center justify-between p-3 bg-white rounded-xl border"
                             >
                               <div className="flex items-center gap-2">
                                 <FileText className="h-4 w-4 text-muted-foreground" />
                                 <div>
-                                  <p className="text-sm font-medium">{doc.label}</p>
-                                  {doc.minCount && (
-                                    <p className="text-xs text-muted-foreground">Minimum {doc.minCount} adet</p>
+                                  <p className="text-sm font-medium">{doc.name}</p>
+                                  {doc.required && (
+                                    <p className="text-xs text-muted-foreground">Zorunlu</p>
                                   )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                {newFileUploadedDocs.includes(doc.id) ? (
+                                {newFileUploadedDocs.includes(doc.name) ? (
                                   <Badge className="bg-green-100 text-green-800 border-green-300 rounded-xl text-xs">
                                     <CheckCircle className="h-3 w-3 mr-1" />
-                                    {uploadedFiles[doc.id] ? uploadedFiles[doc.id].name.slice(0, 15) + '...' : 'Yüklendi'}
+                                    {uploadedFiles[doc.name] ? uploadedFiles[doc.name].name.slice(0, 15) + '...' : 'Yüklendi'}
                                   </Badge>
                                 ) : (
                                   <Badge className="bg-orange-100 text-orange-800 border-orange-300 rounded-xl text-xs">
@@ -1668,10 +1685,10 @@ export default function CustomersPage() {
                                   variant="outline"
                                   className="rounded-xl h-8 bg-transparent"
                                   onClick={() => {
-                                    if (newFileUploadedDocs.includes(doc.id)) {
-                                      setNewFileUploadedDocs(newFileUploadedDocs.filter((d) => d !== doc.id))
+                                    if (newFileUploadedDocs.includes(doc.name)) {
+                                      setNewFileUploadedDocs(newFileUploadedDocs.filter((d) => d !== doc.name))
                                     } else {
-                                      handleNewFileUploadClick(doc.id)
+                                      handleNewFileUploadClick(doc.name)
                                     }
                                   }}
                                 >
@@ -1687,7 +1704,7 @@ export default function CustomersPage() {
                       <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-2xl">
                         <p className="text-sm font-semibold text-blue-900 mb-2">Dosya Durumu Önizlemesi:</p>
                         <p className="text-sm text-blue-800">
-                          {fileTypeConfig.requiredDocuments.every((doc) => newFileUploadedDocs.includes(doc.id))
+                          {fileTypeConfig.requiredDocuments.every((doc) => newFileUploadedDocs.includes(doc.name))
                             ? "✅ Tüm zorunlu evraklar tamamlandı → Dosya durumu: Başvuru Aşamasında"
                             : "⚠️ Eksik zorunlu belge var → Dosya durumu: Evrak Aşamasında"}
                         </p>
