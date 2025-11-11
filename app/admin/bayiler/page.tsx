@@ -43,6 +43,10 @@ import {
   Search,
   Star,
   Trash2,
+  Eye,
+  EyeOff,
+  Copy,
+  RefreshCw,
 } from "lucide-react"
 
 export const dynamic = "force-dynamic"
@@ -106,6 +110,7 @@ export default function DealersPage() {
   })
   const [formError, setFormError] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogConfig>({
     open: false,
@@ -187,6 +192,7 @@ export default function DealersPage() {
       password: "",
     })
     setFormError("")
+    setShowPassword(false)
     setSelectedDealer(null)
   }
 
@@ -248,6 +254,36 @@ export default function DealersPage() {
       toast({
         title: "Şifre kopyalanamadı",
         description: `Yeni şifre: ${password}`,
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleCopyPassword = async () => {
+    if (!formData.password) {
+      toast({
+        title: "Hata",
+        description: "Kopyalanacak şifre yok",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(formData.password)
+        toast({
+          title: "Kopyalandı",
+          description: "Şifre panoya kopyalandı.",
+        })
+      } else {
+        throw new Error("Clipboard API not available")
+      }
+    } catch (error) {
+      console.error("Password copy failed:", error)
+      toast({
+        title: "Hata",
+        description: "Şifre kopyalanamadı",
         variant: "destructive",
       })
     }
@@ -351,6 +387,8 @@ export default function DealersPage() {
       status: dealer.status || "active",
       password: "",
     })
+    setFormError("")
+    setShowPassword(false)
     setShowEditModal(true)
   }
 
@@ -615,26 +653,53 @@ export default function DealersPage() {
 
                       <div className="space-y-2 sm:col-span-2">
                         <Label htmlFor="password_add">Bayi Şifresi *</Label>
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                          <Input
-                            id="password_add"
-                            name="password"
-                            type="password"
-                            value={formData.password}
-                            onChange={handleInputChange}
-                            className="rounded-xl flex-1"
-                            required
-                            minLength={8}
-                            placeholder="En az 8 karakter"
-                            autoComplete="new-password"
-                          />
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Input
+                              id="password_add"
+                              name="password"
+                              type={showPassword ? "text" : "password"}
+                              value={formData.password}
+                              onChange={handleInputChange}
+                              className="rounded-xl pr-10"
+                              required
+                              minLength={8}
+                              placeholder="En az 8 karakter"
+                              autoComplete="new-password"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                              onClick={() => setShowPassword(!showPassword)}
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-4 w-4 text-gray-500" />
+                              ) : (
+                                <Eye className="h-4 w-4 text-gray-500" />
+                              )}
+                            </Button>
+                          </div>
                           <Button
                             type="button"
                             variant="outline"
-                            className="rounded-xl sm:w-auto"
+                            className="rounded-xl"
                             onClick={handleGeneratePassword}
+                            title="Rastgele şifre üret ve kopyala"
                           >
-                            Rastgele Şifre
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Üret
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-xl"
+                            onClick={handleCopyPassword}
+                            disabled={!formData.password}
+                            title="Şifreyi kopyala"
+                          >
+                            <Copy className="h-4 w-4" />
                           </Button>
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -945,25 +1010,52 @@ export default function DealersPage() {
 
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="password_edit_field">Yeni Şifre</Label>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Input
-                    id="password_edit_field"
-                    name="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    className="rounded-xl flex-1"
-                    minLength={8}
-                    placeholder="Boş bırakılırsa değişmez"
-                    autoComplete="new-password"
-                  />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      id="password_edit_field"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className="rounded-xl pr-10"
+                      minLength={8}
+                      placeholder="Boş bırakılırsa değişmez"
+                      autoComplete="new-password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-gray-500" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-gray-500" />
+                      )}
+                    </Button>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
-                    className="rounded-xl sm:w-auto"
+                    className="rounded-xl"
                     onClick={handleGeneratePassword}
+                    title="Rastgele şifre üret ve kopyala"
                   >
-                    Rastgele Şifre
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Üret
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl"
+                    onClick={handleCopyPassword}
+                    disabled={!formData.password}
+                    title="Şifreyi kopyala"
+                  >
+                    <Copy className="h-4 w-4" />
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">

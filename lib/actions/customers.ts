@@ -701,12 +701,21 @@ export async function updateCustomer(id: number, data: Partial<{
 
     // Normalize TC No and phone
     const normalizedTC = data.tc_no ? data.tc_no.replace(/\s/g, '') : existingCustomer.tc_no
-    const normalizedPhone = data.telefon ? validatePhone(data.telefon) : existingCustomer.telefon
+    let normalizedPhone = existingCustomer.telefon
+    if (data.telefon) {
+      const phoneValidation = validatePhone(data.telefon)
+      if (!phoneValidation.valid) {
+        throw new Error(phoneValidation.error || 'Geçersiz telefon numarası')
+      }
+      normalizedPhone = phoneValidation.sanitized
+    }
     const customerEmail = data.email?.trim().toLowerCase() || existingCustomer.email?.trim().toLowerCase() || null
     const customerName = data.ad_soyad?.trim() || existingCustomer.ad_soyad
 
-    // Prepare customer update data
-    const updateData: any = { ...data }
+    // Prepare customer update data (exclude password - it's handled separately)
+    const { password, ...customerUpdateData } = data
+    const updateData: any = { ...customerUpdateData }
+    
     if (data.file_type_id) updateData.file_type_id = BigInt(data.file_type_id)
     if (data.dealer_id) updateData.dealer_id = BigInt(data.dealer_id)
     if (data.hasar_tarihi) {
