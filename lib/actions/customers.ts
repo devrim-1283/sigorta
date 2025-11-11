@@ -320,10 +320,10 @@ export async function createCustomer(data: {
       throw new Error(error.message || 'Telefon numarası formatı geçersiz. Lütfen 05XXXXXXXXX formatında girin.')
     }
 
-    // Normalize and validate TC No
+    // Normalize and validate TC No (without strict algorithm check for flexibility)
     let normalizedTC: string
     try {
-      const tcValidation = validateTCNo(data.tc_no)
+      const tcValidation = validateTCNo(data.tc_no, false) // false = don't enforce strict algorithm check
       if (!tcValidation.valid) {
         throw new Error(tcValidation.error || 'Geçersiz TC Kimlik No')
       }
@@ -590,33 +590,48 @@ export async function createCustomer(data: {
     console.error('[createCustomer] Error name:', error.name)
     console.error('[createCustomer] Error message:', error.message)
     
-    // If it's already a validation error with a user-friendly message, re-throw it
-    if (error.isValidationError || error.message) {
-      // Preserve the original error message for user-friendly display
-      const userMessage = error.message || 'Müşteri oluşturulamadı'
-      const customError = new Error(userMessage)
-      ;(customError as any).isValidationError = true
-      throw customError
+    // Extract user-friendly error message
+    let userMessage = 'Müşteri oluşturulamadı'
+    
+    // If it's already a validation error with a user-friendly message, use it
+    if (error.isValidationError && error.message) {
+      userMessage = error.message
+    }
+    // Handle Prisma unique constraint errors
+    else if (error.code === 'P2002') {
+      const target = Array.isArray(error.meta?.target) 
+        ? error.meta.target.join(', ') 
+        : error.meta?.target || 'bilgiler'
+      
+      if (target.includes('tc_no')) {
+        userMessage = 'Bu TC No ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.'
+      } else if (target.includes('telefon')) {
+        userMessage = 'Bu telefon numarası ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.'
+      } else if (target.includes('plaka')) {
+        userMessage = 'Bu plaka ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.'
+      } else {
+        userMessage = `Bu ${target} ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.`
+      }
+    }
+    // Handle Prisma foreign key errors
+    else if (error.code === 'P2003') {
+      userMessage = 'Seçilen dosya tipi veya bayi bulunamadı'
+    }
+    // Use error message if available and meaningful
+    else if (error.message && !error.message.includes('Server Components render')) {
+      userMessage = error.message
+    }
+    // Generic fallback
+    else {
+      userMessage = 'Müşteri oluşturulurken bir hata oluştu. Lütfen bilgileri kontrol edip tekrar deneyin.'
     }
     
-    // Handle Prisma errors
-    if (error.code === 'P2002') {
-      const userMessage = 'Bu TC No, Telefon veya Plaka ile kayıtlı bir müşteri zaten var'
-      const customError = new Error(userMessage)
-      ;(customError as any).isValidationError = true
-      throw customError
-    }
-    if (error.code === 'P2003') {
-      const userMessage = 'Seçilen dosya tipi veya bayi bulunamadı'
-      const customError = new Error(userMessage)
-      ;(customError as any).isValidationError = true
-      throw customError
-    }
-    
-    // Generic error with user-friendly message
-    const userMessage = error.message || 'Müşteri oluşturulurken bir hata oluştu. Lütfen bilgileri kontrol edip tekrar deneyin.'
+    // Create error with user-friendly message that will be shown in production
     const customError = new Error(userMessage)
+    // Mark as validation error so it's handled properly on client
     ;(customError as any).isValidationError = true
+    // Add digest for Next.js error tracking (optional)
+    ;(customError as any).digest = error.digest || `customer-create-${Date.now()}`
     throw customError
   }
 }

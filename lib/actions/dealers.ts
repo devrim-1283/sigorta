@@ -190,14 +190,19 @@ export async function updateDealer(id: number, data: Partial<{
 }>) {
   await requireAuth()
 
+  // Separate password from dealer data
+  const { password, ...dealerData } = data
+
   const dealer = await prisma.$transaction(async (tx) => {
+    // Update dealer (without password field)
     const updated = await tx.dealer.update({
       where: { id: BigInt(id) },
-      data,
+      data: dealerData,
     })
 
-    if (data.password) {
-      const hashedPassword = await bcrypt.hash(data.password, 12)
+    // If password is provided, update the associated user's password
+    if (password && password.trim()) {
+      const hashedPassword = await bcrypt.hash(password, 12)
       const existingUser = await tx.user.findFirst({
         where: {
           dealer_id: BigInt(id),
@@ -209,6 +214,9 @@ export async function updateDealer(id: number, data: Partial<{
           where: { id: existingUser.id },
           data: { password: hashedPassword },
         })
+      } else {
+        // If no user exists, create one (optional - you might want to throw error instead)
+        console.warn(`No user found for dealer ${id}, password update skipped`)
       }
     }
 

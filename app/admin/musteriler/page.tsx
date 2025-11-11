@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
 import {
   Dialog,
   DialogContent,
@@ -130,6 +131,7 @@ interface ConfirmDialogConfig {
 export default function CustomersPage() {
   const { isAuthenticated, user, isLoading, logout } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const userRole: UserRole = (user?.role?.name as UserRole) || "superadmin"
 
   // State management
@@ -828,12 +830,34 @@ export default function CustomersPage() {
           errorMessage = error.toString()
         }
         
-        setError(`Müşteri oluşturulamadı: ${errorMessage}`)
+        // Show toast notification instead of setError
+        const normalized = errorMessage.toLowerCase()
+        const isAlreadyExists =
+          normalized.includes('zaten var') ||
+          normalized.includes('kayıtlı') ||
+          normalized.includes('unique') ||
+          normalized.includes('benzersiz') ||
+          normalized.includes('mevcut kaydı')
+        
+        toast({
+          title: isAlreadyExists ? 'Müşteri Zaten Kayıtlı' : 'Hata',
+          description: errorMessage,
+          variant: 'destructive',
+        })
+        
+        setError("") // Clear error state
         return // Exit early if API fails
       }
 
       setShowNewFileModal(false)
       setError("") // Clear error after successful creation
+      
+      // Show success toast
+      toast({
+        title: 'Başarılı',
+        description: 'Müşteri başarıyla oluşturuldu',
+      })
+      
       setNewFileData({
         ad_soyad: "",
         tc_no: "",
@@ -848,7 +872,13 @@ export default function CustomersPage() {
       setUploadedFiles({}) // Clear uploaded files
       fetchCustomers() // Refresh data
     } catch (err: any) {
-      setError(err.message || 'Dosya oluşturulamadı')
+      const errorMessage = err?.message || 'Dosya oluşturulamadı'
+      toast({
+        title: 'Hata',
+        description: errorMessage,
+        variant: 'destructive',
+      })
+      setError("") // Clear error state
     }
   }
 

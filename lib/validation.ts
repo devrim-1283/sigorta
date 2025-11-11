@@ -89,8 +89,9 @@ export function validatePhone(phone: string): { valid: boolean; sanitized: strin
 
 /**
  * Validates Turkish National ID (TC Kimlik No)
+ * Performs format validation and optional algorithm check
  */
-export function validateTCNo(tcNo: string): { valid: boolean; sanitized: string; error?: string } {
+export function validateTCNo(tcNo: string, strictAlgorithmCheck: boolean = false): { valid: boolean; sanitized: string; error?: string } {
   // Remove all non-digit characters
   const digitsOnly = tcNo.replace(/\D/g, '')
 
@@ -104,26 +105,34 @@ export function validateTCNo(tcNo: string): { valid: boolean; sanitized: string;
     return { valid: false, sanitized: '', error: 'TC Kimlik No 0 ile başlayamaz' }
   }
 
-  // TC Kimlik No validation algorithm
-  const digits = digitsOnly.split('').map(Number)
-  
-  // Calculate 10th digit
-  const sum1 = (digits[0] + digits[2] + digits[4] + digits[6] + digits[8]) * 7
-  const sum2 = digits[1] + digits[3] + digits[5] + digits[7]
-  const digit10 = (sum1 - sum2) % 10
-
-  if (digit10 !== digits[9]) {
-    return { valid: false, sanitized: '', error: 'Geçersiz TC Kimlik No' }
+  // All digits must be the same? (invalid pattern)
+  if (digitsOnly.split('').every(d => d === digitsOnly[0])) {
+    return { valid: false, sanitized: '', error: 'TC Kimlik No tüm haneleri aynı olamaz' }
   }
 
-  // Calculate 11th digit
-  const sum3 = digits[0] + digits[1] + digits[2] + digits[3] + digits[4] + digits[5] + digits[6] + digits[7] + digits[8] + digits[9]
-  const digit11 = sum3 % 10
+  // If strict algorithm check is enabled, perform full validation
+  if (strictAlgorithmCheck) {
+    const digits = digitsOnly.split('').map(Number)
+    
+    // Calculate 10th digit
+    const sum1 = (digits[0] + digits[2] + digits[4] + digits[6] + digits[8]) * 7
+    const sum2 = digits[1] + digits[3] + digits[5] + digits[7]
+    const digit10 = (sum1 - sum2) % 10
 
-  if (digit11 !== digits[10]) {
-    return { valid: false, sanitized: '', error: 'Geçersiz TC Kimlik No' }
+    if (digit10 !== digits[9]) {
+      return { valid: false, sanitized: '', error: 'Geçersiz TC Kimlik No (algoritma kontrolü başarısız)' }
+    }
+
+    // Calculate 11th digit
+    const sum3 = digits[0] + digits[1] + digits[2] + digits[3] + digits[4] + digits[5] + digits[6] + digits[7] + digits[8] + digits[9]
+    const digit11 = sum3 % 10
+
+    if (digit11 !== digits[10]) {
+      return { valid: false, sanitized: '', error: 'Geçersiz TC Kimlik No (algoritma kontrolü başarısız)' }
+    }
   }
 
+  // Format is valid, return sanitized value
   return { valid: true, sanitized: digitsOnly }
 }
 
