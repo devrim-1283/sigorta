@@ -76,8 +76,8 @@ export async function getCustomers(params?: {
       başvuru_durumu: c.başvuru_durumu,
       evrak_durumu: c.evrak_durumu,
       dosya_kilitli: c.dosya_kilitli,
-      created_at: c.created_at.toISOString(),
-      updated_at: c.updated_at.toISOString(),
+      created_at: c.created_at ? c.created_at.toISOString() : new Date().toISOString(),
+      updated_at: c.updated_at ? c.updated_at.toISOString() : new Date().toISOString(),
       file_type: c.file_type ? {
         id: Number(c.file_type.id),
         name: c.file_type.name,

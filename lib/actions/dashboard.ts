@@ -88,16 +88,41 @@ export async function getDashboardStats() {
     completed_files: completedFiles,
     total_premium: (await prisma.policy.aggregate({ _sum: { premium: true } }))._sum.premium?.toString() || '0',
     recent_customers: recentCustomers.map(c => ({
-      ...c,
       id: Number(c.id),
+      ad_soyad: c.ad_soyad,
+      tc_no: c.tc_no,
+      telefon: c.telefon,
+      plaka: c.plaka,
+      hasar_tarihi: c.hasar_tarihi.toISOString().split('T')[0],
+      başvuru_durumu: c.başvuru_durumu,
       file_type_id: Number(c.file_type_id),
       dealer_id: c.dealer_id ? Number(c.dealer_id) : null,
+      created_at: c.created_at ? c.created_at.toISOString() : new Date().toISOString(),
+      file_type: c.file_type ? {
+        id: Number(c.file_type.id),
+        name: c.file_type.name,
+      } : null,
+      dealer: c.dealer ? {
+        id: Number(c.dealer.id),
+        dealer_name: c.dealer.dealer_name,
+      } : null,
     })),
     recent_documents: recentDocuments.map(d => ({
-      ...d,
       id: Number(d.id),
+      tip: d.tip,
+      dosya_adi_orijinal: d.dosya_adi_orijinal,
+      durum: d.durum,
       customer_id: Number(d.customer_id),
       uploaded_by: Number(d.uploaded_by),
+      created_at: d.created_at ? d.created_at.toISOString() : new Date().toISOString(),
+      customer: d.customer ? {
+        id: Number(d.customer.id),
+        ad_soyad: d.customer.ad_soyad,
+      } : null,
+      uploader: d.uploader ? {
+        id: Number(d.uploader.id),
+        name: d.uploader.name,
+      } : null,
     })),
   }
 }
