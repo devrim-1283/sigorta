@@ -5,6 +5,7 @@ import { requireAuth } from './auth'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
+import { validatePhone, validateTCNo } from '@/lib/validation'
 
 /**
  * Generate a secure random password
@@ -306,13 +307,50 @@ export async function createCustomer(data: {
   console.log('[createCustomer] Starting with data:', JSON.stringify(data, null, 2))
 
   try {
-    // Check duplicate customer by TC No, phone, or plate before attempting to create
-    const existingCustomer = await prisma.customer.findFirst({
+    // Normalize and validate phone number
+    const phoneValidation = validatePhone(data.telefon)
+    if (!phoneValidation.valid) {
+      throw new Error(phoneValidation.error || 'Geçersiz telefon numarası')
+    }
+    const normalizedPhone = phoneValidation.sanitized
+
+    // Normalize and validate TC No
+    const tcValidation = validateTCNo(data.tc_no)
+    if (!tcValidation.valid) {
+      throw new Error(tcValidation.error || 'Geçersiz TC Kimlik No')
+    }
+    const normalizedTC = tcValidation.sanitized
+
+    // Normalize plaka (uppercase, remove spaces)
+    const normalizedPlaka = data.plaka.trim().toUpperCase().replace(/\s+/g, '')
+
+    console.log('[createCustomer] Normalized values:', {
+      telefon: normalizedPhone,
+      tc_no: normalizedTC,
+      plaka: normalizedPlaka
+    })
+
+    // Helper function to normalize phone for comparison
+    const normalizePhoneForComparison = (phone: string | null): string | null => {
+      if (!phone) return null
+      const digits = phone.replace(/\D/g, '')
+      if (digits.length === 10 && digits.startsWith('5')) {
+        return `0${digits}`
+      } else if (digits.length === 12 && digits.startsWith('90')) {
+        return `0${digits.substring(2)}`
+      } else if (digits.length === 11 && digits.startsWith('05')) {
+        return digits
+      }
+      return digits
+    }
+
+    // Check duplicate customer by TC No, phone, or plate
+    // First check by TC No and Plaka (exact match)
+    const customersByTCOrPlaka = await prisma.customer.findMany({
       where: {
         OR: [
-          { tc_no: data.tc_no },
-          { telefon: data.telefon },
-          { plaka: data.plaka },
+          { tc_no: normalizedTC },
+          { plaka: { equals: normalizedPlaka, mode: 'insensitive' } },
         ],
       },
       select: {
@@ -324,15 +362,53 @@ export async function createCustomer(data: {
       },
     })
 
+    // Check if any of these match
+    let existingCustomer = customersByTCOrPlaka.find(c => {
+      const existingTC = c.tc_no?.replace(/\D/g, '') || ''
+      const existingPlaka = c.plaka?.trim().toUpperCase().replace(/\s+/g, '') || ''
+      return existingTC === normalizedTC || existingPlaka === normalizedPlaka
+    })
+
+    // If not found, check by phone number
+    if (!existingCustomer) {
+      // Get customers with phone numbers that might match (starting with same digits)
+      const phonePrefix = normalizedPhone.substring(0, 3) // First 3 digits
+      const potentialMatches = await prisma.customer.findMany({
+        where: {
+          telefon: {
+            startsWith: phonePrefix,
+          },
+        },
+        select: {
+          id: true,
+          tc_no: true,
+          telefon: true,
+          plaka: true,
+          ad_soyad: true,
+        },
+      })
+
+      // Find exact match after normalization
+      existingCustomer = potentialMatches.find(c => {
+        const normalizedExisting = normalizePhoneForComparison(c.telefon)
+        return normalizedExisting === normalizedPhone
+      }) || null
+    }
+
     if (existingCustomer) {
       const conflicts: string[] = []
-      if (existingCustomer.tc_no === data.tc_no) {
+      // Compare normalized values
+      const existingTC = existingCustomer.tc_no?.replace(/\D/g, '') || ''
+      const existingPlaka = existingCustomer.plaka?.trim().toUpperCase().replace(/\s+/g, '') || ''
+      const normalizedExistingPhone = normalizePhoneForComparison(existingCustomer.telefon)
+      
+      if (existingTC === normalizedTC) {
         conflicts.push('TC No')
       }
-      if (existingCustomer.telefon === data.telefon) {
+      if (normalizedExistingPhone === normalizedPhone) {
         conflicts.push('Telefon')
       }
-      if (existingCustomer.plaka === data.plaka) {
+      if (existingPlaka === normalizedPlaka) {
         conflicts.push('Plaka')
       }
 
@@ -359,13 +435,13 @@ export async function createCustomer(data: {
       throw new Error('Ad Soyad, TC No, Telefon ve Plaka gereklidir')
     }
 
-    // Create customer data object
+    // Create customer data object with normalized values
     const customerData = {
-      ad_soyad: data.ad_soyad,
-      tc_no: data.tc_no,
-      telefon: data.telefon,
-      email: data.email || null,
-      plaka: data.plaka,
+      ad_soyad: data.ad_soyad.trim(),
+      tc_no: normalizedTC,
+      telefon: normalizedPhone,
+      email: data.email ? data.email.trim().toLowerCase() : null,
+      plaka: normalizedPlaka,
       hasar_tarihi: hasarTarihi,
       file_type_id: BigInt(fileTypeId),
       dealer_id: data.dealer_id ? BigInt(data.dealer_id) : null,
@@ -398,13 +474,13 @@ export async function createCustomer(data: {
       if (!musteriRole) {
         console.error('Musteri role not found in database')
       } else {
-        // Check if user already exists with this TC No or phone
+        // Check if user already exists with this TC No or phone (using normalized values)
         const existingUser = await prisma.user.findFirst({
           where: {
             OR: [
-              { tc_no: data.tc_no },
-              { phone: data.telefon },
-              ...(data.email ? [{ email: data.email }] : [])
+              { tc_no: normalizedTC },
+              { phone: normalizedPhone },
+              ...(data.email ? [{ email: data.email.trim().toLowerCase() }] : [])
             ]
           }
         })
@@ -414,13 +490,13 @@ export async function createCustomer(data: {
           const randomPassword = generateRandomPassword(12)
           const hashedPassword = await bcrypt.hash(randomPassword, 12)
 
-          // Create user account
+          // Create user account with normalized values
           const newUser = await prisma.user.create({
             data: {
-              name: data.ad_soyad,
-              tc_no: data.tc_no,
-              phone: data.telefon,
-              email: data.email || null,
+              name: data.ad_soyad.trim(),
+              tc_no: normalizedTC,
+              phone: normalizedPhone,
+              email: data.email ? data.email.trim().toLowerCase() : null,
               password: hashedPassword,
               role_id: musteriRole.id,
               is_active: true,

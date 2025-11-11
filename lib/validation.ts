@@ -32,29 +32,47 @@ export function validateEmail(email: string): { valid: boolean; sanitized: strin
 
 /**
  * Validates and sanitizes phone number input (Turkish format)
+ * Handles formats: +905XXXXXXXXX, 905XXXXXXXXX, 05XXXXXXXXX, 5XXXXXXXXX
  */
 export function validatePhone(phone: string): { valid: boolean; sanitized: string; error?: string } {
   // Remove all non-digit characters
   const digitsOnly = phone.replace(/\D/g, '')
 
-  // Turkish phone numbers: 10 digits (5XX XXX XXXX) or 11 digits with country code (0 + 5XX XXX XXXX)
-  if (digitsOnly.length === 10) {
-    // Format: 5XXXXXXXXX
+  // Handle different formats
+  let normalized = digitsOnly
+
+  // If starts with 90 (country code without +), remove it
+  if (digitsOnly.length === 12 && digitsOnly.startsWith('90')) {
+    normalized = digitsOnly.substring(2)
+  }
+  // If starts with 905 (country code + area code), remove country code
+  else if (digitsOnly.length === 12 && digitsOnly.startsWith('905')) {
+    normalized = '0' + digitsOnly.substring(2)
+  }
+  // If 10 digits starting with 5, add leading 0
+  else if (digitsOnly.length === 10) {
     if (!digitsOnly.startsWith('5')) {
       return { valid: false, sanitized: '', error: 'Telefon numarası 5 ile başlamalı' }
     }
-    return { valid: true, sanitized: `0${digitsOnly}` }
+    normalized = `0${digitsOnly}`
   }
-
-  if (digitsOnly.length === 11) {
-    // Format: 05XXXXXXXXX
+  // If 11 digits, check if it starts with 05
+  else if (digitsOnly.length === 11) {
     if (!digitsOnly.startsWith('05')) {
       return { valid: false, sanitized: '', error: 'Telefon numarası 05 ile başlamalı' }
     }
-    return { valid: true, sanitized: digitsOnly }
+    normalized = digitsOnly
+  }
+  else {
+    return { valid: false, sanitized: '', error: 'Geçersiz telefon numarası formatı' }
   }
 
-  return { valid: false, sanitized: '', error: 'Geçersiz telefon numarası formatı' }
+  // Final validation: should be 11 digits starting with 05
+  if (normalized.length !== 11 || !normalized.startsWith('05')) {
+    return { valid: false, sanitized: '', error: 'Telefon numarası 05XXXXXXXXX formatında olmalı' }
+  }
+
+  return { valid: true, sanitized: normalized }
 }
 
 /**
