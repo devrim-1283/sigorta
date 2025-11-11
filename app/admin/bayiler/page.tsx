@@ -455,11 +455,11 @@ export default function DealersPage() {
                       Yeni Bayi
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="rounded-3xl max-w-md">
+                <DialogContent className="rounded-3xl max-w-2xl w-[95vw]">
                     <DialogHeader>
                       <DialogTitle>Yeni Bayi Ekle</DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={handleAddDealer} className="space-y-4">
+                  <form onSubmit={handleAddDealer} className="space-y-6">
                       {formError && (
                         <Alert className="rounded-xl border-red-200 bg-red-50">
                           <AlertDescription className="text-red-700">
@@ -468,8 +468,9 @@ export default function DealersPage() {
                         </Alert>
                       )}
 
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="dealer_name">Bayi Adı</Label>
+                        <Label htmlFor="dealer_name">Bayi Adı *</Label>
                         <Input
                           id="dealer_name"
                           name="dealer_name"
@@ -492,29 +493,7 @@ export default function DealersPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="city">Şehir</Label>
-                        <Input
-                          id="city"
-                          name="city"
-                          value={formData.city}
-                          onChange={handleInputChange}
-                          className="rounded-xl"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="address">Adres</Label>
-                        <Input
-                          id="address"
-                          name="address"
-                          value={formData.address}
-                          onChange={handleInputChange}
-                          className="rounded-xl"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Telefon</Label>
+                        <Label htmlFor="phone">Telefon *</Label>
                         <Input
                           id="phone"
                           name="phone"
@@ -538,6 +517,17 @@ export default function DealersPage() {
                       </div>
 
                       <div className="space-y-2">
+                        <Label htmlFor="city">Şehir</Label>
+                        <Input
+                          id="city"
+                          name="city"
+                          value={formData.city}
+                          onChange={handleInputChange}
+                          className="rounded-xl"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
                         <Label htmlFor="tax_number">Vergi No</Label>
                         <Input
                           id="tax_number"
@@ -548,7 +538,18 @@ export default function DealersPage() {
                         />
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label htmlFor="address">Adres</Label>
+                        <Input
+                          id="address"
+                          name="address"
+                          value={formData.address}
+                          onChange={handleInputChange}
+                          className="rounded-xl"
+                        />
+                      </div>
+
+                      <div className="space-y-2 sm:col-span-2">
                         <Label htmlFor="status">Durum</Label>
                         <select
                           id="status"
@@ -561,6 +562,7 @@ export default function DealersPage() {
                           <option value="passive">Pasif</option>
                           <option value="pending">Beklemede</option>
                         </select>
+                      </div>
                       </div>
 
                       <div className="flex gap-3 pt-4">
@@ -753,11 +755,11 @@ export default function DealersPage() {
       </main>
 
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="rounded-3xl max-w-md">
+        <DialogContent className="rounded-3xl max-w-2xl w-[95vw]">
           <DialogHeader>
             <DialogTitle>Bayi Bilgilerini Güncelle</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleEditDealer} className="space-y-4">
+          <form onSubmit={handleEditDealer} className="space-y-6">
             {formError && (
               <Alert className="rounded-xl border-red-200 bg-red-50">
                 <AlertDescription className="text-red-700">
@@ -766,99 +768,101 @@ export default function DealersPage() {
               </Alert>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="dealer_name_edit">Bayi Adı</Label>
-              <Input
-                id="dealer_name_edit"
-                name="dealer_name"
-                value={formData.dealer_name}
-                onChange={handleInputChange}
-                className="rounded-xl"
-                required
-              />
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="dealer_name_edit">Bayi Adı *</Label>
+                <Input
+                  id="dealer_name_edit"
+                  name="dealer_name"
+                  value={formData.dealer_name}
+                  onChange={handleInputChange}
+                  className="rounded-xl"
+                  required
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="contact_person_edit">Yetkili Kişi</Label>
-              <Input
-                id="contact_person_edit"
-                name="contact_person"
-                value={formData.contact_person}
-                onChange={handleInputChange}
-                className="rounded-xl"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_person_edit">Yetkili Kişi</Label>
+                <Input
+                  id="contact_person_edit"
+                  name="contact_person"
+                  value={formData.contact_person}
+                  onChange={handleInputChange}
+                  className="rounded-xl"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="city_edit">Şehir</Label>
-              <Input
-                id="city_edit"
-                name="city"
-                value={formData.city}
-                onChange={handleInputChange}
-                className="rounded-xl"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone_edit">Telefon *</Label>
+                <Input
+                  id="phone_edit"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  className="rounded-xl"
+                  required
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="address_edit">Adres</Label>
-              <Input
-                id="address_edit"
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                className="rounded-xl"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="email_edit">E-posta</Label>
+                <Input
+                  id="email_edit"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="rounded-xl"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone_edit">Telefon</Label>
-              <Input
-                id="phone_edit"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                className="rounded-xl"
-                required
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="city_edit">Şehir</Label>
+                <Input
+                  id="city_edit"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  className="rounded-xl"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email_edit">E-posta</Label>
-              <Input
-                id="email_edit"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                className="rounded-xl"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="tax_number_edit">Vergi No</Label>
+                <Input
+                  id="tax_number_edit"
+                  name="tax_number"
+                  value={formData.tax_number}
+                  onChange={handleInputChange}
+                  className="rounded-xl"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="tax_number_edit">Vergi No</Label>
-              <Input
-                id="tax_number_edit"
-                name="tax_number"
-                value={formData.tax_number}
-                onChange={handleInputChange}
-                className="rounded-xl"
-              />
-            </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="address_edit">Adres</Label>
+                <Input
+                  id="address_edit"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  className="rounded-xl"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="status_edit">Durum</Label>
-              <select
-                id="status_edit"
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 rounded-xl border-2 border-slate-200 focus:border-[#F57C00] focus:outline-none"
-              >
-                <option value="active">Aktif</option>
-                <option value="passive">Pasif</option>
-                <option value="pending">Beklemede</option>
-              </select>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="status_edit">Durum</Label>
+                <select
+                  id="status_edit"
+                  name="status"
+                  value={formData.status}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 rounded-xl border-2 border-slate-200 focus:border-[#F57C00] focus:outline-none"
+                >
+                  <option value="active">Aktif</option>
+                  <option value="passive">Pasif</option>
+                  <option value="pending">Beklemede</option>
+                </select>
+              </div>
             </div>
 
             <div className="flex gap-3 pt-4">
