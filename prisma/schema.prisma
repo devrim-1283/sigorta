@@ -193,15 +193,14 @@ model Payment {
 model Note {
   id           BigInt    @id @default(autoincrement())
   customer_id  BigInt
-  user_id      BigInt
-  içerik       String    @db.Text
-  is_important Boolean   @default(false)
-  created_at   DateTime? @default(now()) @db.Timestamp()
-  updated_at   DateTime? @default(now()) @db.Timestamp()
-  
+  user_id      BigInt    @map("created_by")
+  içerik       String    @db.Text @map("note")
+  created_at   DateTime  @default(now()) @db.Timestamp()
+  updated_at   DateTime  @default(now()) @db.Timestamp()
+
   customer     Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)
-  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Restrict)
+
   @@map("notes")
 }
 
