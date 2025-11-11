@@ -85,7 +85,9 @@ export async function getCustomers(params?: {
       telefon: c.telefon,
       email: c.email,
       plaka: c.plaka,
-      hasar_tarihi: c.hasar_tarihi.toISOString().split('T')[0],
+      hasar_tarihi: c.hasar_tarihi
+        ? c.hasar_tarihi.toISOString().split('T')[0]
+        : null,
       file_type_id: Number(c.file_type_id),
       dealer_id: c.dealer_id ? Number(c.dealer_id) : null,
       başvuru_durumu: c.başvuru_durumu,
@@ -180,10 +182,108 @@ export async function getCustomer(id: number) {
   }
 
   return {
-    ...customer,
     id: Number(customer.id),
+    ad_soyad: customer.ad_soyad,
+    tc_no: customer.tc_no,
+    telefon: customer.telefon,
+    email: customer.email,
+    plaka: customer.plaka,
+    hasar_tarihi: customer.hasar_tarihi ? customer.hasar_tarihi.toISOString() : null,
     file_type_id: Number(customer.file_type_id),
     dealer_id: customer.dealer_id ? Number(customer.dealer_id) : null,
+    başvuru_durumu: customer.başvuru_durumu,
+    evrak_durumu: customer.evrak_durumu,
+    dosya_kilitli: customer.dosya_kilitli,
+    dosya_kapanma_nedeni: customer.dosya_kapanma_nedeni,
+    dosya_kapanma_tarihi: customer.dosya_kapanma_tarihi ? customer.dosya_kapanma_tarihi.toISOString() : null,
+    created_at: customer.created_at ? customer.created_at.toISOString() : null,
+    updated_at: customer.updated_at ? customer.updated_at.toISOString() : null,
+    dealer: customer.dealer
+      ? {
+          id: Number(customer.dealer.id),
+          dealer_name: customer.dealer.dealer_name,
+          contact_person: customer.dealer.contact_person,
+          phone: customer.dealer.phone,
+          email: customer.dealer.email,
+        }
+      : null,
+    file_type: customer.file_type
+      ? {
+          id: Number(customer.file_type.id),
+          name: customer.file_type.name,
+          description: customer.file_type.description,
+          required_for_approval: customer.file_type.required_for_approval,
+        }
+      : null,
+    documents:
+      customer.documents
+        ?.filter((doc: any) => !doc.deleted_at)
+        .map((doc: any) => ({
+          id: Number(doc.id),
+          customer_id: Number(doc.customer_id),
+          tip: doc.tip,
+          dosya_adı: (doc as any).dosya_adı || (doc as any).belge_adi || 'Belge',
+          dosya_yolu: doc.dosya_yolu,
+          dosya_boyutu: doc.dosya_boyutu ? Number(doc.dosya_boyutu) : null,
+          mime_type: doc.mime_type,
+          durum: doc.durum,
+          red_nedeni: doc.red_nedeni,
+          document_type: doc.document_type,
+          is_result_document: doc.is_result_document,
+          uploaded_by: Number(doc.uploaded_by),
+          onaylayan_id: doc.onaylayan_id ? Number(doc.onaylayan_id) : null,
+          onay_tarihi: doc.onay_tarihi ? doc.onay_tarihi.toISOString() : null,
+          created_at: doc.created_at ? doc.created_at.toISOString() : null,
+          updated_at: doc.updated_at ? doc.updated_at.toISOString() : null,
+          uploader: doc.uploader
+            ? {
+                id: Number(doc.uploader.id),
+                name: doc.uploader.name,
+                email: doc.uploader.email,
+              }
+            : null,
+          approver: doc.approver
+            ? {
+                id: Number(doc.approver.id),
+                name: doc.approver.name,
+                email: doc.approver.email,
+              }
+            : null,
+        })) || [],
+    payments:
+      customer.payments?.map((payment: any) => ({
+        id: Number(payment.id),
+        tutar: payment.tutar ? Number(payment.tutar) : null,
+        tarih: payment.tarih ? payment.tarih.toISOString() : null,
+        durum: payment.durum,
+        açıklama: (payment as any).açıklama || payment.description || null,
+        created_at: payment.created_at ? payment.created_at.toISOString() : null,
+        updated_at: payment.updated_at ? payment.updated_at.toISOString() : null,
+        recorder: payment.recorder
+          ? {
+              id: Number(payment.recorder.id),
+              name: payment.recorder.name,
+              email: payment.recorder.email,
+            }
+          : null,
+      })) || [],
+    notes:
+      customer.notes?.map((note: any) => {
+        const content = note.içerik ?? note.note ?? note.content ?? ''
+        return {
+          id: Number(note.id),
+          content,
+          created_at: note.created_at ? note.created_at.toISOString() : null,
+          updated_at: note.updated_at ? note.updated_at.toISOString() : null,
+          author: note.user
+            ? {
+                id: Number(note.user.id),
+                name: note.user.name,
+                email: note.user.email,
+              }
+            : null,
+        }
+      }).filter((note: any) => Boolean(note.content?.trim())) || [],
   }
 }
 
@@ -321,7 +421,9 @@ export async function createCustomer(data: {
       telefon: customer.telefon,
       email: customer.email,
       plaka: customer.plaka,
-      hasar_tarihi: customer.hasar_tarihi.toISOString().split('T')[0],
+      hasar_tarihi: customer.hasar_tarihi
+        ? customer.hasar_tarihi.toISOString().split('T')[0]
+        : null,
       file_type_id: Number(customer.file_type_id),
       dealer_id: customer.dealer_id ? Number(customer.dealer_id) : null,
       başvuru_durumu: customer.başvuru_durumu,
@@ -330,8 +432,8 @@ export async function createCustomer(data: {
       dosya_kapanma_nedeni: customer.dosya_kapanma_nedeni,
       dosya_kapanma_tarihi: customer.dosya_kapanma_tarihi?.toISOString() || null,
       notlar: customer.notlar,
-      created_at: customer.created_at.toISOString(),
-      updated_at: customer.updated_at.toISOString(),
+      created_at: customer.created_at ? customer.created_at.toISOString() : null,
+      updated_at: customer.updated_at ? customer.updated_at.toISOString() : null,
       file_type: customer.file_type ? {
         id: Number(customer.file_type.id),
         name: customer.file_type.name,

@@ -12,6 +12,35 @@ import {
   resolveDocumentPath,
 } from '@/lib/storage'
 
+type DocumentRecord = Awaited<ReturnType<typeof prisma.document.findFirst>>
+
+function serializeDate(value: Date | null | undefined) {
+  return value ? value.toISOString() : null
+}
+
+function serializeDocument(doc: NonNullable<DocumentRecord>) {
+  return {
+    id: Number(doc.id),
+    customer_id: Number(doc.customer_id),
+    tip: doc.tip,
+    dosya_adı: (doc as any).dosya_adı || (doc as any).belge_adi || 'Belge',
+    dosya_yolu: doc.dosya_yolu,
+    dosya_boyutu: doc.dosya_boyutu ? Number(doc.dosya_boyutu) : null,
+    mime_type: doc.mime_type,
+    durum: doc.durum,
+    red_nedeni: doc.red_nedeni,
+    document_type: doc.document_type,
+    is_result_document: doc.is_result_document,
+    result_document_type_id: doc.result_document_type_id ? Number(doc.result_document_type_id) : null,
+    uploaded_by: Number(doc.uploaded_by),
+    onaylayan_id: doc.onaylayan_id ? Number(doc.onaylayan_id) : null,
+    onay_tarihi: serializeDate(doc.onay_tarihi),
+    created_at: serializeDate(doc.created_at),
+    updated_at: serializeDate(doc.updated_at),
+    deleted_at: serializeDate((doc as any).deleted_at ?? null),
+  }
+}
+
 export async function getDocuments(params?: {
   search?: string
   type?: string
@@ -56,11 +85,28 @@ export async function getDocuments(params?: {
   })
 
   return documents.map(d => ({
-    ...d,
-    id: Number(d.id),
-    customer_id: Number(d.customer_id),
-    uploaded_by: Number(d.uploaded_by),
-    onaylayan_id: d.onaylayan_id ? Number(d.onaylayan_id) : null,
+    ...serializeDocument(d),
+    customer: d.customer
+      ? {
+          id: Number(d.customer.id),
+          ad_soyad: d.customer.ad_soyad,
+          dealer_id: d.customer.dealer_id ? Number(d.customer.dealer_id) : null,
+        }
+      : null,
+    uploader: d.uploader
+      ? {
+          id: Number(d.uploader.id),
+          name: d.uploader.name,
+          email: d.uploader.email,
+        }
+      : null,
+    approver: d.approver
+      ? {
+          id: Number(d.approver.id),
+          name: d.approver.name,
+          email: d.approver.email,
+        }
+      : null,
   }))
 }
 
@@ -81,11 +127,27 @@ export async function getDocument(id: number) {
   }
 
   return {
-    ...document,
-    id: Number(document.id),
-    customer_id: Number(document.customer_id),
-    uploaded_by: Number(document.uploaded_by),
-    onaylayan_id: document.onaylayan_id ? Number(document.onaylayan_id) : null,
+    ...serializeDocument(document),
+    customer: document.customer
+      ? {
+          id: Number(document.customer.id),
+          ad_soyad: document.customer.ad_soyad,
+        }
+      : null,
+    uploader: document.uploader
+      ? {
+          id: Number(document.uploader.id),
+          name: document.uploader.name,
+          email: document.uploader.email,
+        }
+      : null,
+    approver: document.approver
+      ? {
+          id: Number(document.approver.id),
+          name: document.approver.name,
+          email: document.approver.email,
+        }
+      : null,
   }
 }
 
@@ -193,13 +255,7 @@ export async function uploadDocument(formData: FormData) {
     revalidatePath('/dashboard/documents')
     revalidatePath('/dashboard/customers')
 
-    return {
-      ...document,
-      id: Number(document.id),
-      customer_id: Number(document.customer_id),
-      uploaded_by: Number(document.uploaded_by),
-      dosya_boyutu: Number(document.dosya_boyutu),
-    }
+    return serializeDocument(document)
   } catch (error: any) {
     console.error('Upload document error:', error)
     throw new Error(error.message || 'Dosya yüklenemedi')

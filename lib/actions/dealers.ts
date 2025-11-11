@@ -1,9 +1,9 @@
  'use server'
 
 import bcrypt from 'bcryptjs'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 
-async function getDealerRoleId(tx: PrismaClient): Promise<number> {
+async function getDealerRoleId(tx: Prisma.TransactionClient): Promise<bigint> {
   const role = await tx.role.findFirst({
     where: { name: 'bayi' },
     select: { id: true },
@@ -13,7 +13,7 @@ async function getDealerRoleId(tx: PrismaClient): Promise<number> {
     throw new Error('Bayi rolü bulunamadı')
   }
 
-  return Number(role.id)
+  return role.id
 }
 
 import prisma from '@/lib/db'
@@ -93,6 +93,38 @@ export async function createDealer(data: {
 
   try {
     return await prisma.$transaction(async (tx) => {
+      // Check for duplicate dealer phone or tax number before creation
+      const existingDealer = await tx.dealer.findFirst({
+        where: {
+          OR: [
+            { phone: data.phone },
+            ...(data.tax_number ? [{ tax_number: data.tax_number }] : []),
+            ...(data.email ? [{ email: data.email }] : []),
+          ],
+        },
+        select: { id: true, dealer_name: true },
+      })
+
+      if (existingDealer) {
+        throw new Error('Bu telefon, vergi numarası veya e-posta ile kayıtlı bir bayi zaten var')
+      }
+
+      if (data.email) {
+        const existingUserWithEmail = await tx.user.findFirst({
+          where: {
+            OR: [
+              { email: data.email },
+              { phone: data.phone },
+            ],
+          },
+          select: { id: true },
+        })
+
+        if (existingUserWithEmail) {
+          throw new Error('Bu e-posta veya telefon numarası başka bir kullanıcı tarafından kullanılıyor')
+        }
+      }
+
       const dealer = await tx.dealer.create({
         data: {
           dealer_name: data.dealer_name,
@@ -110,13 +142,14 @@ export async function createDealer(data: {
 
       if (data.email && data.password) {
         const hashedPassword = await bcrypt.hash(data.password, 12)
+        const dealerRoleId = await getDealerRoleId(tx)
         await tx.user.create({
           data: {
             name: data.dealer_name,
             email: data.email,
             phone: data.phone,
             password: hashedPassword,
-            role_id: BigInt(await getDealerRoleId(tx)),
+            role_id: dealerRoleId,
             dealer_id: dealer.id,
             is_active: true,
             created_at: new Date(),
@@ -135,6 +168,11 @@ export async function createDealer(data: {
     })
   } catch (error: any) {
     console.error('Create dealer error:', error)
+    if (error.code === 'P2002') {
+      const target = Array.isArray(error.meta?.target) ? error.meta.target.join(', ') : error.meta?.target
+      throw new Error(`Bayi oluşturulamadı: ${target || 'benzersiz alan'} zaten kullanımda`)
+    }
+
     throw new Error(error.message || 'Bayi oluşturulamadı')
   }
 }
