@@ -15,7 +15,6 @@ async function getDealerRoleId(tx: PrismaClient): Promise<number> {
 
   return Number(role.id)
 }
-'use server'
 
 import prisma from '@/lib/db'
 import { requireAuth } from './auth'
