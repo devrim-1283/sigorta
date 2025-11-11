@@ -300,6 +300,7 @@ export async function createCustomer(data: {
   başvuru_durumu?: string
   evrak_durumu?: string
   dosya_kilitli?: boolean
+  password?: string
 }) {
   const user = await requireAuth()
   
@@ -502,11 +503,18 @@ export async function createCustomer(data: {
           }
         })
 
-        if (!existingUser) {
-          // Generate random password
-          const randomPassword = generateRandomPassword(12)
-          const hashedPassword = await bcrypt.hash(randomPassword, 12)
+        // Use provided password or generate random one
+        const passwordToUse = data.password && data.password.trim() 
+          ? data.password.trim() 
+          : generateRandomPassword(12)
+        
+        if (passwordToUse.length < 8) {
+          throw new Error('Şifre en az 8 karakter olmalıdır')
+        }
 
+        const hashedPassword = await bcrypt.hash(passwordToUse, 12)
+
+        if (!existingUser) {
           // Create user account with normalized values
           const newUser = await prisma.user.create({
             data: {
@@ -523,20 +531,43 @@ export async function createCustomer(data: {
           console.log('Customer user account created:', {
             userId: Number(newUser.id),
             username: data.tc_no || data.telefon || data.email,
-            password: randomPassword,
+            password: passwordToUse,
           })
 
           loginCredentials = {
             username: data.tc_no || data.telefon || data.email,
-            password: randomPassword,
+            password: passwordToUse,
             loginUrl: '/musteri-giris'
           }
         } else {
-          console.log('User already exists for this customer, skipping user creation')
+          // Update existing user with new password if provided
+          await prisma.user.update({
+            where: { id: existingUser.id },
+            data: {
+              name: data.ad_soyad.trim(),
+              tc_no: normalizedTC,
+              phone: normalizedPhone,
+              email: data.email ? data.email.trim().toLowerCase() : null,
+              password: hashedPassword,
+              updated_at: new Date(),
+            }
+          })
+
+          console.log('Customer user account updated:', {
+            userId: Number(existingUser.id),
+            username: data.tc_no || data.telefon || data.email,
+            password: passwordToUse,
+          })
+
+          loginCredentials = {
+            username: data.tc_no || data.telefon || data.email,
+            password: passwordToUse,
+            loginUrl: '/musteri-giris'
+          }
         }
       }
     } catch (error) {
-      console.error('Failed to create user account for customer:', error)
+      console.error('Failed to create/update user account for customer:', error)
       // Continue even if user creation fails - customer is already created
     }
 
@@ -648,37 +679,130 @@ export async function updateCustomer(id: number, data: Partial<{
   evrak_durumu: string
   dosya_kilitli: boolean
   notlar: string
+  password?: string
 }>) {
   await requireAuth()
 
-  const updateData: any = { ...data }
-  if (data.file_type_id) updateData.file_type_id = BigInt(data.file_type_id)
-  if (data.dealer_id) updateData.dealer_id = BigInt(data.dealer_id)
-  if (data.hasar_tarihi) {
-    updateData.hasar_tarihi =
-      typeof data.hasar_tarihi === 'string'
-        ? new Date(data.hasar_tarihi)
-        : data.hasar_tarihi
-  }
+  return await prisma.$transaction(async (tx) => {
+    // Get customer first to get normalized values
+    const existingCustomer = await tx.customer.findUnique({
+      where: { id: BigInt(id) },
+      select: {
+        tc_no: true,
+        telefon: true,
+        email: true,
+        ad_soyad: true,
+      },
+    })
 
-  const customer = await prisma.customer.update({
-    where: { id: BigInt(id) },
-    data: updateData,
-    include: {
-      dealer: true,
-      file_type: true,
-    },
+    if (!existingCustomer) {
+      throw new Error('Müşteri bulunamadı')
+    }
+
+    // Normalize TC No and phone
+    const normalizedTC = data.tc_no ? data.tc_no.replace(/\s/g, '') : existingCustomer.tc_no
+    const normalizedPhone = data.telefon ? validatePhone(data.telefon) : existingCustomer.telefon
+    const customerEmail = data.email?.trim().toLowerCase() || existingCustomer.email?.trim().toLowerCase() || null
+    const customerName = data.ad_soyad?.trim() || existingCustomer.ad_soyad
+
+    // Prepare customer update data
+    const updateData: any = { ...data }
+    if (data.file_type_id) updateData.file_type_id = BigInt(data.file_type_id)
+    if (data.dealer_id) updateData.dealer_id = BigInt(data.dealer_id)
+    if (data.hasar_tarihi) {
+      updateData.hasar_tarihi =
+        typeof data.hasar_tarihi === 'string'
+          ? new Date(data.hasar_tarihi)
+          : data.hasar_tarihi
+    }
+
+    // Update normalized values
+    if (data.tc_no) updateData.tc_no = normalizedTC
+    if (data.telefon) updateData.telefon = normalizedPhone
+    if (data.email !== undefined) updateData.email = customerEmail
+
+    // Update customer
+    const customer = await tx.customer.update({
+      where: { id: BigInt(id) },
+      data: updateData,
+      include: {
+        dealer: true,
+        file_type: true,
+      },
+    })
+
+    // Handle password update if provided
+    if (data.password && data.password.trim()) {
+      const password = data.password.trim()
+      
+      if (password.length < 8) {
+        throw new Error('Şifre en az 8 karakter olmalıdır')
+      }
+
+      // Get musteri role
+      const musteriRole = await tx.role.findFirst({
+        where: { name: 'musteri' },
+      })
+
+      if (!musteriRole) {
+        console.warn('Musteri role not found, skipping user account update')
+      } else {
+        // Find existing user by TC No, phone, or email
+        const existingUser = await tx.user.findFirst({
+          where: {
+            OR: [
+              { tc_no: normalizedTC },
+              { phone: normalizedPhone },
+              ...(customerEmail ? [{ email: customerEmail }] : []),
+            ],
+          },
+        })
+
+        const hashedPassword = await bcrypt.hash(password, 12)
+
+        if (existingUser) {
+          // Update existing user
+          await tx.user.update({
+            where: { id: existingUser.id },
+            data: {
+              name: customerName,
+              tc_no: normalizedTC,
+              phone: normalizedPhone,
+              email: customerEmail,
+              password: hashedPassword,
+              updated_at: new Date(),
+            },
+          })
+        } else {
+          // Create new user account
+          await tx.user.create({
+            data: {
+              name: customerName,
+              tc_no: normalizedTC,
+              phone: normalizedPhone,
+              email: customerEmail,
+              password: hashedPassword,
+              role_id: musteriRole.id,
+              is_active: true,
+              created_at: new Date(),
+              updated_at: new Date(),
+            },
+          })
+        }
+      }
+    }
+
+    revalidatePath('/dashboard/customers')
+    revalidatePath(`/dashboard/customers/${id}`)
+    revalidatePath('/admin/musteriler')
+
+    return {
+      ...customer,
+      id: Number(customer.id),
+      file_type_id: Number(customer.file_type_id),
+      dealer_id: customer.dealer_id ? Number(customer.dealer_id) : null,
+    }
   })
-
-  revalidatePath('/dashboard/customers')
-  revalidatePath(`/dashboard/customers/${id}`)
-
-  return {
-    ...customer,
-    id: Number(customer.id),
-    file_type_id: Number(customer.file_type_id),
-    dealer_id: customer.dealer_id ? Number(customer.dealer_id) : null,
-  }
 }
 
 export async function deleteCustomer(id: number) {

@@ -3,7 +3,7 @@
 import prisma from '@/lib/db'
 import { requireAuth } from './auth'
 import { revalidatePath } from 'next/cache'
-import { writeFile, unlink } from 'fs/promises'
+import { writeFile, unlink, stat } from 'fs/promises'
 import { existsSync } from 'fs'
 import {
   ensureDocumentsDir,
@@ -230,6 +230,22 @@ export async function uploadDocument(formData: FormData) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
     await writeFile(absolutePath, buffer)
+
+    // Verify file was written successfully
+    if (!existsSync(absolutePath)) {
+      throw new Error('Dosya kaydedilemedi')
+    }
+
+    const fileStats = await stat(absolutePath)
+    if (fileStats.size === 0) {
+      throw new Error('Dosya boş olarak kaydedildi')
+    }
+
+    console.log('[Upload] File saved successfully:', {
+      absolutePath,
+      relativePath,
+      size: fileStats.size,
+    })
 
     // Create document record in database
     const data: any = {

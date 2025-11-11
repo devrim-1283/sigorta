@@ -7,9 +7,20 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { DollarSign, TrendingUp, TrendingDown, CreditCard, Calendar, Download, Filter, FileText, Plus } from "lucide-react"
 import { accountingApi } from "@/lib/api-client"
+import { useToast } from "@/hooks/use-toast"
 import type { UserRole } from "@/lib/role-config"
 
 // Force dynamic rendering
@@ -18,12 +29,23 @@ export const dynamic = 'force-dynamic'
 export default function AccountingPage() {
   const { isAuthenticated, user, isLoading, logout } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const userRole: UserRole = (user?.role?.name as UserRole) || "superadmin"
   const [dateRange, setDateRange] = useState("last-30-days")
   const [transactionType, setTransactionType] = useState("all")
   const [transactions, setTransactions] = useState<any[]>([])
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isDownloadingReport, setIsDownloadingReport] = useState(false)
+  const [formData, setFormData] = useState({
+    type: 'income' as 'income' | 'expense',
+    category: '',
+    description: '',
+    amount: '',
+    transaction_date: new Date().toISOString().split('T')[0],
+    document_url: '',
+  })
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -50,46 +72,216 @@ export default function AccountingPage() {
     try {
       setLoading(true)
       
-      // Fetch from accounting API (using payments as accounting transactions for now)
-      const paymentsData = await fetch('/api/payments').then(res => res.json())
-      const payments = paymentsData.payments || []
+      // Calculate date range
+      const endDate = new Date()
+      let startDate = new Date()
       
-      // Calculate stats
-      const totalIncome = payments
-        .filter((p: any) => p.odeme_turu === 'Gelir' || p.durum === 'Ödendi')
-        .reduce((sum: number, p: any) => sum + parseFloat(p.tutar || 0), 0)
+      switch (dateRange) {
+        case 'last-7-days':
+          startDate.setDate(endDate.getDate() - 7)
+          break
+        case 'last-30-days':
+          startDate.setDate(endDate.getDate() - 30)
+          break
+        case 'last-3-months':
+          startDate.setMonth(endDate.getMonth() - 3)
+          break
+        case 'last-6-months':
+          startDate.setMonth(endDate.getMonth() - 6)
+          break
+        case 'last-year':
+          startDate.setFullYear(endDate.getFullYear() - 1)
+          break
+        default:
+          startDate.setDate(endDate.getDate() - 30)
+      }
+
+      // Fetch from accounting API
+      const params: any = {
+        startDate,
+        endDate,
+      }
       
-      const totalExpense = payments
-        .filter((p: any) => p.odeme_turu === 'Gider')
-        .reduce((sum: number, p: any) => sum + parseFloat(p.tutar || 0), 0)
-      
-      const pendingPayments = payments
-        .filter((p: any) => p.durum === 'Bekliyor')
-        .reduce((sum: number, p: any) => sum + parseFloat(p.tutar || 0), 0)
+      if (transactionType !== 'all') {
+        params.type = transactionType
+      }
+
+      const [transactionsData, statsData] = await Promise.all([
+        accountingApi.list(params),
+        accountingApi.getStats({ startDate, endDate }),
+      ])
+
+      const accountingTransactions = transactionsData.transactions || []
       
       setStats({
-        totalIncome,
-        totalExpense,
-        netProfit: totalIncome - totalExpense,
-        pendingPayments
+        totalIncome: parseFloat(statsData.totalIncome || '0'),
+        totalExpense: parseFloat(statsData.totalExpense || '0'),
+        netProfit: parseFloat(statsData.netProfit || '0'),
+        pendingPayments: 0, // This would need to be calculated separately
       })
       
-      // Transform payments to transactions format
-      const transformedTransactions = payments.slice(0, 10).map((p: any) => ({
-        id: p.id,
-        description: p.aciklama || 'Ödeme',
-        amount: `₺${parseFloat(p.tutar || 0).toLocaleString('tr-TR')}`,
-        date: new Date(p.odeme_tarihi).toLocaleDateString('tr-TR'),
-        type: p.durum === 'Ödendi' ? 'income' : 'expense',
-        status: p.durum === 'Ödendi' ? 'completed' : p.durum === 'Bekliyor' ? 'pending' : 'overdue',
-        category: p.odeme_turu || 'Diğer'
+      // Transform transactions
+      const transformedTransactions = accountingTransactions.map((t: any) => ({
+        id: t.id,
+        description: t.description || t.category || 'İşlem',
+        amount: `₺${parseFloat(t.amount || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        date: new Date(t.transaction_date).toLocaleDateString('tr-TR'),
+        type: t.type,
+        status: 'completed',
+        category: t.category || 'Diğer'
       }))
       
       setTransactions(transformedTransactions)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch accounting data:', error)
+      toast({
+        title: 'Hata',
+        description: error?.message || 'Muhasebe verileri yüklenemedi',
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCreateTransaction = async () => {
+    try {
+      if (!formData.type || !formData.amount || !formData.transaction_date) {
+        toast({
+          title: 'Hata',
+          description: 'Lütfen tüm zorunlu alanları doldurun',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      await accountingApi.create({
+        type: formData.type,
+        category: formData.category || null,
+        description: formData.description || null,
+        amount: parseFloat(formData.amount),
+        transaction_date: new Date(formData.transaction_date),
+        document_url: formData.document_url || null,
+      })
+
+      toast({
+        title: 'Başarılı',
+        description: 'İşlem başarıyla eklendi',
+      })
+
+      setIsCreateDialogOpen(false)
+      setFormData({
+        type: 'income',
+        category: '',
+        description: '',
+        amount: '',
+        transaction_date: new Date().toISOString().split('T')[0],
+        document_url: '',
+      })
+
+      // Refresh data
+      await fetchAccountingData()
+    } catch (error: any) {
+      console.error('Failed to create transaction:', error)
+      toast({
+        title: 'Hata',
+        description: error?.message || 'İşlem eklenemedi',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleDownloadReport = async () => {
+    try {
+      setIsDownloadingReport(true)
+
+      // Calculate date range
+      const endDate = new Date()
+      let startDate = new Date()
+      
+      switch (dateRange) {
+        case 'last-7-days':
+          startDate.setDate(endDate.getDate() - 7)
+          break
+        case 'last-30-days':
+          startDate.setDate(endDate.getDate() - 30)
+          break
+        case 'last-3-months':
+          startDate.setMonth(endDate.getMonth() - 3)
+          break
+        case 'last-6-months':
+          startDate.setMonth(endDate.getMonth() - 6)
+          break
+        case 'last-year':
+          startDate.setFullYear(endDate.getFullYear() - 1)
+          break
+        default:
+          startDate.setDate(endDate.getDate() - 30)
+      }
+
+      // Fetch transactions for report
+      const params: any = {
+        startDate,
+        endDate,
+        perPage: 1000, // Get all transactions
+      }
+      
+      if (transactionType !== 'all') {
+        params.type = transactionType
+      }
+
+      const transactionsData = await accountingApi.list(params)
+      const statsData = await accountingApi.getStats({ startDate, endDate })
+
+      // Create CSV content
+      const csvRows = [
+        ['Muhasebe Raporu'],
+        [`Tarih Aralığı: ${startDate.toLocaleDateString('tr-TR')} - ${endDate.toLocaleDateString('tr-TR')}`],
+        [''],
+        ['Özet'],
+        [`Toplam Gelir,${statsData.totalIncome}`],
+        [`Toplam Gider,${statsData.totalExpense}`],
+        [`Net Kâr,${statsData.netProfit}`],
+        [''],
+        ['İşlemler'],
+        ['ID', 'Tür', 'Kategori', 'Açıklama', 'Tutar', 'Tarih'],
+      ]
+
+      transactionsData.transactions.forEach((t: any) => {
+        csvRows.push([
+          t.id.toString(),
+          t.type === 'income' ? 'Gelir' : 'Gider',
+          t.category || '',
+          t.description || '',
+          t.amount,
+          new Date(t.transaction_date).toLocaleDateString('tr-TR'),
+        ])
+      })
+
+      const csvContent = csvRows.map(row => row.join(',')).join('\n')
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `muhasebe-raporu-${startDate.toISOString().split('T')[0]}-${endDate.toISOString().split('T')[0]}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      toast({
+        title: 'Başarılı',
+        description: 'Rapor başarıyla indirildi',
+      })
+    } catch (error: any) {
+      console.error('Failed to download report:', error)
+      toast({
+        title: 'Hata',
+        description: error?.message || 'Rapor indirilemedi',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDownloadingReport(false)
     }
   }
 
@@ -245,11 +437,20 @@ export default function AccountingPage() {
 
         {/* Header Actions */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <Button variant="outline" className="rounded-2xl bg-transparent w-full sm:w-auto">
-            <Download className="mr-2 h-4 w-4" />
-            Rapor İndir
+          <Button 
+            variant="outline" 
+            className="rounded-2xl bg-transparent w-full sm:w-auto"
+            onClick={handleDownloadReport}
+            disabled={isDownloadingReport || loading}
+          >
+            <Download className={`mr-2 h-4 w-4 ${isDownloadingReport ? 'animate-spin' : ''}`} />
+            {isDownloadingReport ? 'İndiriliyor...' : 'Rapor İndir'}
           </Button>
-          <Button className="rounded-2xl w-full sm:w-auto" style={{ backgroundColor: "#F57C00", color: "white" }}>
+          <Button 
+            className="rounded-2xl w-full sm:w-auto" 
+            style={{ backgroundColor: "#F57C00", color: "white" }}
+            onClick={() => setIsCreateDialogOpen(true)}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Yeni İşlem
           </Button>
@@ -452,6 +653,105 @@ export default function AccountingPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Create Transaction Dialog */}
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogContent className="rounded-3xl max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">Yeni İşlem Ekle</DialogTitle>
+              <DialogDescription>
+                Muhasebe işlemi ekleyin
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="type">İşlem Türü *</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value) => setFormData({ ...formData, type: value as 'income' | 'expense' })}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="income">Gelir</SelectItem>
+                    <SelectItem value="expense">Gider</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">Kategori</Label>
+                <Input
+                  id="category"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  placeholder="Örn: Maaş, Kira, Satış"
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="amount">Tutar *</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  placeholder="0.00"
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="transaction_date">Tarih *</Label>
+                <Input
+                  id="transaction_date"
+                  type="date"
+                  value={formData.transaction_date}
+                  onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Açıklama</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="İşlem açıklaması"
+                  className="rounded-xl"
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="document_url">Döküman URL (Opsiyonel)</Label>
+                <Input
+                  id="document_url"
+                  value={formData.document_url}
+                  onChange={(e) => setFormData({ ...formData, document_url: e.target.value })}
+                  placeholder="https://..."
+                  className="rounded-xl"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsCreateDialogOpen(false)}
+                className="rounded-xl"
+              >
+                İptal
+              </Button>
+              <Button
+                onClick={handleCreateTransaction}
+                className="rounded-xl"
+                style={{ backgroundColor: "#F57C00", color: "white" }}
+                disabled={!formData.type || !formData.amount || !formData.transaction_date}
+              >
+                Kaydet
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </main>
   )

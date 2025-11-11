@@ -14,6 +14,8 @@ import {
   AlertCircle,
   Upload,
   Eye,
+  EyeOff,
+  Copy,
   Edit,
   Car,
   Building,
@@ -22,6 +24,7 @@ import {
   Download,
   Trash2,
   Loader2,
+  RefreshCw,
 } from "lucide-react"
 
 // Force dynamic rendering
@@ -159,7 +162,9 @@ export default function CustomersPage() {
     hasar_tarihi: '',
     başvuru_durumu: 'İnceleniyor' as ApplicationStatus,
     dealer_id: 'none',
+    password: '',
   })
+  const [showPassword, setShowPassword] = useState(false)
 
   // Form states
   const [newNote, setNewNote] = useState("")
@@ -172,6 +177,7 @@ export default function CustomersPage() {
     hasar_tarihi: string
     dosya_tipi: number | ""
     dealer_id: string
+    password: string
   }>({
     ad_soyad: "",
     tc_no: "",
@@ -181,7 +187,9 @@ export default function CustomersPage() {
     hasar_tarihi: "",
     dosya_tipi: "",
     dealer_id: "none",
+    password: "",
   })
+  const [showNewFilePassword, setShowNewFilePassword] = useState(false)
   const [newFileUploadedDocs, setNewFileUploadedDocs] = useState<FileDocType[]>([])
   const [currentUploadingDocType, setCurrentUploadingDocType] = useState<FileDocType | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<{ [key: string]: File }>({})
@@ -232,8 +240,14 @@ export default function CustomersPage() {
     try {
       setConfirmLoading(true)
       await confirmActionRef.current()
-    } catch (error) {
+      // Success is handled by the action itself (toast notifications)
+    } catch (error: any) {
       console.error('Confirm dialog action error:', error)
+      toast({
+        title: 'Hata',
+        description: error?.message || 'İşlem gerçekleştirilemedi',
+        variant: 'destructive',
+      })
     } finally {
       setConfirmLoading(false)
       handleConfirmDialogClose()
@@ -662,8 +676,21 @@ export default function CustomersPage() {
       confirmLabel: "Evet, Sil",
       action: async () => {
         try {
-          await documentApi.delete(doc.id)
+          // Ensure ID is a number
+          const documentId = typeof doc.id === 'string' ? parseInt(doc.id, 10) : doc.id
+          if (isNaN(documentId)) {
+            throw new Error('Geçersiz evrak ID')
+          }
 
+          await documentApi.delete(documentId)
+
+          // Show success toast
+          toast({
+            title: "Başarılı",
+            description: "Evrak başarıyla silindi",
+          })
+
+          // Refresh customer data to update document list
           if (selectedCustomer) {
             try {
               const response = await customerApi.getById(selectedCustomer.id)
@@ -693,12 +720,15 @@ export default function CustomersPage() {
               setSelectedCustomer(transformedCustomer)
             } catch (error) {
               console.error('Failed to refresh customer data:', error)
+              // Don't throw - document was deleted successfully, just refresh failed
             }
           }
 
+          // Refresh customers list
           await fetchCustomers()
-        } catch (error) {
+        } catch (error: any) {
           console.error('Delete error:', error)
+          // Error toast will be shown by handleConfirmDialogAction
           throw error
         }
       },
@@ -781,7 +811,7 @@ export default function CustomersPage() {
               ? Number(user.dealer_id)
               : null
 
-        const customerData = {
+        const customerData: any = {
           ad_soyad: newFileData.ad_soyad,
           tc_no: newFileData.tc_no,
           telefon: newFileData.telefon,
@@ -793,6 +823,11 @@ export default function CustomersPage() {
           evrak_durumu: "Eksik", // Start with Eksik, will update after uploads
           dealer_id: selectedDealerId,
         };
+
+        // Include password if provided
+        if (newFileData.password && newFileData.password.trim()) {
+          customerData.password = newFileData.password.trim()
+        }
 
         console.log('Creating customer with data:', customerData);
 
@@ -919,7 +954,9 @@ export default function CustomersPage() {
         hasar_tarihi: "",
         dosya_tipi: "",
         dealer_id: user?.dealer_id ? String(user.dealer_id) : "none",
+        password: "",
       })
+      setShowNewFilePassword(false)
       setNewFileUploadedDocs([])
       setUploadedFiles({}) // Clear uploaded files
       fetchCustomers() // Refresh data
@@ -935,6 +972,133 @@ export default function CustomersPage() {
   }
 
   // Edit customer handler
+  const generateStrongPassword = () => {
+    const lowercase = "abcdefghijklmnopqrstuvwxyz"
+    const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    const digits = "0123456789"
+    const symbols = "!@#$%^&*()-_=+[]{}<>?,."
+    const allChars = lowercase + uppercase + digits + symbols
+    const length = 14
+
+    const getRandomChar = (charset: string) => {
+      if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
+        const array = new Uint32Array(1)
+        window.crypto.getRandomValues(array)
+        return charset[array[0] % charset.length]
+      }
+      return charset[Math.floor(Math.random() * charset.length)]
+    }
+
+    const guarantee = [
+      getRandomChar(lowercase),
+      getRandomChar(uppercase),
+      getRandomChar(digits),
+      getRandomChar(symbols),
+    ]
+
+    const remainingLength = Math.max(length - guarantee.length, 0)
+    for (let i = 0; i < remainingLength; i++) {
+      guarantee.push(getRandomChar(allChars))
+    }
+
+    // Shuffle to avoid predictable positions
+    for (let i = guarantee.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[guarantee[i], guarantee[j]] = [guarantee[j], guarantee[i]]
+    }
+
+    return guarantee.join("")
+  }
+
+  const handleGeneratePassword = async (forNewFile: boolean = false) => {
+    const password = generateStrongPassword()
+    
+    if (forNewFile) {
+      setNewFileData((prev) => ({ ...prev, password }))
+    } else {
+      setEditFormData((prev) => ({ ...prev, password }))
+    }
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(password)
+        toast({
+          title: "Şifre oluşturuldu",
+          description: "Yeni şifre panoya kopyalandı.",
+        })
+      } else {
+        throw new Error("Clipboard API not available")
+      }
+    } catch (error) {
+      console.error("Password copy failed:", error)
+      toast({
+        title: "Şifre kopyalanamadı",
+        description: `Yeni şifre: ${password}`,
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleCopyNewFilePassword = async () => {
+    if (!newFileData.password) {
+      toast({
+        title: "Hata",
+        description: "Kopyalanacak şifre yok",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(newFileData.password)
+        toast({
+          title: "Kopyalandı",
+          description: "Şifre panoya kopyalandı.",
+        })
+      } else {
+        throw new Error("Clipboard API not available")
+      }
+    } catch (error) {
+      console.error("Password copy failed:", error)
+      toast({
+        title: "Hata",
+        description: "Şifre kopyalanamadı",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleCopyPassword = async () => {
+    if (!editFormData.password) {
+      toast({
+        title: "Hata",
+        description: "Kopyalanacak şifre yok",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(editFormData.password)
+        toast({
+          title: "Kopyalandı",
+          description: "Şifre panoya kopyalandı.",
+        })
+      } else {
+        throw new Error("Clipboard API not available")
+      }
+    } catch (error) {
+      console.error("Password copy failed:", error)
+      toast({
+        title: "Hata",
+        description: "Şifre kopyalanamadı",
+        variant: "destructive",
+      })
+    }
+  }
+
   const openEditModal = (customer: Customer) => {
     setSelectedCustomer(customer)
     setEditFormData({
@@ -945,17 +1109,19 @@ export default function CustomersPage() {
       plaka: customer.plaka,
       hasar_tarihi: customer.hasar_tarihi,
       başvuru_durumu: customer.başvuru_durumu,
-    dealer_id: customer.bağlı_bayi_id || 'none',
+      dealer_id: customer.bağlı_bayi_id || 'none',
+      password: '', // Don't show existing password for security
     })
-  if (customer.bağlı_bayi_id && !dealerOptions.some((dealer) => dealer.id === customer.bağlı_bayi_id)) {
-    setDealerOptions((prev) => [
-      ...prev,
-      {
-        id: customer.bağlı_bayi_id,
-        name: customer.bağlı_bayi_adı || "Belirtilmemiş",
-      },
-    ])
-  }
+    setShowPassword(false)
+    if (customer.bağlı_bayi_id && !dealerOptions.some((dealer) => dealer.id === customer.bağlı_bayi_id)) {
+      setDealerOptions((prev) => [
+        ...prev,
+        {
+          id: customer.bağlı_bayi_id,
+          name: customer.bağlı_bayi_adı || "Belirtilmemiş",
+        },
+      ])
+    }
     setShowEditModal(true)
   }
 
@@ -963,7 +1129,7 @@ export default function CustomersPage() {
     if (!selectedCustomer) return
 
     try {
-      const payload = {
+      const payload: any = {
         ...editFormData,
         dealer_id:
           editFormData.dealer_id && editFormData.dealer_id !== 'none'
@@ -971,12 +1137,40 @@ export default function CustomersPage() {
             : null,
       }
 
+      // Include password if provided
+      if (editFormData.password && editFormData.password.trim()) {
+        payload.password = editFormData.password.trim()
+      }
+
       await customerApi.update(selectedCustomer.id, payload)
+      
+      toast({
+        title: "Başarılı",
+        description: "Müşteri bilgileri güncellendi",
+      })
+
       setShowEditModal(false)
       setSelectedCustomer(null)
+      setEditFormData({
+        ad_soyad: '',
+        tc_no: '',
+        telefon: '',
+        email: '',
+        plaka: '',
+        hasar_tarihi: '',
+        başvuru_durumu: 'İnceleniyor',
+        dealer_id: 'none',
+        password: '',
+      })
+      setShowPassword(false)
       fetchCustomers() // Refresh data
     } catch (err: any) {
-      setError(err.message || 'Müşteri güncellenemedi')
+      console.error('Edit customer error:', err)
+      toast({
+        title: "Hata",
+        description: err.message || 'Müşteri güncellenemedi',
+        variant: "destructive",
+      })
     }
   }
 
@@ -2088,7 +2282,60 @@ export default function CustomersPage() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Seçilmezse müşteri “Belirtilmemiş / Bilinmiyor” bayi ile kaydedilir.
+                    Seçilmezse müşteri "Belirtilmemiş / Bilinmiyor" bayi ile kaydedilir.
+                  </p>
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="new_password" className="text-sm font-semibold mb-2">
+                    Müşteri Şifresi
+                  </Label>
+                  <div className="flex gap-2 mt-2">
+                    <div className="relative flex-1">
+                      <Input
+                        id="new_password"
+                        type={showNewFilePassword ? "text" : "password"}
+                        value={newFileData.password}
+                        onChange={(e) => setNewFileData({ ...newFileData, password: e.target.value })}
+                        placeholder="Şifre belirleyin veya otomatik üretin"
+                        className="rounded-2xl pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowNewFilePassword(!showNewFilePassword)}
+                      >
+                        {showNewFilePassword ? (
+                          <EyeOff className="h-4 w-4 text-gray-500" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-500" />
+                        )}
+                      </Button>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGeneratePassword(true)}
+                      className="rounded-2xl"
+                      title="Rastgele şifre üret ve kopyala"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Üret
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCopyNewFilePassword}
+                      disabled={!newFileData.password}
+                      className="rounded-2xl"
+                      title="Şifreyi kopyala"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Şifre belirlenirse müşteri hesabı bu şifre ile oluşturulur. Boş bırakılırsa otomatik şifre üretilir.
                   </p>
                 </div>
               </div>
@@ -2327,6 +2574,59 @@ export default function CustomersPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="edit_password" className="text-sm font-semibold mb-2">
+                    Müşteri Şifresi
+                  </Label>
+                  <div className="flex gap-2 mt-2">
+                    <div className="relative flex-1">
+                      <Input
+                        id="edit_password"
+                        type={showPassword ? "text" : "password"}
+                        value={editFormData.password}
+                        onChange={(e) => setEditFormData({ ...editFormData, password: e.target.value })}
+                        placeholder="Şifre belirleyin veya otomatik üretin"
+                        className="rounded-2xl pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4 text-gray-500" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-500" />
+                        )}
+                      </Button>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleGeneratePassword}
+                      className="rounded-2xl"
+                      title="Rastgele şifre üret ve kopyala"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Üret
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCopyPassword}
+                      disabled={!editFormData.password}
+                      className="rounded-2xl"
+                      title="Şifreyi kopyala"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Şifre belirlenirse müşteri hesabı güncellenir. Boş bırakılırsa şifre değişmez.
+                  </p>
                 </div>
               </div>
 
