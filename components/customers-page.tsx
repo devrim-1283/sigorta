@@ -1064,14 +1064,34 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
                     <div>
                       <p className="font-semibold mb-3">İç Notlar</p>
                       <div className="space-y-3">
-                        {selectedCustomer.notlar.map((note) => (
-                          <div key={note.id} className="p-4 bg-slate-50 rounded-xl">
-                            <div className="flex items-center justify-between mb-2">
-                              <p className="font-semibold text-sm">{note.yazar}</p>
-                              <p className="text-xs text-muted-foreground">{note.tarih}</p>
+                        {selectedCustomer.notlar.map((note) => {
+                          let formatted = note.tarih
+                          if (note.tarih) {
+                            try {
+                              const date = new Date(note.tarih)
+                              if (!isNaN(date.getTime())) {
+                                formatted = date.toLocaleString('tr-TR', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
+                              }
+                            } catch (error) {
+                              formatted = note.tarih
+                            }
+                          }
+
+                          return (
+                            <div key={note.id} className="p-4 bg-slate-50 rounded-xl">
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="font-semibold text-sm">{note.yazar}</p>
+                                <p className="text-xs text-muted-foreground">{formatted}</p>
+                              </div>
+                              <p className="text-sm whitespace-pre-line">{note.içerik}</p>
                             </div>
-                            <p className="text-sm">{note.içerik}</p>
-                          </div>
+                          )
                         ))}
                         {selectedCustomer.notlar.length === 0 && (
                           <p className="text-center text-muted-foreground py-4">Henüz not eklenmemiş.</p>

@@ -1791,17 +1791,36 @@ export default function CustomersPage() {
                         <p className="font-semibold mb-3">İç Notlar</p>
                         <div className="space-y-3">
                           {(selectedCustomer.notlar || selectedCustomer.notes || []).length > 0 ? (
-                            (selectedCustomer.notlar || selectedCustomer.notes || []).map((note) => (
-                              <div key={note.id} className="p-4 bg-slate-50 rounded-xl">
-                                <div className="flex items-center justify-between mb-2">
-                                  <p className="font-semibold text-sm">{note.yazar || note.author || note.user?.name || 'Sistem'}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {note.tarih || note.created_at || note.created_at || new Date().toLocaleDateString('tr-TR')}
-                                  </p>
+                            (selectedCustomer.notlar || selectedCustomer.notes || []).map((note) => {
+                              let formatted = note.tarih || note.created_at
+                              if (formatted) {
+                                try {
+                                  const date = new Date(formatted)
+                                  if (!isNaN(date.getTime())) {
+                                    formatted = date.toLocaleString('tr-TR', {
+                                      year: 'numeric',
+                                      month: '2-digit',
+                                      day: '2-digit',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })
+                                  }
+                                } catch (error) {
+                                  formatted = note.tarih || note.created_at
+                                }
+                              }
+                              return (
+                                <div key={note.id} className="p-4 bg-slate-50 rounded-xl">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <p className="font-semibold text-sm">{note.yazar || note.author || note.user?.name || 'Sistem'}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {formatted || new Date().toLocaleString('tr-TR')}
+                                    </p>
+                                  </div>
+                                  <p className="text-sm whitespace-pre-line">{note.içerik || note.content || note.note || note.message}</p>
                                 </div>
-                                <p className="text-sm">{note.içerik || note.content || note.note || note.message}</p>
-                              </div>
-                            ))
+                              )
+                            })
                           ) : (
                             <p className="text-center text-muted-foreground py-4">Henüz not eklenmemiş.</p>
                           )}
