@@ -306,17 +306,19 @@ export async function createCustomer(data: {
   console.log('[createCustomer] Starting with data:', JSON.stringify(data, null, 2))
 
   try {
-    // Check duplicate customer by TC No or plate before attempting to create
+    // Check duplicate customer by TC No, phone, or plate before attempting to create
     const existingCustomer = await prisma.customer.findFirst({
       where: {
         OR: [
           { tc_no: data.tc_no },
+          { telefon: data.telefon },
           { plaka: data.plaka },
         ],
       },
       select: {
         id: true,
         tc_no: true,
+        telefon: true,
         plaka: true,
         ad_soyad: true,
       },
@@ -327,11 +329,14 @@ export async function createCustomer(data: {
       if (existingCustomer.tc_no === data.tc_no) {
         conflicts.push('TC No')
       }
+      if (existingCustomer.telefon === data.telefon) {
+        conflicts.push('Telefon')
+      }
       if (existingCustomer.plaka === data.plaka) {
         conflicts.push('Plaka')
       }
 
-      const conflictFields = conflicts.join(' ve ')
+      const conflictFields = conflicts.join(', ')
       throw new Error(
         `Bu ${conflictFields || 'bilgiler'} ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.`
       )
@@ -443,6 +448,7 @@ export async function createCustomer(data: {
     }
 
     revalidatePath('/dashboard/customers')
+    revalidatePath('/admin/musteriler')
 
     // Serialize the customer object for Next.js (convert BigInt and Date to JSON-safe types)
     const result = {
@@ -492,7 +498,7 @@ export async function createCustomer(data: {
     
     // Provide more specific error messages
     if (error.code === 'P2002') {
-      throw new Error('Bu TC No veya Plaka ile kayıtlı bir müşteri zaten var')
+      throw new Error('Bu TC No, Telefon veya Plaka ile kayıtlı bir müşteri zaten var')
     }
     if (error.code === 'P2003') {
       throw new Error('Seçilen dosya tipi veya bayi bulunamadı')
@@ -654,6 +660,7 @@ export async function checkAndUpdateCustomerStatus(customerId: number) {
 
         revalidatePath(`/dashboard/customers/${customerId}`)
         revalidatePath('/dashboard/customers')
+    revalidatePath('/admin/musteriler')
 
         return {
           statusChanged: true,

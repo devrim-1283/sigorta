@@ -105,6 +105,7 @@ export function useCustomers(params?: { search?: string; status?: string; per_pa
       console.log('[useCustomers] Creating customer with data:', data)
       const newCustomer = await customerApi.create(data)
       console.log('[useCustomers] Customer created:', newCustomer)
+      // Refresh the customers list after successful creation
       await fetchCustomers()
       toast({
         title: 'Başarılı',
@@ -114,12 +115,28 @@ export function useCustomers(params?: { search?: string; status?: string; per_pa
     } catch (err: any) {
       console.error('[useCustomers] Create error:', err)
       const errorMessage = err?.message || err?.error || err?.toString() || 'Müşteri oluşturulamadı'
-      toast({
-        title: 'Hata',
-        description: errorMessage,
-        variant: 'destructive',
-      })
-      throw new Error(errorMessage)
+      const normalized = errorMessage.toLowerCase()
+      const isAlreadyExists =
+        normalized.includes('zaten var') ||
+        normalized.includes('kayıtlı') ||
+        normalized.includes('unique') ||
+        normalized.includes('benzersiz')
+
+      if (isAlreadyExists) {
+        toast({
+          title: 'Üye kayıtlı',
+          description: errorMessage || 'Bu TC No, Telefon veya Plaka ile kayıtlı bir müşteri zaten var.',
+        })
+        // Do not throw to avoid red error flows in UI
+        return null
+      } else {
+        toast({
+          title: 'Hata',
+          description: errorMessage,
+          variant: 'destructive',
+        })
+        throw new Error(errorMessage)
+      }
     }
   }
 
