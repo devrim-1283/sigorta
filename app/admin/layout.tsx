@@ -104,6 +104,20 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
   }, [isAuthenticated])
 
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false)
+      }
+    }
+
+    handleResize()
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -132,7 +146,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* Sidebar - Desktop */}
       <div
         className={cn(
-          "fixed top-0 left-0 z-30 h-screen transition-all duration-300 ease-in-out border-r border-slate-200",
+          "fixed top-0 left-0 z-30 h-screen transition-all duration-300 ease-in-out border-r border-slate-200 hidden md:flex",
           sidebarOpen ? "w-64" : "w-20"
         )}
         style={{ backgroundColor: themeColor }}
@@ -404,7 +418,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main Content */}
       <div className={cn(
         "transition-all duration-300 ease-in-out",
-        sidebarOpen ? "md:ml-64" : "md:ml-20"
+        sidebarOpen ? "md:ml-64" : "md:ml-20",
+        "pt-20 md:pt-0"
       )}>
         {children}
       </div>
