@@ -948,19 +948,21 @@ export default function CustomersPage() {
 
   // DEALER & ADMIN/OPERATIONS VIEW - List view
   return (
-    <main className="p-6">
-      <div className="space-y-6">
+    <main className="p-4 md:p-6 pb-20 md:pb-6">
+      <div className="space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        <div className="flex flex-col gap-4 md:gap-6 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight" style={{ color: "#0B3D91" }}>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight" style={{ color: "#0B3D91" }}>
               {moduleLabel}
             </h1>
-            <p className="text-muted-foreground font-medium mt-2">Toplam {filteredCustomers.length} kayıt gösteriliyor</p>
+            <p className="text-sm md:text-base text-muted-foreground font-medium mt-1 md:mt-2">
+              Toplam {filteredCustomers.length} kayıt gösteriliyor
+            </p>
           </div>
           {canCreate && (
             <Button
-              className="rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all px-6"
+              className="rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all px-6 w-full md:w-auto"
               style={{ backgroundColor: "#F57C00", color: "white" }}
               onClick={() => setShowNewFileModal(true)}
             >
@@ -972,22 +974,22 @@ export default function CustomersPage() {
 
         {/* Search and Filters */}
         <Card className="rounded-3xl border-2 shadow-lg bg-gradient-to-r from-white to-slate-50">
-          <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4">
+          <CardContent className="p-4 md:p-6">
+            <div className="flex flex-col gap-3 md:gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 h-5 w-5 text-muted-foreground -translate-y-1/2" />
+                <Search className="absolute left-3 md:left-4 top-1/2 h-4 md:h-5 w-4 md:w-5 text-muted-foreground -translate-y-1/2" />
                 <Input
                   type="search"
                   placeholder="İsim, plaka veya TC ile ara..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-12 pr-4 py-3 rounded-2xl border-2 font-medium"
+                  className="pl-10 md:pl-12 pr-4 py-2 md:py-3 rounded-2xl border-2 font-medium text-sm md:text-base"
                 />
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[180px] rounded-2xl border-2 font-medium">
+                  <SelectTrigger className="w-full sm:w-[180px] rounded-2xl border-2 font-medium text-sm md:text-base">
                     <SelectValue placeholder="Durum Filtrele" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1018,8 +1020,8 @@ export default function CustomersPage() {
           </div>
         )}
 
-        {/* Customer List Table */}
-        <Card className="rounded-3xl border-2 shadow-lg">
+        {/* Customer List - Desktop Table View */}
+        <Card className="rounded-3xl border-2 shadow-lg hidden md:block">
           <CardContent className="p-6">
             {loading ? (
               <div className="flex items-center justify-center py-12">
@@ -1151,14 +1153,141 @@ export default function CustomersPage() {
           </CardContent>
         </Card>
 
+        {/* Customer List - Mobile Card View */}
+        <div className="md:hidden space-y-4">
+          {loading ? (
+            <Card className="rounded-3xl border-2 shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-8 h-8 border-4 border-[#0B3D91] border-t-transparent rounded-full animate-spin" />
+                </div>
+              </CardContent>
+            </Card>
+          ) : filteredCustomers.length === 0 ? (
+            <Card className="rounded-3xl border-2 shadow-lg">
+              <CardContent className="p-6">
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Kayıt bulunamadı.</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredCustomers.map((customer) => (
+              <Card key={customer.id} className="rounded-3xl border-2 shadow-md hover:shadow-lg transition-shadow">
+                <CardContent className="p-5">
+                  <div className="space-y-4">
+                    {/* Header with Avatar and Name */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-12 w-12">
+                          <AvatarFallback style={{ backgroundColor: "#0B3D91", color: "white" }}>
+                            {customer.ad_soyad
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-bold text-base">{customer.ad_soyad}</p>
+                          <p className="text-sm text-muted-foreground">{customer.telefon}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="rounded-xl -mt-2 -mr-2"
+                        onClick={() => {
+                          setSelectedCustomer(customer)
+                          setShowDetailsModal(true)
+                        }}
+                      >
+                        <Eye className="h-5 w-5" />
+                      </Button>
+                    </div>
+
+                    {/* Info Grid */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex items-center gap-2">
+                        <Car className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{customer.plaka}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{customer.son_güncelleme}</span>
+                      </div>
+                    </div>
+
+                    {shouldShowDealerInfo && (
+                      <div className="flex items-center gap-2 pt-2 border-t">
+                        <Building className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{customer.bağlı_bayi_adı}</span>
+                      </div>
+                    )}
+
+                    {/* Status Badges */}
+                    <div className="flex flex-wrap gap-2">
+                      <Badge className={cn("rounded-xl border", getStatusColor(customer.başvuru_durumu))}>
+                        {customer.başvuru_durumu}
+                      </Badge>
+                      <Badge
+                        className={cn(
+                          "rounded-xl border",
+                          customer.evrak_durumu === "Tamam"
+                            ? "bg-green-100 text-green-800 border-green-300"
+                            : "bg-orange-100 text-orange-800 border-orange-300",
+                        )}
+                      >
+                        {customer.evrak_durumu}
+                      </Badge>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 pt-2 border-t">
+                      {canEdit && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl flex-1"
+                          onClick={() => openEditModal(customer)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Düzenle
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => {
+                            if (confirm('Bu müşteriyi silmek istediğinizden emin misiniz?')) {
+                              customerApi.delete(customer.id)
+                                .then(() => fetchCustomers())
+                                .catch((err) => setError(err.message))
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+
         {/* Customer Detail Modal */}
         <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl">
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl w-[95vw]">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold flex items-center gap-2" style={{ color: "#0B3D91" }}>
-                {selectedCustomer?.ad_soyad} - Detaylı Bilgiler
+              <DialogTitle className="text-lg md:text-2xl font-bold flex flex-col md:flex-row md:items-center gap-2" style={{ color: "#0B3D91" }}>
+                <span className="break-words">{selectedCustomer?.ad_soyad}</span>
+                <span className="hidden md:inline">-</span>
+                <span className="text-sm md:text-2xl">Detaylı Bilgiler</span>
                 {selectedCustomer?.dosya_kilitli && (
-                  <Badge className="bg-blue-100 text-blue-800 border-blue-300 rounded-xl flex items-center gap-1">
+                  <Badge className="bg-blue-100 text-blue-800 border-blue-300 rounded-xl flex items-center gap-1 w-fit">
                     <Lock className="h-3 w-3" />
                     Dosya Kapalı
                   </Badge>
@@ -1168,22 +1297,22 @@ export default function CustomersPage() {
 
             {selectedCustomer && (
               <Tabs defaultValue="info" className="w-full">
-                <TabsList className="grid w-full grid-cols-5 rounded-2xl">
-                  <TabsTrigger value="info" className="rounded-xl">
-                    Temel Bilgiler
+                <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 rounded-2xl gap-1">
+                  <TabsTrigger value="info" className="rounded-xl text-xs md:text-sm">
+                    Bilgiler
                   </TabsTrigger>
-                  <TabsTrigger value="documents" className="rounded-xl">
+                  <TabsTrigger value="documents" className="rounded-xl text-xs md:text-sm">
                     Evraklar
                   </TabsTrigger>
                   {(userRole === "admin" || userRole === "operasyon" || userRole === "superadmin") && (
-                    <TabsTrigger value="result-documents" className="rounded-xl">
-                      Sonuç Evrakları
+                    <TabsTrigger value="result-documents" className="rounded-xl text-xs md:text-sm">
+                      Sonuç
                     </TabsTrigger>
                   )}
-                  <TabsTrigger value="status" className="rounded-xl">
+                  <TabsTrigger value="status" className="rounded-xl text-xs md:text-sm">
                     Durum
                   </TabsTrigger>
-                  <TabsTrigger value="payments" className="rounded-xl">
+                  <TabsTrigger value="payments" className="rounded-xl text-xs md:text-sm">
                     Ödemeler
                   </TabsTrigger>
                 </TabsList>
@@ -1191,8 +1320,8 @@ export default function CustomersPage() {
                 {/* Basic Info Tab */}
                 <TabsContent value="info" className="space-y-4 mt-6">
                   <Card className="rounded-2xl">
-                    <CardContent className="p-6 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
+                    <CardContent className="p-4 md:p-6 space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm text-muted-foreground">Ad Soyad</p>
                           <p className="font-semibold">{selectedCustomer.ad_soyad}</p>
@@ -1546,15 +1675,15 @@ export default function CustomersPage() {
 
         {/* New File Modal */}
         <Dialog open={showNewFileModal} onOpenChange={setShowNewFileModal}>
-          <DialogContent className="rounded-3xl max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="rounded-3xl max-w-3xl max-h-[90vh] overflow-y-auto w-[95vw]">
             <DialogHeader>
-              <DialogTitle className="text-xl font-bold">Yeni Dosya Oluştur</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-lg md:text-xl font-bold">Yeni Dosya Oluştur</DialogTitle>
+              <DialogDescription className="text-sm">
                 Yeni müşteri dosyası oluşturun. Dosya tipi seçildikten sonra gerekli evrak alanları görünecektir.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="ad_soyad" className="text-sm font-semibold mb-2">
                     Ad Soyad *
@@ -1770,12 +1899,12 @@ export default function CustomersPage() {
 
         {/* Edit Customer Modal */}
         <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-          <DialogContent className="rounded-3xl max-w-2xl">
+          <DialogContent className="rounded-3xl max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-xl font-bold">Müşteri Düzenle</DialogTitle>
+              <DialogTitle className="text-lg md:text-xl font-bold">Müşteri Düzenle</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="edit_ad_soyad" className="text-sm font-semibold mb-2">
                     Ad Soyad *
