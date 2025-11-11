@@ -1,7 +1,7 @@
 'use server'
 
 import prisma from '@/lib/db'
-import { requireAuth } from './auth'
+import { getCurrentUser } from './auth'
 import { revalidatePath } from 'next/cache'
 import { Decimal } from '@prisma/client/runtime/library'
 
@@ -15,13 +15,17 @@ export async function getAccountingTransactions(params?: {
   page?: number
   perPage?: number
 }) {
-  const user = await requireAuth()
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    throw new Error('Oturum açmanız gerekiyor')
+  }
 
   // Only birincil-admin and superadmin can access accounting
-  const userRole = user.role?.name?.toLowerCase()
-  const allowedRoles = ['superadmin', 'birincil-admin']
+  const userRole = user.role?.name?.toLowerCase()?.trim()
+  const allowedRoles = ['superadmin', 'birincil-admin', 'admin']
   
-  if (!allowedRoles.includes(userRole || '')) {
+  if (!userRole || !allowedRoles.includes(userRole)) {
     throw new Error('Bu modüle erişim yetkiniz yok')
   }
 
@@ -74,13 +78,17 @@ export async function getAccountingStats(params?: {
   startDate?: Date
   endDate?: Date
 }) {
-  const user = await requireAuth()
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    throw new Error('Oturum açmanız gerekiyor')
+  }
 
   // Only birincil-admin and superadmin can access accounting
-  const userRole = user.role?.name?.toLowerCase()
-  const allowedRoles = ['superadmin', 'birincil-admin']
+  const userRole = user.role?.name?.toLowerCase()?.trim()
+  const allowedRoles = ['superadmin', 'birincil-admin', 'admin']
   
-  if (!allowedRoles.includes(userRole || '')) {
+  if (!userRole || !allowedRoles.includes(userRole)) {
     throw new Error('Bu modüle erişim yetkiniz yok')
   }
 
@@ -134,13 +142,17 @@ export async function createAccountingTransaction(data: {
   transaction_date: Date | string
   document_url?: string | null
 }) {
-  const user = await requireAuth()
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    throw new Error('Oturum açmanız gerekiyor')
+  }
 
   // Only birincil-admin and superadmin can create transactions
-  const userRole = user.role?.name?.toLowerCase()
-  const allowedRoles = ['superadmin', 'birincil-admin']
+  const userRole = user.role?.name?.toLowerCase()?.trim()
+  const allowedRoles = ['superadmin', 'birincil-admin', 'admin']
   
-  if (!allowedRoles.includes(userRole || '')) {
+  if (!userRole || !allowedRoles.includes(userRole)) {
     throw new Error('Bu işlem için yetkiniz yok')
   }
 
@@ -204,13 +216,17 @@ export async function updateAccountingTransaction(
     document_url: string
   }>
 ) {
-  const user = await requireAuth()
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    throw new Error('Oturum açmanız gerekiyor')
+  }
 
   // Only birincil-admin and superadmin can update transactions
-  const userRole = user.role?.name?.toLowerCase()
-  const allowedRoles = ['superadmin', 'birincil-admin']
+  const userRole = user.role?.name?.toLowerCase()?.trim()
+  const allowedRoles = ['superadmin', 'birincil-admin', 'admin']
   
-  if (!allowedRoles.includes(userRole || '')) {
+  if (!userRole || !allowedRoles.includes(userRole)) {
     throw new Error('Bu işlem için yetkiniz yok')
   }
 
@@ -245,13 +261,17 @@ export async function updateAccountingTransaction(
  * Delete an accounting transaction
  */
 export async function deleteAccountingTransaction(id: number) {
-  const user = await requireAuth()
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    throw new Error('Oturum açmanız gerekiyor')
+  }
 
   // Only birincil-admin and superadmin can delete transactions
-  const userRole = user.role?.name?.toLowerCase()
-  const allowedRoles = ['superadmin', 'birincil-admin']
+  const userRole = user.role?.name?.toLowerCase()?.trim()
+  const allowedRoles = ['superadmin', 'birincil-admin', 'admin']
   
-  if (!allowedRoles.includes(userRole || '')) {
+  if (!userRole || !allowedRoles.includes(userRole)) {
     throw new Error('Bu işlem için yetkiniz yok')
   }
 
