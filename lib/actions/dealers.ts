@@ -1,3 +1,18 @@
+import bcrypt from 'bcryptjs'
+import { PrismaClient } from '@prisma/client'
+
+async function getDealerRoleId(tx: PrismaClient): Promise<number> {
+  const role = await tx.role.findFirst({
+    where: { name: 'bayi' },
+    select: { id: true },
+  })
+
+  if (!role) {
+    throw new Error('Bayi rolü bulunamadı')
+  }
+
+  return Number(role.id)
+}
 'use server'
 
 import prisma from '@/lib/db'
@@ -71,32 +86,52 @@ export async function createDealer(data: {
   city?: string | null
   tax_number?: string | null
   status?: string
+  password?: string
 }) {
   await requireAuth()
 
   try {
-    const dealer = await prisma.dealer.create({
-      data: {
-        dealer_name: data.dealer_name,
-        contact_person: data.contact_person || null,
-        phone: data.phone,
-        email: data.email || null,
-        address: data.address || null,
-        city: data.city || null,
-        tax_number: data.tax_number || null,
-        status: data.status || 'active',
-        created_at: new Date(),
-        updated_at: new Date(),
-      },
+    return await prisma.$transaction(async (tx) => {
+      const dealer = await tx.dealer.create({
+        data: {
+          dealer_name: data.dealer_name,
+          contact_person: data.contact_person || null,
+          phone: data.phone,
+          email: data.email || null,
+          address: data.address || null,
+          city: data.city || null,
+          tax_number: data.tax_number || null,
+          status: data.status || 'active',
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      })
+
+      if (data.email && data.password) {
+        const hashedPassword = await bcrypt.hash(data.password, 12)
+        await tx.user.create({
+          data: {
+            name: data.dealer_name,
+            email: data.email,
+            phone: data.phone,
+            password: hashedPassword,
+            role_id: BigInt(await getDealerRoleId(tx)),
+            dealer_id: dealer.id,
+            is_active: true,
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
+        })
+      }
+
+      revalidatePath('/dashboard/dealers')
+      revalidatePath('/admin/bayiler')
+
+      return {
+        ...dealer,
+        id: Number(dealer.id),
+      }
     })
-
-    revalidatePath('/dashboard/dealers')
-    revalidatePath('/admin/bayiler')
-
-    return {
-      ...dealer,
-      id: Number(dealer.id),
-    }
   } catch (error: any) {
     console.error('Create dealer error:', error)
     throw new Error(error.message || 'Bayi oluşturulamadı')
@@ -112,12 +147,33 @@ export async function updateDealer(id: number, data: Partial<{
   city: string
   tax_number: string
   status: string
+  password: string
 }>) {
   await requireAuth()
 
-  const dealer = await prisma.dealer.update({
-    where: { id: BigInt(id) },
-    data,
+  const dealer = await prisma.$transaction(async (tx) => {
+    const updated = await tx.dealer.update({
+      where: { id: BigInt(id) },
+      data,
+    })
+
+    if (data.password) {
+      const hashedPassword = await bcrypt.hash(data.password, 12)
+      const existingUser = await tx.user.findFirst({
+        where: {
+          dealer_id: BigInt(id),
+        },
+      })
+
+      if (existingUser) {
+        await tx.user.update({
+          where: { id: existingUser.id },
+          data: { password: hashedPassword },
+        })
+      }
+    }
+
+    return updated
   })
 
   revalidatePath('/dashboard/dealers')
