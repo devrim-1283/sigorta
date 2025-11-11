@@ -497,20 +497,40 @@ export default function CustomersPage() {
 
   const filteredCustomers = getFilteredCustomers()
   
-  const mapDocuments = (docs: any[] = []) =>
-    docs.map((d) => ({
-      id: d.id?.toString?.() ?? String(d.id ?? ''),
-      tip: d.tip as DocumentType,
-      dosya_adı: d.dosya_adı || d.belge_adi || 'Belge',
-      dosya_yolu: d.dosya_yolu,
-      mime_type: d.mime_type,
-      yüklenme_tarihi: d.yüklenme_tarihi
-        ? new Date(d.yüklenme_tarihi).toLocaleString('tr-TR')
-        : d.created_at
-          ? new Date(d.created_at).toLocaleString('tr-TR')
-          : undefined,
-      durum: (d.durum || 'Beklemede') as DocumentStatus,
-    }))
+  const mapDocuments = (docs: any[] = []) => {
+    if (!Array.isArray(docs)) {
+      console.warn('mapDocuments: docs is not an array:', docs)
+      return []
+    }
+    
+    return docs.map((d) => {
+      const docId = d.id?.toString?.() ?? String(d.id ?? '')
+      const docTip = d.tip || d.document_type || 'Belge'
+      const docDosyaAdi = d.dosya_adı || d.belge_adi || d.file_name || 'Belge'
+      const docDosyaYolu = d.dosya_yolu || d.file_path
+      const docMimeType = d.mime_type || d.mimeType
+      
+      // Handle date - try multiple possible field names
+      let docYuklenmeTarihi: string | undefined
+      if (d.yüklenme_tarihi) {
+        docYuklenmeTarihi = new Date(d.yüklenme_tarihi).toLocaleString('tr-TR')
+      } else if (d.created_at) {
+        docYuklenmeTarihi = new Date(d.created_at).toLocaleString('tr-TR')
+      } else if (d.uploaded_at) {
+        docYuklenmeTarihi = new Date(d.uploaded_at).toLocaleString('tr-TR')
+      }
+      
+      return {
+        id: docId,
+        tip: docTip as DocumentType,
+        dosya_adı: docDosyaAdi,
+        dosya_yolu: docDosyaYolu,
+        mime_type: docMimeType,
+        yüklenme_tarihi: docYuklenmeTarihi,
+        durum: (d.durum || d.status || 'Beklemede') as DocumentStatus,
+      }
+    })
+  }
   
   console.log('[Müşteri Listesi] Total customers:', customers.length)
   console.log('[Müşteri Listesi] Filtered customers:', filteredCustomers.length)
@@ -547,12 +567,28 @@ export default function CustomersPage() {
       // Refresh the selected customer data to show new documents
       if (selectedCustomer) {
         try {
-          const response = await customerApi.getById(selectedCustomer.id)
+          // Ensure customer ID is a number
+          const customerId = typeof selectedCustomer.id === 'string' 
+            ? parseInt(selectedCustomer.id, 10) 
+            : Number(selectedCustomer.id)
+          
+          if (isNaN(customerId)) {
+            throw new Error('Geçersiz müşteri ID')
+          }
+          
+          const response = await customerApi.getById(customerId)
           console.log('Raw updated customer data:', response)
+          console.log('Documents from API:', response.documents)
 
-          // Transform the customer data
+          // Transform the customer data - ensure documents are properly mapped
+          const documents = response.documents || response.evraklar || []
+          console.log('Documents to map:', documents)
+          
+          const mappedDocuments = mapDocuments(documents)
+          console.log('Mapped documents:', mappedDocuments)
+
           const transformedCustomer = {
-            id: response.id,
+            id: String(response.id),
             ad_soyad: response.ad_soyad || response.name || 'Bilinmeyen',
             tc_no: response.tc_no || '',
             telefon: response.telefon || response.phone || '',
@@ -560,23 +596,39 @@ export default function CustomersPage() {
             plaka: response.plaka || '',
             hasar_tarihi: response.hasar_tarihi || response.damage_date || '',
             başvuru_durumu: response.başvuru_durumu || 'İnceleniyor',
-            ödemeler: response.ödemeler || [],
-            evraklar: mapDocuments(response.evraklar || response.documents || []),
-            bağlı_bayi_id: response.bağlı_bayi_id || '',
-            bağlı_bayi_adı: response.bağlı_bayi_adı || 'Belirtilmemiş',
-            notlar: response.notlar || response.notes || [],
-            son_güncelleme: response.son_güncelleme || new Date().toLocaleDateString('tr-TR'),
+            ödemeler: (response.payments || response.ödemeler || []).map((p: any) => ({
+              id: String(p.id),
+              tarih: p.tarih || p.date || new Date().toLocaleDateString('tr-TR'),
+              tutar: p.tutar ? `₺${Number(p.tutar).toLocaleString('tr-TR')}` : (p.amount ? `₺${Number(p.amount).toLocaleString('tr-TR')}` : '₺0'),
+              açıklama: p.açıklama || p.description || '',
+              durum: (p.durum || 'Bekliyor') as "Ödendi" | "Bekliyor",
+            })),
+            evraklar: mappedDocuments,
+            bağlı_bayi_id: String(response.dealer_id || response.bağlı_bayi_id || ''),
+            bağlı_bayi_adı: response.dealer?.dealer_name || response.bağlı_bayi_adı || 'Belirtilmemiş',
+            notlar: (response.notes || response.notlar || []).map((n: any) => ({
+              id: String(n.id),
+              yazar: n.author?.name || n.user?.name || 'Sistem',
+              tarih: n.created_at || new Date().toLocaleDateString('tr-TR'),
+              içerik: n.content || n.içerik || n.note || '',
+            })).filter((note: any) => Boolean(note.içerik?.trim())),
+            son_güncelleme: response.updated_at || response.son_güncelleme || new Date().toLocaleDateString('tr-TR'),
             evrak_durumu: response.evrak_durumu || 'Eksik',
             eksik_evraklar: response.eksik_evraklar || [],
             dosya_kilitli: response.dosya_kilitli || false,
-            dosya_tipi: response.dosya_tipi || 'deger-kaybi',
-            yüklenen_evraklar: response.yüklenen_evraklar || [],
+            dosya_tipi: response.file_type?.name || response.dosya_tipi || 'deger-kaybi',
+            yüklenen_evraklar: mappedDocuments.map((d: any) => d.tip) || [],
           }
 
+          console.log('Final transformed customer:', transformedCustomer)
           setSelectedCustomer(transformedCustomer)
-          console.log('Transformed updated customer data:', transformedCustomer)
         } catch (error) {
           console.error('Failed to refresh customer data:', error)
+          toast({
+            title: "Uyarı",
+            description: "Müşteri verileri yenilenirken bir hata oluştu. Sayfayı yenileyin.",
+            variant: "destructive",
+          })
         }
       }
 

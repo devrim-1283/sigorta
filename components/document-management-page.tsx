@@ -104,7 +104,9 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
     try {
       const result = await documentApi.download(parseInt(doc.id))
       if (result?.url) {
-        window.open(result.url, '_blank')
+        // Add inline=1 parameter to view in browser instead of downloading
+        const viewUrl = `${result.url}?inline=1`
+        window.open(viewUrl, '_blank')
       } else {
         throw new Error('Dosya URL bulunamadı')
       }
