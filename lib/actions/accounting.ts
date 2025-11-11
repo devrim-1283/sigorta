@@ -128,11 +128,11 @@ export async function getAccountingStats(params?: {
  */
 export async function createAccountingTransaction(data: {
   type: 'income' | 'expense'
-  category?: string
-  description?: string
+  category?: string | null
+  description?: string | null
   amount: number | string
-  transaction_date: Date
-  document_url?: string
+  transaction_date: Date | string
+  document_url?: string | null
 }) {
   const user = await requireAuth()
 
@@ -144,34 +144,49 @@ export async function createAccountingTransaction(data: {
     throw new Error('Bu işlem için yetkiniz yok')
   }
 
-  const transaction = await prisma.accountingTransaction.create({
-    data: {
-      type: data.type,
-      category: data.category || null,
-      description: data.description || null,
-      amount: new Decimal(data.amount.toString()),
-      transaction_date: data.transaction_date,
-      document_url: data.document_url || null,
-      created_by: BigInt(user.id),
-    },
-    include: {
-      creator: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
+  try {
+    // Validate required fields
+    if (!data.type || !data.amount || !data.transaction_date) {
+      throw new Error('Tür, tutar ve tarih gereklidir')
+    }
+
+    // Convert date if string
+    const transactionDate = typeof data.transaction_date === 'string' 
+      ? new Date(data.transaction_date) 
+      : data.transaction_date
+
+    const transaction = await prisma.accountingTransaction.create({
+      data: {
+        type: data.type,
+        category: data.category || null,
+        description: data.description || null,
+        amount: new Decimal(data.amount.toString()),
+        transaction_date: transactionDate,
+        document_url: data.document_url || null,
+        created_by: BigInt(user.id),
+      },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          }
         }
       }
+    })
+
+    revalidatePath('/admin/muhasebe')
+
+    return {
+      ...transaction,
+      id: Number(transaction.id),
+      created_by: Number(transaction.created_by),
+      amount: transaction.amount.toString(),
     }
-  })
-
-  revalidatePath('/admin/muhasebe')
-
-  return {
-    ...transaction,
-    id: Number(transaction.id),
-    created_by: Number(transaction.created_by),
-    amount: transaction.amount.toString(),
+  } catch (error: any) {
+    console.error('Create accounting transaction error:', error)
+    throw new Error(error.message || 'İşlem oluşturulamadı')
   }
 }
 

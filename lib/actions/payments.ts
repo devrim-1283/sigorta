@@ -78,39 +78,53 @@ export async function getPayment(id: number) {
 export async function createPayment(data: {
   customer_id: number
   tutar: number | string
-  tarih: Date
-  açıklama?: string
+  tarih: Date | string
+  açıklama?: string | null
   durum: string
-  ödeme_yöntemi?: string
-  referans_no?: string
+  ödeme_yöntemi?: string | null
+  referans_no?: string | null
 }) {
   const user = await requireAuth()
 
-  const payment = await prisma.payment.create({
-    data: {
-      customer_id: BigInt(data.customer_id),
-      tutar: new Decimal(data.tutar.toString()),
-      tarih: data.tarih,
-      açıklama: data.açıklama,
-      durum: data.durum,
-      ödeme_yöntemi: data.ödeme_yöntemi,
-      referans_no: data.referans_no,
-      kaydeden_id: BigInt(user.id),
-    },
-    include: {
-      customer: true,
-    },
-  })
+  try {
+    // Validate required fields
+    if (!data.customer_id || !data.tutar || !data.tarih) {
+      throw new Error('Müşteri, tutar ve tarih gereklidir')
+    }
 
-  revalidatePath('/dashboard/payments')
-  revalidatePath(`/dashboard/customers/${data.customer_id}`)
+    // Convert date if string
+    const tarih = typeof data.tarih === 'string' ? new Date(data.tarih) : data.tarih
 
-  return {
-    ...payment,
-    id: Number(payment.id),
-    customer_id: Number(payment.customer_id),
-    kaydeden_id: Number(payment.kaydeden_id),
-    tutar: payment.tutar.toString(),
+    const payment = await prisma.payment.create({
+      data: {
+        customer_id: BigInt(data.customer_id),
+        tutar: new Decimal(data.tutar.toString()),
+        tarih: tarih,
+        açıklama: data.açıklama || null,
+        durum: data.durum || 'Bekliyor',
+        ödeme_yöntemi: data.ödeme_yöntemi || null,
+        referans_no: data.referans_no || null,
+        kaydeden_id: BigInt(user.id),
+      },
+      include: {
+        customer: true,
+      },
+    })
+
+    revalidatePath('/dashboard/payments')
+    revalidatePath(`/dashboard/customers/${data.customer_id}`)
+    revalidatePath('/admin/musteriler')
+
+    return {
+      ...payment,
+      id: Number(payment.id),
+      customer_id: Number(payment.customer_id),
+      kaydeden_id: Number(payment.kaydeden_id),
+      tutar: payment.tutar.toString(),
+    }
+  } catch (error: any) {
+    console.error('Create payment error:', error)
+    throw new Error(error.message || 'Ödeme oluşturulamadı')
   }
 }
 

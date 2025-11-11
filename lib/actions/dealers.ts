@@ -64,31 +64,42 @@ export async function getDealer(id: number) {
 
 export async function createDealer(data: {
   dealer_name: string
-  contact_person?: string
+  contact_person?: string | null
   phone: string
-  email?: string
-  address?: string
-  city?: string
-  tax_number?: string
+  email?: string | null
+  address?: string | null
+  city?: string | null
+  tax_number?: string | null
   status?: string
 }) {
   await requireAuth()
 
-  const dealer = await prisma.dealer.create({
-    data: {
-      ...data,
-      status: data.status || 'active',
-      created_at: new Date(),
-      updated_at: new Date(),
-    },
-  })
+  try {
+    const dealer = await prisma.dealer.create({
+      data: {
+        dealer_name: data.dealer_name,
+        contact_person: data.contact_person || null,
+        phone: data.phone,
+        email: data.email || null,
+        address: data.address || null,
+        city: data.city || null,
+        tax_number: data.tax_number || null,
+        status: data.status || 'active',
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    })
 
-  revalidatePath('/dashboard/dealers')
-  revalidatePath('/admin/bayiler')
+    revalidatePath('/dashboard/dealers')
+    revalidatePath('/admin/bayiler')
 
-  return {
-    ...dealer,
-    id: Number(dealer.id),
+    return {
+      ...dealer,
+      id: Number(dealer.id),
+    }
+  } catch (error: any) {
+    console.error('Create dealer error:', error)
+    throw new Error(error.message || 'Bayi oluşturulamadı')
   }
 }
 
