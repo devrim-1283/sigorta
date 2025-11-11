@@ -1478,7 +1478,7 @@ export default function CustomersPage() {
                   <SelectTrigger className="w-full sm:w-[180px] rounded-2xl border-2 font-medium text-sm md:text-base">
                     <SelectValue placeholder="Durum Filtrele" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto">
                     <SelectItem value="all">Tüm Durumlar</SelectItem>
                     <SelectItem value="İnceleniyor">İnceleniyor</SelectItem>
                     <SelectItem value="Başvuru Aşamasında">Başvuru Aşamasında</SelectItem>
@@ -1888,7 +1888,7 @@ export default function CustomersPage() {
                             <SelectTrigger className="w-full rounded-2xl border-2 mt-2">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
                               <SelectItem value="İnceleniyor">İnceleniyor</SelectItem>
                               <SelectItem value="Başvuru Aşamasında">Başvuru Aşamasında</SelectItem>
                               <SelectItem value="Dava Aşamasında">Dava Aşamasında</SelectItem>
@@ -2000,7 +2000,7 @@ export default function CustomersPage() {
                             <SelectTrigger className="w-full rounded-2xl border-2">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
                               <SelectItem value="İnceleniyor">İnceleniyor</SelectItem>
                               <SelectItem value="Başvuru Aşamasında">Başvuru Aşamasında</SelectItem>
                               <SelectItem value="Dava Aşamasında">Dava Aşamasında</SelectItem>
@@ -2273,7 +2273,7 @@ export default function CustomersPage() {
                     <SelectTrigger id="new_dealer" className="w-full rounded-2xl border-2 mt-2">
                       <SelectValue placeholder="Bayi seçin (opsiyonel)" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
                       {dealerOptions.map((dealer) => (
                         <SelectItem key={dealer.id} value={dealer.id}>
                           {dealer.name}
@@ -2354,7 +2354,7 @@ export default function CustomersPage() {
                   <SelectTrigger className="w-full rounded-2xl border-2 mt-2">
                     <SelectValue placeholder="Dosya tipi seçin" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
                     {FILE_TYPES.map((fileType) => (
                       <SelectItem key={fileType.id} value={String(fileType.id)}>
                         <div className="flex flex-col">
@@ -2566,7 +2566,7 @@ export default function CustomersPage() {
                     <SelectTrigger id="edit_dealer" className="w-full rounded-2xl border-2 mt-2">
                       <SelectValue placeholder="Bayi seçin (opsiyonel)" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
                       {dealerOptions.map((dealer) => (
                         <SelectItem key={dealer.id} value={dealer.id}>
                           {dealer.name}
@@ -2642,7 +2642,7 @@ export default function CustomersPage() {
                   <SelectTrigger className="w-full rounded-2xl border-2 mt-2">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
                     <SelectItem value="İnceleniyor">İnceleniyor</SelectItem>
                     <SelectItem value="Başvuru Aşamasında">Başvuru Aşamasında</SelectItem>
                     <SelectItem value="Dava Aşamasında">Dava Aşamasında</SelectItem>
