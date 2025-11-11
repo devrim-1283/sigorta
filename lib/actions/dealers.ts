@@ -10,7 +10,7 @@ export async function getDealers(params?: {
 }) {
   await requireAuth()
 
-  const where: any = {}
+  const where: any = { deleted_at: null }
 
   if (params?.search) {
     where.OR = [
@@ -138,6 +138,7 @@ export async function deleteDealer(id: number) {
   })
 
   revalidatePath('/dashboard/dealers')
+  revalidatePath('/admin/bayiler')
 
   return { success: true }
 }
