@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Settings, Save, Database, Mail, Bell, Shield, Globe, Clock } from "lucide-react"
+import { Settings, Save, Database, Mail, Bell, Shield, Globe, Clock, Download } from "lucide-react"
 import { type UserRole } from "@/lib/role-config"
 
 // Force dynamic rendering
@@ -33,6 +33,7 @@ export default function SystemSettingsPage() {
   const { isAuthenticated, user, isLoading, logout } = useAuth()
   const router = useRouter()
   const userRole: UserRole = (user?.role?.name as UserRole) || "superadmin"
+  const storagePathHint = process.env.NEXT_PUBLIC_DOCUMENT_STORAGE_ROOT || "/storage/documents"
 
   const [settings, setSettings] = useState<SystemSettings>({
     site_name: "Sigorta Yönetim Sistemi",
@@ -303,6 +304,34 @@ export default function SystemSettingsPage() {
                 <p className="text-xs text-slate-600">Sunucu</p>
                 <p className="text-sm font-semibold mt-1">Coolify</p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Document Backup */}
+        <Card className="rounded-3xl border-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5 text-blue-600" />
+              Evrak Yedeği
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Sisteme yüklenen tüm evrakları yerel depodan sıkıştırılmış şekilde indirebilirsiniz.
+            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="text-xs text-slate-500">
+                <p>Evraklar varsayılan olarak <span className="font-semibold">{storagePathHint}</span> klasöründe saklanır.</p>
+                <p>Yedek alma işlemi yalnızca <strong>superadmin</strong> kullanıcıları için kullanılabilir.</p>
+              </div>
+              <Button
+                className="rounded-2xl bg-blue-600 hover:bg-blue-700"
+                onClick={() => window.open('/api/documents/backup', '_blank')}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Evrak Yedeğini İndir
+              </Button>
             </div>
           </CardContent>
         </Card>

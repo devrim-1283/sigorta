@@ -502,7 +502,9 @@ export default function CustomersPage() {
 
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('tip', type)  // Backend expects 'tip' not 'type'
+      formData.append('tip', type)
+      formData.append('document_type', type)
+      formData.append('original_name', file.name)
       formData.append('customer_id', selectedCustomer.id.toString())
       formData.append('is_result_document', '0')  // Default to false for regular documents
 
@@ -619,59 +621,18 @@ export default function CustomersPage() {
 
   // Document action handlers
   const handleViewDocument = async (doc: any) => {
-    console.log('Attempting to view document:', doc)
-
-    try {
-      // Get auth token
-      const token = localStorage.getItem('auth_token')
-      if (!token) {
-        console.error('No auth token found')
-        return
-      }
-
-      console.log('Fetching document from:', `${API_BASE_URL}/documents/${doc.id}/view`)
-
-      // Fetch the document with authentication
-      const response = await fetch(`${API_BASE_URL}/documents/${doc.id}/view`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      console.log('Response status:', response.status)
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch document: ${response.status}`)
-      }
-
-      // Create blob from response
-      const blob = await response.blob()
-      console.log('Blob created, size:', blob.size, 'type:', blob.type)
-
-      const blobUrl = window.URL.createObjectURL(blob)
-
-      // Open in new tab
-      console.log('Opening blob URL in new tab:', blobUrl)
-      window.open(blobUrl, '_blank')
-
-      // Clean up blob URL after a short delay
-      setTimeout(() => {
-        window.URL.revokeObjectURL(blobUrl)
-        console.log('Blob URL revoked')
-      }, 1000)
-    } catch (error) {
-      console.error('View document error:', error)
-
-      // Fallback: try opening direct URL
-      const fallbackUrl = `${API_BASE_URL}/documents/${doc.id}/view`
-      console.log('Fallback: opening direct URL:', fallbackUrl)
-      window.open(fallbackUrl, '_blank')
-    }
+    await handleDownloadDocument(doc, true)
   }
 
-  const handleDownloadDocument = async (doc: any) => {
+  const handleDownloadDocument = async (doc: any, inline = false) => {
     try {
-      await documentApi.download(doc.id)
+      const result = await documentApi.download(doc.id)
+      if (result?.url) {
+        const url = inline ? `${result.url}?inline=1` : result.url
+        window.open(url, '_blank')
+      } else {
+        console.error('Download url missing')
+      }
     } catch (error: any) {
       console.error('Download error:', error)
     }
@@ -816,6 +777,8 @@ export default function CustomersPage() {
               const formData = new FormData()
               formData.append('file', fileToUpload)
               formData.append('tip', docType)
+              formData.append('document_type', docType)
+              formData.append('original_name', fileToUpload.name)
               formData.append('customer_id', result.id.toString())
               formData.append('is_result_document', '0')
 

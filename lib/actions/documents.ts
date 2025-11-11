@@ -3,9 +3,14 @@
 import prisma from '@/lib/db'
 import { requireAuth } from './auth'
 import { revalidatePath } from 'next/cache'
-import { writeFile, unlink, mkdir } from 'fs/promises'
-import { join } from 'path'
+import { writeFile, unlink } from 'fs/promises'
 import { existsSync } from 'fs'
+import {
+  ensureDocumentsDir,
+  getDocumentRelativePath,
+  getDocumentStoragePath,
+  resolveDocumentPath,
+} from '@/lib/storage'
 
 export async function getDocuments(params?: {
   search?: string
@@ -116,51 +121,6 @@ export async function updateDocument(id: number, data: Partial<{
   }
 }
 
-export async function deleteDocument(id: number) {
-  await requireAuth()
-
-  const document = await prisma.document.findUnique({
-    where: { id: BigInt(id) },
-  })
-
-  if (!document) {
-    throw new Error('Döküman bulunamadı')
-  }
-
-  // Delete file from filesystem
-  const filePath = path.join(process.cwd(), 'public', document.dosya_yolu)
-  if (existsSync(filePath)) {
-    await unlink(filePath)
-  }
-
-  // Soft delete
-  await prisma.document.update({
-    where: { id: BigInt(id) },
-    data: { deleted_at: new Date() },
-  })
-
-  revalidatePath('/dashboard/documents')
-
-  return { success: true }
-}
-
-export async function getDocumentDownloadUrl(id: number) {
-  await requireAuth()
-
-  const document = await prisma.document.findUnique({
-    where: { id: BigInt(id) },
-  })
-
-  if (!document) {
-    throw new Error('Döküman bulunamadı')
-  }
-
-  return {
-    url: document.dosya_yolu,
-    filename: document.belge_adi,
-  }
-}
-
 export async function uploadDocument(formData: FormData) {
   const user = await requireAuth()
 
@@ -168,8 +128,11 @@ export async function uploadDocument(formData: FormData) {
     // Get form data
     const file = formData.get('file') as File
     const customer_id = formData.get('customer_id') as string
-    const belge_adi = formData.get('belge_adi') as string
-    const tip = formData.get('tip') as string
+    const tipFromForm = formData.get('tip') as string | null
+    const documentTypeFromForm = formData.get('document_type') as string | null
+    const originalNameFromForm =
+      (formData.get('original_name') as string | null) ||
+      (formData.get('belge_adi') as string | null)
 
     if (!file || !customer_id) {
       throw new Error('File ve customer_id gerekli')
@@ -194,40 +157,37 @@ export async function uploadDocument(formData: FormData) {
       throw new Error('Geçersiz dosya tipi. Sadece resim ve PDF dosyaları yüklenebilir.')
     }
 
-    // Generate file path (we'll store in public/uploads/documents)
+    // Generate file path within local storage
     const timestamp = Date.now()
     const ext = file.name.split('.').pop()
     const filename = `${timestamp}-${Math.random().toString(36).substring(7)}.${ext}`
-    const relativePath = `/uploads/documents/${filename}`
-
-    // Create upload directory if it doesn't exist
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'documents')
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true })
-    }
+    ensureDocumentsDir()
+    const absolutePath = getDocumentStoragePath(filename)
+    const relativePath = getDocumentRelativePath(filename)
 
     // Save file to disk
-    const filepath = join(uploadDir, filename)
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    await writeFile(filepath, buffer)
+    await writeFile(absolutePath, buffer)
 
     // Create document record in database
-    const document = await prisma.document.create({
-      data: {
-        customer_id: BigInt(customer_id),
-        belge_adi: belge_adi || file.name,
-        dosya_yolu: relativePath,
-        dosya_adi_orijinal: file.name,
-        mime_type: file.type,
-        dosya_boyutu: BigInt(file.size),
-        tip: tip || 'Diğer',
-        durum: 'Beklemede',
-        uploaded_by: BigInt(user.id),
-        created_at: new Date(),
-        updated_at: new Date(),
-      },
-    })
+    const data: any = {
+      customer_id: BigInt(customer_id),
+      dosya_yolu: relativePath,
+      mime_type: file.type,
+      dosya_boyutu: BigInt(file.size),
+      tip: tipFromForm || documentTypeFromForm || 'Diğer',
+      document_type: documentTypeFromForm || tipFromForm || 'Standart Evrak',
+      durum: 'Beklemede',
+      uploaded_by: BigInt(user.id),
+      created_at: new Date(),
+      updated_at: new Date(),
+    }
+
+    const originalName = originalNameFromForm || file.name
+    data['dosya_adı'] = originalName
+
+    const document = await prisma.document.create({ data })
 
     revalidatePath('/admin/musteriler')
     revalidatePath('/dashboard/documents')
@@ -242,6 +202,55 @@ export async function uploadDocument(formData: FormData) {
   } catch (error: any) {
     console.error('Upload document error:', error)
     throw new Error(error.message || 'Dosya yüklenemedi')
+  }
+}
+
+export async function deleteDocument(id: number) {
+  await requireAuth()
+
+  const document = await prisma.document.findUnique({
+    where: { id: BigInt(id) },
+  })
+
+  if (!document) {
+    throw new Error('Döküman bulunamadı')
+  }
+
+  const filePath = resolveDocumentPath(document.dosya_yolu)
+  if (filePath && existsSync(filePath)) {
+    await unlink(filePath)
+  }
+
+  await prisma.document.update({
+    where: { id: BigInt(id) },
+    data: { deleted_at: new Date() },
+  })
+
+  revalidatePath('/dashboard/documents')
+  revalidatePath('/admin/musteriler')
+
+  return { success: true }
+}
+
+export async function getDocumentDownloadUrl(id: number) {
+  await requireAuth()
+
+  const document = await prisma.document.findUnique({
+    where: { id: BigInt(id) },
+  })
+
+  if (!document) {
+    throw new Error('Döküman bulunamadı')
+  }
+
+  const originalName =
+    (document as any).dosya_adı ||
+    document.dosya_yolu?.split('/').pop() ||
+    'document'
+
+  return {
+    url: `/api/documents/${id}/download`,
+    filename: originalName,
   }
 }
 

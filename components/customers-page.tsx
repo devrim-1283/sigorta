@@ -295,7 +295,9 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('customer_id', selectedCustomer.id)
+      formData.append('tip', type)
       formData.append('document_type', type)
+      formData.append('original_name', file.name)
 
       await documentApi.upload(formData)
       
@@ -315,6 +317,29 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
       toast({
         title: "Hata",
         description: error.message || "Evrak yüklenemedi",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDownloadDocument = async (doc: any, inline = false) => {
+    try {
+      const result = await documentApi.download(doc.id)
+      if (result?.url) {
+        const url = inline ? `${result.url}?inline=1` : result.url
+        window.open(url, '_blank')
+      } else {
+        toast({
+          title: "Hata",
+          description: "Evrak indirilemedi",
+          variant: "destructive",
+        })
+      }
+    } catch (error: any) {
+      console.error('Download error:', error)
+      toast({
+        title: "Hata",
+        description: error?.message || "Evrak indirilemedi",
         variant: "destructive",
       })
     }
@@ -855,7 +880,7 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
                       canDelete={canDelete}
                       showDealerInfo={shouldShowDealerInfo}
                       onView={(doc) => console.log("[v0] Viewing:", doc)}
-                      onDownload={(doc) => console.log("[v0] Downloading:", doc)}
+                      onDownload={(doc) => handleDownloadDocument(doc)}
                       onDelete={(doc) => console.log("[v0] Deleting:", doc)}
                       onUpload={handleDocUploadClick}
                     />
