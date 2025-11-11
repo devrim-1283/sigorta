@@ -91,7 +91,18 @@ export const customerApi = {
   },
 
   create: async (data: any) => {
-    return await customerActions.createCustomer(data)
+    try {
+      console.log('[customerApi.create] Sending data to server action:', data)
+      const result = await customerActions.createCustomer(data)
+      console.log('[customerApi.create] Server action result:', result)
+      return result
+    } catch (error: any) {
+      console.error('[customerApi.create] Server action error:', error)
+      console.error('[customerApi.create] Error type:', typeof error)
+      console.error('[customerApi.create] Error message:', error?.message)
+      console.error('[customerApi.create] Error digest:', error?.digest)
+      throw error
+    }
   },
 
   update: async (id: number | string, data: any) => {

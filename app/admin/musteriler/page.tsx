@@ -627,8 +627,24 @@ export default function CustomersPage() {
         }
 
       } catch (error: any) {
-        console.error('API Error:', error)
-        const errorMessage = error?.message || error?.toString() || 'Bilinmeyen hata'
+        console.error('[handleCreateNewFile] API Error:', error)
+        console.error('[handleCreateNewFile] Error type:', typeof error)
+        console.error('[handleCreateNewFile] Error keys:', Object.keys(error))
+        console.error('[handleCreateNewFile] Error message:', error?.message)
+        console.error('[handleCreateNewFile] Error stack:', error?.stack)
+        
+        let errorMessage = 'Bilinmeyen hata oluştu'
+        
+        if (error?.message) {
+          errorMessage = error.message
+        } else if (error?.error) {
+          errorMessage = error.error
+        } else if (typeof error === 'string') {
+          errorMessage = error
+        } else if (error?.toString && typeof error.toString === 'function') {
+          errorMessage = error.toString()
+        }
+        
         setError(`Müşteri oluşturulamadı: ${errorMessage}`)
         return // Exit early if API fails
       }

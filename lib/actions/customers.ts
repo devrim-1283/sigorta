@@ -126,21 +126,30 @@ export async function createCustomer(data: {
   evrak_durumu?: string
   dosya_kilitli?: boolean
 }) {
-  await requireAuth()
+  const user = await requireAuth()
+  
+  console.log('[createCustomer] Starting with data:', JSON.stringify(data, null, 2))
 
-  // Handle field name variations and type conversions
-  const fileTypeId = data.file_type_id || data.dosya_tipi_id
-  const hasarTarihi = typeof data.hasar_tarihi === 'string' 
-    ? new Date(data.hasar_tarihi) 
-    : data.hasar_tarihi
+  try {
+    // Handle field name variations and type conversions
+    const fileTypeId = data.file_type_id || data.dosya_tipi_id
+    const hasarTarihi = typeof data.hasar_tarihi === 'string' 
+      ? new Date(data.hasar_tarihi) 
+      : data.hasar_tarihi
 
-  if (!fileTypeId) {
-    throw new Error('Dosya tipi gereklidir')
-  }
+    console.log('[createCustomer] Processed values:', { fileTypeId, hasarTarihi })
 
-  // Create customer first
-  const customer = await prisma.customer.create({
-    data: {
+    if (!fileTypeId) {
+      throw new Error('Dosya tipi gereklidir')
+    }
+
+    // Validate required fields
+    if (!data.ad_soyad || !data.tc_no || !data.telefon || !data.plaka) {
+      throw new Error('Ad Soyad, TC No, Telefon ve Plaka gereklidir')
+    }
+
+    // Create customer data object
+    const customerData = {
       ad_soyad: data.ad_soyad,
       tc_no: data.tc_no,
       telefon: data.telefon,
@@ -152,12 +161,20 @@ export async function createCustomer(data: {
       başvuru_durumu: data.başvuru_durumu || 'İnceleniyor',
       evrak_durumu: data.evrak_durumu || 'Eksik',
       dosya_kilitli: data.dosya_kilitli || false,
-    },
-    include: {
-      dealer: true,
-      file_type: true,
-    },
-  })
+    }
+
+    console.log('[createCustomer] Creating customer with data:', customerData)
+
+    // Create customer first
+    const customer = await prisma.customer.create({
+      data: customerData,
+      include: {
+        dealer: true,
+        file_type: true,
+      },
+    })
+
+    console.log('[createCustomer] Customer created successfully:', customer.id)
 
   // Auto-create user account for customer with role 'musteri'
   try {
@@ -227,13 +244,29 @@ export async function createCustomer(data: {
     // Continue even if user creation fails - customer is already created
   }
 
-  revalidatePath('/dashboard/customers')
+    revalidatePath('/dashboard/customers')
 
-  return {
-    ...customer,
-    id: Number(customer.id),
-    file_type_id: Number(customer.file_type_id),
-    dealer_id: customer.dealer_id ? Number(customer.dealer_id) : null,
+    return {
+      ...customer,
+      id: Number(customer.id),
+      file_type_id: Number(customer.file_type_id),
+      dealer_id: customer.dealer_id ? Number(customer.dealer_id) : null,
+    }
+  } catch (error: any) {
+    console.error('[createCustomer] Error occurred:', error)
+    console.error('[createCustomer] Error stack:', error.stack)
+    console.error('[createCustomer] Error name:', error.name)
+    console.error('[createCustomer] Error message:', error.message)
+    
+    // Provide more specific error messages
+    if (error.code === 'P2002') {
+      throw new Error('Bu TC No veya Plaka ile kayıtlı bir müşteri zaten var')
+    }
+    if (error.code === 'P2003') {
+      throw new Error('Seçilen dosya tipi veya bayi bulunamadı')
+    }
+    
+    throw new Error(error.message || 'Müşteri oluşturulamadı')
   }
 }
 
