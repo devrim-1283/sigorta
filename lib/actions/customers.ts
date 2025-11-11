@@ -306,6 +306,37 @@ export async function createCustomer(data: {
   console.log('[createCustomer] Starting with data:', JSON.stringify(data, null, 2))
 
   try {
+    // Check duplicate customer by TC No or plate before attempting to create
+    const existingCustomer = await prisma.customer.findFirst({
+      where: {
+        OR: [
+          { tc_no: data.tc_no },
+          { plaka: data.plaka },
+        ],
+      },
+      select: {
+        id: true,
+        tc_no: true,
+        plaka: true,
+        ad_soyad: true,
+      },
+    })
+
+    if (existingCustomer) {
+      const conflicts: string[] = []
+      if (existingCustomer.tc_no === data.tc_no) {
+        conflicts.push('TC No')
+      }
+      if (existingCustomer.plaka === data.plaka) {
+        conflicts.push('Plaka')
+      }
+
+      const conflictFields = conflicts.join(' ve ')
+      throw new Error(
+        `Bu ${conflictFields || 'bilgiler'} ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.`
+      )
+    }
+
     // Handle field name variations and type conversions
     const fileTypeId = data.file_type_id || data.dosya_tipi_id
     const hasarTarihi = typeof data.hasar_tarihi === 'string' 
