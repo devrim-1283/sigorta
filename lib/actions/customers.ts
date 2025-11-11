@@ -27,9 +27,12 @@ export async function getCustomers(params?: {
   page?: number
   perPage?: number
 }) {
-  await requireAuth()
+  try {
+    await requireAuth()
 
-  const where: any = {}
+    console.log('[getCustomers] Starting with params:', params)
+
+    const where: any = {}
 
   if (params?.search) {
     where.OR = [
@@ -61,8 +64,11 @@ export async function getCustomers(params?: {
     prisma.customer.count({ where }),
   ])
 
+    console.log('[getCustomers] Fetched customers count:', customers.length)
+    console.log('[getCustomers] First customer raw:', customers[0])
+
   // Serialize customers for Next.js (convert BigInt and Date to JSON-safe types)
-  return {
+  const result = {
     customers: customers.map(c => ({
       id: Number(c.id),
       ad_soyad: c.ad_soyad,
@@ -105,6 +111,20 @@ export async function getCustomers(params?: {
       })) || [],
     })),
     total,
+  }
+
+    console.log('[getCustomers] Serialized result count:', result.customers.length)
+    console.log('[getCustomers] First serialized customer:', result.customers[0])
+    
+    return result
+  } catch (error: any) {
+    console.error('[getCustomers] ❌ ERROR:', error)
+    console.error('[getCustomers] ❌ Error message:', error.message)
+    console.error('[getCustomers] ❌ Error stack:', error.stack)
+    console.error('[getCustomers] ❌ Error name:', error.name)
+    
+    // Re-throw with detailed message for debugging
+    throw new Error(`getCustomers failed: ${error.message}`)
   }
 }
 

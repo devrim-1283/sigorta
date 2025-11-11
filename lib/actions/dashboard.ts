@@ -4,9 +4,12 @@ import prisma from '@/lib/db'
 import { requireAuth } from './auth'
 
 export async function getDashboardStats() {
-  await requireAuth()
+  try {
+    await requireAuth()
 
-  const [
+    console.log('[getDashboardStats] Starting...')
+
+    const [
     totalCustomers,
     totalDealers,
     totalDocuments,
@@ -67,7 +70,10 @@ export async function getDashboardStats() {
     },
   })
 
-  return {
+    console.log('[getDashboardStats] Data fetched successfully')
+    console.log('[getDashboardStats] Recent customers count:', recentCustomers.length)
+
+  const result = {
     total_customers: totalCustomers,
     total_dealers: totalDealers,
     total_documents: totalDocuments,
@@ -124,6 +130,18 @@ export async function getDashboardStats() {
         name: d.uploader.name,
       } : null,
     })),
+  }
+
+    console.log('[getDashboardStats] Returning result')
+    
+    return result
+  } catch (error: any) {
+    console.error('[getDashboardStats] ❌ ERROR:', error)
+    console.error('[getDashboardStats] ❌ Error message:', error.message)
+    console.error('[getDashboardStats] ❌ Error stack:', error.stack)
+    
+    // Re-throw with detailed message
+    throw new Error(`getDashboardStats failed: ${error.message}`)
   }
 }
 
