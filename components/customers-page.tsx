@@ -43,7 +43,7 @@ import { FILE_TYPES, getFileTypeConfig, type FileType, type DocumentType as File
 import { DocumentCard, type DocumentType } from "./document-card"
 import { DocumentUploadModal } from "./document-upload-modal"
 import { useCustomers } from "@/hooks/use-customers"
-import { customerApi, fileTypeApi, documentApi } from "@/lib/api-client"
+import { customerApi, fileTypeApi, documentApi, dealerApi } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 
@@ -137,8 +137,12 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
     plaka: "",
     hasar_tarihi: "",
     dosya_tipi_id: "",
+    dealer_id: "none",
   })
   const [newFileUploadedDocs, setNewFileUploadedDocs] = useState<FileDocType[]>([])
+  const [dealerOptions, setDealerOptions] = useState<Array<{ id: string; name: string }>>([
+    { id: "none", name: "Belirtilmemiş / Bilinmiyor" },
+  ])
   const [fileTypes, setFileTypes] = useState<Array<{ id: number; name: string; label: string; color: string }>>([])
 
   useEffect(() => {
@@ -153,6 +157,49 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
     }
     fetchFileTypes()
   }, [])
+
+  useEffect(() => {
+    const fetchDealers = async () => {
+      try {
+        const dealers = await dealerApi.list({ status: "active" })
+        const mapped =
+          Array.isArray(dealers)
+            ? dealers
+                .map((dealer: any) => ({
+                  id: dealer.id?.toString?.() ?? "",
+                  name: dealer.dealer_name || "Belirtilmemiş",
+                }))
+                .filter((dealer) => dealer.id)
+            : []
+
+        setDealerOptions((prev) => {
+          const baseOption = prev[0]
+          const unique = mapped.filter(
+            (dealer, index, arr) => arr.findIndex((d) => d.id === dealer.id) === index,
+          )
+          return [baseOption, ...unique]
+        })
+      } catch (error) {
+        console.error("Error fetching dealers:", error)
+      }
+    }
+
+    fetchDealers()
+  }, [])
+
+  useEffect(() => {
+    if (user?.dealer_id) {
+      const dealerId = String(user.dealer_id)
+      setDealerOptions((prev) => {
+        if (prev.some((dealer) => dealer.id === dealerId)) {
+          return prev
+        }
+        return [...prev, { id: dealerId, name: user?.dealer?.dealer_name || "Bağlı Bayi" }]
+      })
+
+      setNewFileData((prev) => (prev.dealer_id === "none" ? { ...prev, dealer_id: dealerId } : prev))
+    }
+  }, [user?.dealer_id, user?.dealer?.dealer_name])
 
   const canCreate = hasPermission(userRole, "customer-management", "canCreate")
   const canEdit = hasPermission(userRole, "customer-management", "canEdit")
@@ -296,6 +343,13 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
 
   const handleCreateNewFile = async () => {
     try {
+      const selectedDealerId =
+        newFileData.dealer_id && newFileData.dealer_id !== "none"
+          ? parseInt(newFileData.dealer_id)
+          : user?.dealer_id
+            ? Number(user.dealer_id)
+            : undefined
+
       const customerData = {
         ad_soyad: newFileData.ad_soyad,
         tc_no: newFileData.tc_no,
@@ -304,7 +358,7 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
         plaka: newFileData.plaka,
         hasar_tarihi: newFileData.hasar_tarihi,
         dosya_tipi_id: newFileData.dosya_tipi_id ? parseInt(newFileData.dosya_tipi_id) : undefined,
-        bağlı_bayi_id: user?.dealer_id || undefined,
+        dealer_id: selectedDealerId,
       }
 
       await createCustomer(customerData)
@@ -317,6 +371,7 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
         plaka: "",
         hasar_tarihi: "",
         dosya_tipi_id: "",
+        dealer_id: user?.dealer_id ? String(user.dealer_id) : "none",
       })
       setNewFileUploadedDocs([])
     } catch (error) {
@@ -1190,6 +1245,29 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
                   onChange={(e) => setNewFileData({ ...newFileData, hasar_tarihi: e.target.value })}
                   className="rounded-2xl mt-2"
                 />
+              </div>
+              <div className="md:col-span-2">
+                <Label htmlFor="dealer_select" className="text-sm font-semibold mb-2">
+                  Bayi
+                </Label>
+                <Select
+                  value={newFileData.dealer_id}
+                  onValueChange={(value) => setNewFileData({ ...newFileData, dealer_id: value })}
+                >
+                  <SelectTrigger id="dealer_select" className="w-full rounded-2xl border-2 mt-2">
+                    <SelectValue placeholder="Bayi seçin (opsiyonel)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dealerOptions.map((dealer) => (
+                      <SelectItem key={dealer.id} value={dealer.id}>
+                        {dealer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Seçilmezse müşteri “Belirtilmemiş / Bilinmiyor” bayi ile kaydedilir.
+                </p>
               </div>
             </div>
 

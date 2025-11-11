@@ -59,7 +59,7 @@ import { type UserRole, hasPermission, getModuleLabel } from "@/lib/role-config"
 import { FILE_TYPES, getFileTypeConfig, type FileType, type DocumentType as FileDocType } from "@/lib/file-types-config"
 import { DocumentCard, type DocumentType } from "@/components/document-card"
 import { DocumentUploadModal } from "@/components/document-upload-modal"
-import { customerApi, documentsApi, documentApi } from "@/lib/api-client"
+import { customerApi, documentsApi, documentApi, dealerApi } from "@/lib/api-client"
 
 // API Configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://sigorta.test/api/v1'
@@ -156,6 +156,7 @@ export default function CustomersPage() {
     plaka: '',
     hasar_tarihi: '',
     başvuru_durumu: 'İnceleniyor' as ApplicationStatus,
+    dealer_id: 'none',
   })
 
   // Form states
@@ -168,6 +169,7 @@ export default function CustomersPage() {
     plaka: string
     hasar_tarihi: string
     dosya_tipi: number | ""
+    dealer_id: string
   }>({
     ad_soyad: "",
     tc_no: "",
@@ -176,10 +178,14 @@ export default function CustomersPage() {
     plaka: "",
     hasar_tarihi: "",
     dosya_tipi: "",
+    dealer_id: "none",
   })
   const [newFileUploadedDocs, setNewFileUploadedDocs] = useState<FileDocType[]>([])
   const [currentUploadingDocType, setCurrentUploadingDocType] = useState<FileDocType | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<{ [key: string]: File }>({})
+  const [dealerOptions, setDealerOptions] = useState<Array<{ id: string; name: string }>>([
+    { id: "none", name: "Belirtilmemiş / Bilinmiyor" },
+  ])
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogConfig>({
     open: false,
     title: '',
@@ -379,6 +385,49 @@ export default function CustomersPage() {
       fetchCustomers()
     }
   }, [isAuthenticated, searchTerm, statusFilter])
+
+  useEffect(() => {
+    const fetchDealers = async () => {
+      try {
+        const dealers = await dealerApi.list({ status: "active" })
+        const mapped =
+          Array.isArray(dealers)
+            ? dealers
+                .map((dealer: any) => ({
+                  id: dealer.id?.toString?.() ?? "",
+                  name: dealer.dealer_name || "Belirtilmemiş",
+                }))
+                .filter((dealer) => dealer.id)
+            : []
+
+        setDealerOptions((prev) => {
+          const baseOption = prev[0]
+          const unique = mapped.filter(
+            (dealer, index, arr) => arr.findIndex((d) => d.id === dealer.id) === index,
+          )
+          return [baseOption, ...unique]
+        })
+      } catch (error) {
+        console.error("Bayi listesi alınamadı:", error)
+      }
+    }
+
+    fetchDealers()
+  }, [])
+
+  useEffect(() => {
+    if (user?.dealer_id) {
+      const dealerId = String(user.dealer_id)
+      setDealerOptions((prev) => {
+        if (prev.some((dealer) => dealer.id === dealerId)) {
+          return prev
+        }
+        return [...prev, { id: dealerId, name: user?.dealer?.dealer_name || "Bağlı Bayi" }]
+      })
+
+      setNewFileData((prev) => (prev.dealer_id === "none" ? { ...prev, dealer_id: dealerId } : prev))
+    }
+  }, [user?.dealer_id, user?.dealer?.dealer_name])
 
   const handleLogout = async () => {
     try {
@@ -727,6 +776,13 @@ export default function CustomersPage() {
       let result;
       try {
         // Prepare customer data with proper field mapping for backend
+        const selectedDealerId =
+          newFileData.dealer_id && newFileData.dealer_id !== "none"
+            ? parseInt(newFileData.dealer_id as string)
+            : user?.dealer_id
+              ? Number(user.dealer_id)
+              : null
+
         const customerData = {
           ad_soyad: newFileData.ad_soyad,
           tc_no: newFileData.tc_no,
@@ -737,6 +793,7 @@ export default function CustomersPage() {
           dosya_tipi_id: newFileData.dosya_tipi ? parseInt(newFileData.dosya_tipi as string) : null,
           başvuru_durumu: initialStatus,
           evrak_durumu: "Eksik", // Start with Eksik, will update after uploads
+          dealer_id: selectedDealerId,
         };
 
         console.log('Creating customer with data:', customerData);
@@ -807,6 +864,7 @@ export default function CustomersPage() {
         plaka: "",
         hasar_tarihi: "",
         dosya_tipi: "",
+        dealer_id: user?.dealer_id ? String(user.dealer_id) : "none",
       })
       setNewFileUploadedDocs([])
       setUploadedFiles({}) // Clear uploaded files
@@ -827,7 +885,17 @@ export default function CustomersPage() {
       plaka: customer.plaka,
       hasar_tarihi: customer.hasar_tarihi,
       başvuru_durumu: customer.başvuru_durumu,
+    dealer_id: customer.bağlı_bayi_id || 'none',
     })
+  if (customer.bağlı_bayi_id && !dealerOptions.some((dealer) => dealer.id === customer.bağlı_bayi_id)) {
+    setDealerOptions((prev) => [
+      ...prev,
+      {
+        id: customer.bağlı_bayi_id,
+        name: customer.bağlı_bayi_adı || "Belirtilmemiş",
+      },
+    ])
+  }
     setShowEditModal(true)
   }
 
@@ -835,7 +903,15 @@ export default function CustomersPage() {
     if (!selectedCustomer) return
 
     try {
-      await customerApi.update(selectedCustomer.id, editFormData)
+      const payload = {
+        ...editFormData,
+        dealer_id:
+          editFormData.dealer_id && editFormData.dealer_id !== 'none'
+            ? parseInt(editFormData.dealer_id)
+            : null,
+      }
+
+      await customerApi.update(selectedCustomer.id, payload)
       setShowEditModal(false)
       setSelectedCustomer(null)
       fetchCustomers() // Refresh data
@@ -1901,6 +1977,29 @@ export default function CustomersPage() {
                     className="rounded-2xl mt-2"
                   />
                 </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="new_dealer" className="text-sm font-semibold mb-2">
+                    Bayi
+                  </Label>
+                  <Select
+                    value={newFileData.dealer_id}
+                    onValueChange={(value) => setNewFileData({ ...newFileData, dealer_id: value })}
+                  >
+                    <SelectTrigger id="new_dealer" className="w-full rounded-2xl border-2 mt-2">
+                      <SelectValue placeholder="Bayi seçin (opsiyonel)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dealerOptions.map((dealer) => (
+                        <SelectItem key={dealer.id} value={dealer.id}>
+                          {dealer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Seçilmezse müşteri “Belirtilmemiş / Bilinmiyor” bayi ile kaydedilir.
+                  </p>
+                </div>
               </div>
 
               <div>
@@ -2116,6 +2215,27 @@ export default function CustomersPage() {
                     onChange={(e) => setEditFormData({ ...editFormData, hasar_tarihi: e.target.value })}
                     className="rounded-2xl mt-2"
                   />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="edit_dealer" className="text-sm font-semibold mb-2">
+                    Bayi
+                  </Label>
+                  <Select
+                    value={editFormData.dealer_id}
+                    onValueChange={(value) => setEditFormData({ ...editFormData, dealer_id: value })}
+                    disabled={selectedCustomer?.dosya_kilitli}
+                  >
+                    <SelectTrigger id="edit_dealer" className="w-full rounded-2xl border-2 mt-2">
+                      <SelectValue placeholder="Bayi seçin (opsiyonel)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dealerOptions.map((dealer) => (
+                        <SelectItem key={dealer.id} value={dealer.id}>
+                          {dealer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
