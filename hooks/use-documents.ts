@@ -96,6 +96,7 @@ export function useDocuments(params?: { search?: string; type?: string; status?:
     isLoading,
     error,
     fetchDocuments,
+    refetch: fetchDocuments,
     uploadDocument,
     deleteDocument,
   }

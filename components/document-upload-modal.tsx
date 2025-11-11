@@ -19,11 +19,26 @@ interface DocumentUploadModalProps {
   onUpload: (file: File, type: DocumentType) => void
   preselectedType?: DocumentType
   availableTypes?: DocumentType[]
+  customerId?: string
+  customerOptions?: Array<{ id: string; name: string }>
+  onCustomerChange?: (customerId: string) => void
+  requireCustomer?: boolean
 }
 
-export function DocumentUploadModal({ open, onOpenChange, onUpload, preselectedType, availableTypes }: DocumentUploadModalProps) {
+export function DocumentUploadModal({ 
+  open, 
+  onOpenChange, 
+  onUpload, 
+  preselectedType, 
+  availableTypes,
+  customerId,
+  customerOptions = [],
+  onCustomerChange,
+  requireCustomer = false
+}: DocumentUploadModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [documentType, setDocumentType] = useState<DocumentType>(preselectedType || "Kimlik")
+  const [selectedCustomer, setSelectedCustomer] = useState<string>(customerId || "")
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string>("")
 
@@ -80,16 +95,33 @@ export function DocumentUploadModal({ open, onOpenChange, onUpload, preselectedT
   }
 
   const handleUpload = () => {
-    if (selectedFile) {
-      onUpload(selectedFile, documentType)
-      setSelectedFile(null)
-      setError("")
-      onOpenChange(false)
+    if (!selectedFile) {
+      setError("Lütfen bir dosya seçin")
+      return
+    }
+    
+    if (requireCustomer && !selectedCustomer) {
+      setError("Lütfen bir müşteri seçin")
+      return
+    }
+    
+    onUpload(selectedFile, documentType)
+    setSelectedFile(null)
+    setSelectedCustomer("")
+    setError("")
+    onOpenChange(false)
+  }
+  
+  const handleCustomerChange = (value: string) => {
+    setSelectedCustomer(value)
+    if (onCustomerChange) {
+      onCustomerChange(value)
     }
   }
 
   const handleClose = () => {
     setSelectedFile(null)
+    setSelectedCustomer("")
     setError("")
     onOpenChange(false)
   }
@@ -104,6 +136,25 @@ export function DocumentUploadModal({ open, onOpenChange, onUpload, preselectedT
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
+          {/* Customer Selection */}
+          {requireCustomer && customerOptions.length > 0 && (
+            <div className="space-y-2">
+              <Label className="font-semibold">Müşteri *</Label>
+              <Select value={selectedCustomer} onValueChange={handleCustomerChange}>
+                <SelectTrigger className="rounded-2xl border-2">
+                  <SelectValue placeholder="Müşteri seçin" />
+                </SelectTrigger>
+                <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
+                  {customerOptions.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
           {/* Document Type Selection */}
           <div className="space-y-2">
             <Label className="font-semibold">Evrak Tipi</Label>
@@ -226,7 +277,7 @@ export function DocumentUploadModal({ open, onOpenChange, onUpload, preselectedT
               className="rounded-2xl"
               style={{ backgroundColor: "#0B3D91", color: "white" }}
               onClick={handleUpload}
-              disabled={!selectedFile}
+              disabled={!selectedFile || (requireCustomer && !selectedCustomer)}
             >
               <Upload className="mr-2 h-4 w-4" />
               Yükle

@@ -1,17 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Search, Filter, Upload, FileText } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 import { type UserRole, hasPermission, getModuleLabel } from "@/lib/role-config"
 import { DocumentCard, type DocumentData, type DocumentType } from "./document-card"
 import { DocumentUploadModal } from "./document-upload-modal"
 import { useDocuments } from "@/hooks/use-documents"
-import { documentApi } from "@/lib/api-client"
+import { documentApi, customerApi } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
 
 interface DocumentManagementPageProps {
@@ -24,14 +25,34 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [selectedDocType, setSelectedDocType] = useState<DocumentType | undefined>()
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("")
+  const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; name: string }>>([])
 
   const canCreate = hasPermission(userRole, "document-management", "canCreate")
   const canDelete = hasPermission(userRole, "document-management", "canDelete")
   const moduleLabel = getModuleLabel(userRole, "document-management")
   const shouldShowDealerInfo = userRole === "bayi" || userRole === "superadmin"
 
+  // Fetch customers for selection
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const customers = await customerApi.getAll({ perPage: 1000 })
+        const customersList = Array.isArray(customers) ? customers : (customers?.data || [])
+        const mapped = customersList.map((customer: any) => ({
+          id: customer.id?.toString() || '',
+          name: `${customer.ad_soyad || customer.name || 'Bilinmeyen'} - ${customer.plaka || ''} (${customer.tc_no || ''})`
+        })).filter((c: any) => c.id)
+        setCustomerOptions(mapped)
+      } catch (error) {
+        console.error('Error fetching customers:', error)
+      }
+    }
+    fetchCustomers()
+  }, [])
+
   // Use API hook
-  const { documents, isLoading, uploadDocument, deleteDocument } = useDocuments({
+  const { documents, isLoading, uploadDocument, deleteDocument, refetch } = useDocuments({
     search: searchTerm || undefined,
     type: typeFilter !== "all" ? typeFilter : undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
@@ -79,19 +100,44 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
     missing: filteredDocuments.filter((d) => d.durum === "Eksik").length,
   }
 
-  const handleView = (doc: DocumentData) => {
-    console.log("[v0] Viewing document:", doc)
-    // TODO: Implement document view/download
+  const handleView = async (doc: DocumentData) => {
+    try {
+      const result = await documentApi.download(parseInt(doc.id))
+      if (result?.url) {
+        window.open(result.url, '_blank')
+      } else {
+        throw new Error('Dosya URL bulunamadı')
+      }
+    } catch (error: any) {
+      console.error('View document error:', error)
+      toast({
+        title: "Hata",
+        description: error.message || "Dosya görüntülenemedi",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleDownload = async (doc: DocumentData) => {
     try {
-      await documentApi.download(doc.id)
-      toast({
-        title: "İndirildi",
-        description: "Dosya başarıyla indirildi",
-      })
+      const result = await documentApi.download(parseInt(doc.id))
+      if (result?.url) {
+        const link = document.createElement('a')
+        link.href = result.url
+        link.download = result.filename || doc.dosya_adı || 'document'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        
+        toast({
+          title: "İndirildi",
+          description: "Dosya başarıyla indirildi",
+        })
+      } else {
+        throw new Error('Dosya URL bulunamadı')
+      }
     } catch (error: any) {
+      console.error('Download document error:', error)
       toast({
         title: "Hata",
         description: error.message || "Dosya indirilemedi",
@@ -112,16 +158,44 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
 
   const handleUpload = async (file: File, type: DocumentType) => {
     try {
+      if (!selectedCustomerId) {
+        toast({
+          title: "Hata",
+          description: "Lütfen bir müşteri seçin",
+          variant: "destructive",
+        })
+        return
+      }
+
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('tip', type)
       formData.append('document_type', type)
-      // TODO: Get customer_id from context or selection
-      // formData.append('customer_id', customerId)
+      formData.append('original_name', file.name)
+      formData.append('customer_id', selectedCustomerId)
+      formData.append('is_result_document', '0')
 
-      await uploadDocument(formData)
+      await documentApi.upload(formData)
+      
+      toast({
+        title: "Başarılı",
+        description: "Evrak başarıyla yüklendi",
+      })
+      
       setShowUploadModal(false)
-    } catch (error) {
+      setSelectedCustomerId("")
+      
+      // Refresh documents list
+      if (refetch) {
+        refetch()
+      }
+    } catch (error: any) {
       console.error("Error uploading document:", error)
+      toast({
+        title: "Hata",
+        description: error.message || "Evrak yüklenemedi",
+        variant: "destructive",
+      })
     }
   }
 
@@ -305,6 +379,10 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
         onOpenChange={setShowUploadModal}
         onUpload={handleUpload}
         preselectedType={selectedDocType}
+        customerId={selectedCustomerId}
+        customerOptions={customerOptions}
+        onCustomerChange={setSelectedCustomerId}
+        requireCustomer={true}
       />
     </div>
   )
