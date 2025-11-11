@@ -116,23 +116,42 @@ export async function createCustomer(data: {
   ad_soyad: string
   tc_no: string
   telefon: string
-  email?: string
+  email?: string | null
   plaka: string
-  hasar_tarihi: Date
-  file_type_id: number
-  dealer_id?: number
+  hasar_tarihi: Date | string
+  file_type_id?: number | null
+  dosya_tipi_id?: number | null
+  dealer_id?: number | null
   başvuru_durumu?: string
   evrak_durumu?: string
   dosya_kilitli?: boolean
 }) {
   await requireAuth()
 
+  // Handle field name variations and type conversions
+  const fileTypeId = data.file_type_id || data.dosya_tipi_id
+  const hasarTarihi = typeof data.hasar_tarihi === 'string' 
+    ? new Date(data.hasar_tarihi) 
+    : data.hasar_tarihi
+
+  if (!fileTypeId) {
+    throw new Error('Dosya tipi gereklidir')
+  }
+
   // Create customer first
   const customer = await prisma.customer.create({
     data: {
-      ...data,
-      file_type_id: BigInt(data.file_type_id),
+      ad_soyad: data.ad_soyad,
+      tc_no: data.tc_no,
+      telefon: data.telefon,
+      email: data.email || null,
+      plaka: data.plaka,
+      hasar_tarihi: hasarTarihi,
+      file_type_id: BigInt(fileTypeId),
       dealer_id: data.dealer_id ? BigInt(data.dealer_id) : null,
+      başvuru_durumu: data.başvuru_durumu || 'İnceleniyor',
+      evrak_durumu: data.evrak_durumu || 'Eksik',
+      dosya_kilitli: data.dosya_kilitli || false,
     },
     include: {
       dealer: true,

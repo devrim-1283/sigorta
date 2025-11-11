@@ -626,9 +626,10 @@ export default function CustomersPage() {
           await fetchCustomers()
         }
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('API Error:', error)
-        setError('Müşteri oluşturulamadı. Lütfen API bağlantısını kontrol edin ve tekrar deneyin.')
+        const errorMessage = error?.message || error?.toString() || 'Bilinmeyen hata'
+        setError(`Müşteri oluşturulamadı: ${errorMessage}`)
         return // Exit early if API fails
       }
 

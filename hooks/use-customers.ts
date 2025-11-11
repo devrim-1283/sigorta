@@ -102,7 +102,9 @@ export function useCustomers(params?: { search?: string; status?: string; per_pa
 
   const createCustomer = async (data: any) => {
     try {
+      console.log('[useCustomers] Creating customer with data:', data)
       const newCustomer = await customerApi.create(data)
+      console.log('[useCustomers] Customer created:', newCustomer)
       await fetchCustomers()
       toast({
         title: 'Başarılı',
@@ -110,12 +112,14 @@ export function useCustomers(params?: { search?: string; status?: string; per_pa
       })
       return newCustomer
     } catch (err: any) {
+      console.error('[useCustomers] Create error:', err)
+      const errorMessage = err?.message || err?.error || err?.toString() || 'Müşteri oluşturulamadı'
       toast({
         title: 'Hata',
-        description: err.message || 'Müşteri oluşturulamadı',
+        description: errorMessage,
         variant: 'destructive',
       })
-      throw err
+      throw new Error(errorMessage)
     }
   }
 
