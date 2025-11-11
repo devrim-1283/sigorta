@@ -1,7 +1,7 @@
 'use server'
 
 import prisma from '@/lib/db'
-import { requireAuth } from './auth'
+import { getCurrentUser } from './auth'
 import { revalidatePath } from 'next/cache'
 import { writeFile, unlink, stat } from 'fs/promises'
 import { existsSync } from 'fs'
@@ -46,7 +46,11 @@ export async function getDocuments(params?: {
   status?: string
   customerId?: number
 }) {
-  await requireAuth()
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    throw new Error('Oturum açmanız gerekiyor')
+  }
 
   const where: any = {}
 
@@ -110,7 +114,11 @@ export async function getDocuments(params?: {
 }
 
 export async function getDocument(id: number) {
-  await requireAuth()
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    throw new Error('Oturum açmanız gerekiyor')
+  }
 
   const document = await prisma.document.findUnique({
     where: { id: BigInt(id) },
@@ -156,7 +164,11 @@ export async function updateDocument(id: number, data: Partial<{
   durum: string
   red_nedeni: string
 }>) {
-  const user = await requireAuth()
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    throw new Error('Oturum açmanız gerekiyor')
+  }
 
   const updateData: any = { ...data }
   
@@ -183,7 +195,11 @@ export async function updateDocument(id: number, data: Partial<{
 }
 
 export async function uploadDocument(formData: FormData) {
-  const user = await requireAuth()
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    throw new Error('Oturum açmanız gerekiyor')
+  }
 
   try {
     // Get form data
@@ -273,12 +289,23 @@ export async function uploadDocument(formData: FormData) {
     return serializeDocument(document)
   } catch (error: any) {
     console.error('Upload document error:', error)
-    throw new Error(error.message || 'Dosya yüklenemedi')
+    // Re-throw with a clear message for production
+    const errorMessage = error.message || 'Dosya yüklenemedi'
+    const enhancedError = new Error(errorMessage)
+    // Preserve the original error for debugging
+    if (error.stack) {
+      console.error('Original error stack:', error.stack)
+    }
+    throw enhancedError
   }
 }
 
 export async function deleteDocument(id: number) {
-  await requireAuth()
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    throw new Error('Oturum açmanız gerekiyor')
+  }
 
   const document = await prisma.document.findUnique({
     where: { id: BigInt(id) },
@@ -311,7 +338,11 @@ export async function deleteDocument(id: number) {
 }
 
 export async function getDocumentDownloadUrl(id: number) {
-  await requireAuth()
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    throw new Error('Oturum açmanız gerekiyor')
+  }
 
   const document = await prisma.document.findUnique({
     where: { id: BigInt(id) },

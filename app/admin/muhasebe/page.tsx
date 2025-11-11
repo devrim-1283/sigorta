@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { DollarSign, TrendingUp, TrendingDown, CreditCard, Calendar, Download, Filter, FileText, Plus } from "lucide-react"
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, Calendar, Download, Filter, FileText, Plus, Edit, Trash2 } from "lucide-react"
 import { accountingApi } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import type { UserRole } from "@/lib/role-config"
@@ -37,6 +37,8 @@ export default function AccountingPage() {
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editingTransaction, setEditingTransaction] = useState<any>(null)
   const [isDownloadingReport, setIsDownloadingReport] = useState(false)
   const [formData, setFormData] = useState({
     type: 'income' as 'income' | 'expense',
@@ -120,15 +122,20 @@ export default function AccountingPage() {
         pendingPayments: 0, // This would need to be calculated separately
       })
       
-      // Transform transactions
+      // Transform transactions - keep full data for editing
       const transformedTransactions = accountingTransactions.map((t: any) => ({
         id: t.id,
         description: t.description || t.category || 'İşlem',
         amount: `₺${parseFloat(t.amount || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        rawAmount: parseFloat(t.amount || 0),
         date: new Date(t.transaction_date).toLocaleDateString('tr-TR'),
+        rawDate: t.transaction_date,
         type: t.type,
         status: 'completed',
-        category: t.category || 'Diğer'
+        category: t.category || 'Diğer',
+        document_url: t.document_url || '',
+        // Keep original data for editing
+        originalData: t
       }))
       
       setTransactions(transformedTransactions)
@@ -321,83 +328,96 @@ export default function AccountingPage() {
     }
   ]
 
-  const recentTransactions = transactions.length > 0 ? transactions : [
-    {
-      id: 1,
-      description: "Müşteri Ödemesi - Ahmet Yılmaz",
-      amount: "₺12,500",
-      type: "income",
-      date: "06.11.2024",
-      status: "completed"
-    },
-    {
-      id: 2,
-      description: "Ofis Kirası",
-      amount: "₺25,000",
-      type: "expense",
-      date: "05.11.2024",
-      status: "completed"
-    },
-    {
-      id: 3,
-      description: "Müşteri Ödemesi - Ayşe Demir",
-      amount: "₺8,750",
-      type: "income",
-      date: "04.11.2024",
-      status: "pending"
-    },
-    {
-      id: 4,
-      description: "Personel Maaşları",
-      amount: "₺85,000",
-      type: "expense",
-      date: "01.11.2024",
-      status: "completed"
-    },
-    {
-      id: 5,
-      description: "Müşteri Ödemesi - Mehmet Kaya",
-      amount: "₺15,200",
-      type: "income",
-      date: "31.10.2024",
-      status: "completed"
-    }
-  ]
+  const recentTransactions = transactions
 
-  const invoices = [
-    {
-      id: "INV-2024-001",
-      customer: "Ahmet Yılmaz",
-      amount: "₺12,500",
-      date: "06.11.2024",
-      status: "paid",
-      dueDate: "06.11.2024"
-    },
-    {
-      id: "INV-2024-002",
-      customer: "Ayşe Demir",
-      amount: "₺8,750",
-      date: "04.11.2024",
-      status: "pending",
-      dueDate: "04.12.2024"
-    },
-    {
-      id: "INV-2024-003",
-      customer: "Mehmet Kaya",
-      amount: "₺15,200",
-      date: "31.10.2024",
-      status: "paid",
-      dueDate: "31.10.2024"
-    },
-    {
-      id: "INV-2024-004",
-      customer: "Fatma Çelik",
-      amount: "₺22,300",
-      date: "28.10.2024",
-      status: "overdue",
-      dueDate: "27.10.2024"
+  const handleEditTransaction = (transaction: any) => {
+    const original = transaction.originalData || transaction
+    setEditingTransaction(transaction)
+    setFormData({
+      type: original.type || 'income',
+      category: original.category || '',
+      description: original.description || '',
+      amount: original.amount || transaction.rawAmount?.toString() || '',
+      transaction_date: original.transaction_date ? new Date(original.transaction_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      document_url: original.document_url || '',
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const handleUpdateTransaction = async () => {
+    if (!editingTransaction) return
+
+    try {
+      if (!formData.type || !formData.amount || !formData.transaction_date) {
+        toast({
+          title: 'Hata',
+          description: 'Lütfen tüm zorunlu alanları doldurun',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      await accountingApi.update(editingTransaction.id, {
+        type: formData.type,
+        category: formData.category || null,
+        description: formData.description || null,
+        amount: parseFloat(formData.amount),
+        transaction_date: new Date(formData.transaction_date),
+        document_url: formData.document_url || null,
+      })
+
+      toast({
+        title: 'Başarılı',
+        description: 'İşlem başarıyla güncellendi',
+      })
+
+      setIsEditDialogOpen(false)
+      setEditingTransaction(null)
+      setFormData({
+        type: 'income',
+        category: '',
+        description: '',
+        amount: '',
+        transaction_date: new Date().toISOString().split('T')[0],
+        document_url: '',
+      })
+
+      // Refresh data
+      await fetchAccountingData()
+    } catch (error: any) {
+      console.error('Failed to update transaction:', error)
+      toast({
+        title: 'Hata',
+        description: error?.message || 'İşlem güncellenemedi',
+        variant: 'destructive',
+      })
     }
-  ]
+  }
+
+  const handleDeleteTransaction = async (transactionId: number) => {
+    if (!confirm('Bu işlemi silmek istediğinizden emin misiniz?')) {
+      return
+    }
+
+    try {
+      await accountingApi.delete(transactionId)
+
+      toast({
+        title: 'Başarılı',
+        description: 'İşlem başarıyla silindi',
+      })
+
+      // Refresh data
+      await fetchAccountingData()
+    } catch (error: any) {
+      console.error('Failed to delete transaction:', error)
+      toast({
+        title: 'Hata',
+        description: error?.message || 'İşlem silinemedi',
+        variant: 'destructive',
+      })
+    }
+  }
 
   if (isLoading) {
     return (
@@ -539,8 +559,13 @@ export default function AccountingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 md:p-6">
-            <div className="space-y-3 md:space-y-4">
-              {recentTransactions.map((transaction) => (
+            {recentTransactions.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Henüz işlem kaydı bulunmuyor.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 md:space-y-4">
+                {recentTransactions.map((transaction) => (
                 <div
                   key={transaction.id}
                   className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 md:p-4 rounded-2xl border-2 hover:border-primary/50 transition-all"
@@ -575,84 +600,142 @@ export default function AccountingPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="text-left sm:text-right">
-                    <p className={`text-lg md:text-xl font-bold ${
-                      transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {transaction.type === 'income' ? '+' : '-'}{transaction.amount}
-                    </p>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="text-left sm:text-right">
+                      <p className={`text-lg md:text-xl font-bold ${
+                        transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {transaction.type === 'income' ? '+' : '-'}{transaction.amount}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl"
+                        onClick={() => handleEditTransaction(transaction)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDeleteTransaction(transaction.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Invoices */}
-        <Card className="rounded-3xl border-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-              <FileText className="h-4 w-4 md:h-5 md:w-5" style={{ color: "#0B3D91" }} />
-              Faturalar
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 md:p-6">
-            <div className="overflow-x-auto -mx-3 md:mx-0">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b-2 border-slate-200">
-                    <th className="text-left py-4 px-4 font-semibold text-slate-700">Fatura No</th>
-                    <th className="text-left py-4 px-4 font-semibold text-slate-700">Müşteri</th>
-                    <th className="text-left py-4 px-4 font-semibold text-slate-700">Tutar</th>
-                    <th className="text-left py-4 px-4 font-semibold text-slate-700">Tarih</th>
-                    <th className="text-left py-4 px-4 font-semibold text-slate-700">Vade</th>
-                    <th className="text-left py-4 px-4 font-semibold text-slate-700">Durum</th>
-                    <th className="text-left py-4 px-4 font-semibold text-slate-700">İşlemler</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map((invoice) => (
-                    <tr key={invoice.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="py-4 px-4">
-                        <span className="font-medium text-slate-800">{invoice.id}</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="text-slate-700">{invoice.customer}</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="font-medium text-slate-800">{invoice.amount}</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="text-slate-700">{invoice.date}</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="text-slate-700">{invoice.dueDate}</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            invoice.status === 'paid' ? 'bg-green-100 text-green-800' :
-                            invoice.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {invoice.status === 'paid' ? 'Ödendi' :
-                           invoice.status === 'pending' ? 'Beklemede' : 'Gecikmiş'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <Button variant="outline" size="sm" className="rounded-xl">
-                          <Download className="h-4 w-4 mr-2" />
-                          İndir
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+        {/* Edit Transaction Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="rounded-3xl max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">İşlem Düzenle</DialogTitle>
+              <DialogDescription>
+                Muhasebe işlemini güncelleyin
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_type">İşlem Türü *</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value) => setFormData({ ...formData, type: value as 'income' | 'expense' })}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="income">Gelir</SelectItem>
+                    <SelectItem value="expense">Gider</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_category">Kategori</Label>
+                <Input
+                  id="edit_category"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  placeholder="Örn: Maaş, Kira, Satış"
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_amount">Tutar *</Label>
+                <Input
+                  id="edit_amount"
+                  type="number"
+                  step="0.01"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  placeholder="0.00"
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_transaction_date">Tarih *</Label>
+                <Input
+                  id="edit_transaction_date"
+                  type="date"
+                  value={formData.transaction_date}
+                  onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_description">Açıklama</Label>
+                <Textarea
+                  id="edit_description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="İşlem açıklaması"
+                  className="rounded-xl"
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_document_url">Döküman URL (Opsiyonel)</Label>
+                <Input
+                  id="edit_document_url"
+                  value={formData.document_url}
+                  onChange={(e) => setFormData({ ...formData, document_url: e.target.value })}
+                  placeholder="https://..."
+                  className="rounded-xl"
+                />
+              </div>
             </div>
-          </CardContent>
-        </Card>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditDialogOpen(false)
+                  setEditingTransaction(null)
+                }}
+                className="rounded-xl"
+              >
+                İptal
+              </Button>
+              <Button
+                onClick={handleUpdateTransaction}
+                className="rounded-xl"
+                style={{ backgroundColor: "#F57C00", color: "white" }}
+                disabled={!formData.type || !formData.amount || !formData.transaction_date}
+              >
+                Güncelle
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Create Transaction Dialog */}
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>

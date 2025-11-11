@@ -63,7 +63,7 @@ import { type UserRole, hasPermission, getModuleLabel } from "@/lib/role-config"
 import { FILE_TYPES, getFileTypeConfig, type FileType, type DocumentType as FileDocType } from "@/lib/file-types-config"
 import { DocumentCard, type DocumentType, type DocumentStatus } from "@/components/document-card"
 import { DocumentUploadModal } from "@/components/document-upload-modal"
-import { customerApi, documentsApi, documentApi, dealerApi } from "@/lib/api-client"
+import { customerApi, documentApi, dealerApi } from "@/lib/api-client"
 
 // API Configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://sigorta.test/api/v1'
@@ -539,7 +539,7 @@ export default function CustomersPage() {
       formData.append('customer_id', selectedCustomer.id.toString())
       formData.append('is_result_document', '0')  // Default to false for regular documents
 
-      const result = await documentsApi.upload(formData)
+      const result = await documentApi.upload(formData)
       console.log('Upload successful:', result)
 
       setShowDocUploadModal(false)
@@ -581,6 +581,11 @@ export default function CustomersPage() {
       }
 
       fetchCustomers() // Refresh the main list
+      
+      toast({
+        title: "Başarılı",
+        description: "Evrak başarıyla yüklendi",
+      })
     } catch (error: any) {
       console.error('Document upload error:', error)
       console.error('Error details:', {
@@ -588,7 +593,14 @@ export default function CustomersPage() {
         status: error.status,
         response: error.response
       })
-      // You could add toast notification here if needed
+      
+      // Show user-friendly error message
+      const errorMessage = error.message || 'Evrak yüklenirken bir hata oluştu'
+      toast({
+        title: "Hata",
+        description: errorMessage,
+        variant: "destructive",
+      })
     }
   }
 
@@ -854,7 +866,7 @@ export default function CustomersPage() {
               formData.append('customer_id', result.id.toString())
               formData.append('is_result_document', '0')
 
-              const uploadResult = await documentsApi.upload(formData)
+              const uploadResult = await documentApi.upload(formData)
               console.log(`Document ${docType} uploaded successfully:`, uploadResult)
             } catch (uploadError) {
               console.error(`Failed to upload document ${docType}:`, uploadError)
