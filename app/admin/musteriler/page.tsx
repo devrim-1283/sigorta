@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import {
@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   Download,
   Trash2,
+  Loader2,
 } from "lucide-react"
 
 // Force dynamic rendering
@@ -40,6 +41,16 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -109,6 +120,13 @@ interface Note {
   içerik: string
 }
 
+interface ConfirmDialogConfig {
+  open: boolean
+  title: string
+  description: string
+  confirmLabel: string
+}
+
 export default function CustomersPage() {
   const { isAuthenticated, user, isLoading, logout } = useAuth()
   const router = useRouter()
@@ -162,6 +180,113 @@ export default function CustomersPage() {
   const [newFileUploadedDocs, setNewFileUploadedDocs] = useState<FileDocType[]>([])
   const [currentUploadingDocType, setCurrentUploadingDocType] = useState<FileDocType | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<{ [key: string]: File }>({})
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogConfig>({
+    open: false,
+    title: '',
+    description: '',
+    confirmLabel: 'Onayla',
+  })
+  const confirmActionRef = useRef<null | (() => Promise<void> | void)>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+
+  const openConfirmDialog = ({
+    title,
+    description,
+    confirmLabel = 'Onayla',
+    action,
+  }: {
+    title: string
+    description: string
+    confirmLabel?: string
+    action: () => Promise<void> | void
+  }) => {
+    confirmActionRef.current = action
+    setConfirmDialog({
+      open: true,
+      title,
+      description,
+      confirmLabel: confirmLabel ?? 'Onayla',
+    })
+  }
+
+  const handleConfirmDialogClose = () => {
+    if (confirmLoading) return
+    setConfirmDialog((prev) => ({ ...prev, open: false }))
+    confirmActionRef.current = null
+  }
+
+  const handleConfirmDialogAction = async () => {
+    if (!confirmActionRef.current) {
+      handleConfirmDialogClose()
+      return
+    }
+
+    try {
+      setConfirmLoading(true)
+      await confirmActionRef.current()
+    } catch (error) {
+      console.error('Confirm dialog action error:', error)
+    } finally {
+      setConfirmLoading(false)
+      handleConfirmDialogClose()
+    }
+  }
+
+  const confirmDialogElement = (
+    <AlertDialog
+      open={confirmDialog.open}
+      onOpenChange={(open) => {
+        if (!open) {
+          handleConfirmDialogClose()
+        }
+      }}
+    >
+      <AlertDialogContent className="rounded-3xl">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-xl font-semibold">
+            {confirmDialog.title}
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-sm text-muted-foreground">
+            {confirmDialog.description}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel asChild>
+            <Button
+              variant="outline"
+              className="rounded-2xl"
+              disabled={confirmLoading}
+              onClick={(event) => {
+                event.preventDefault()
+                handleConfirmDialogClose()
+              }}
+            >
+              Vazgeç
+            </Button>
+          </AlertDialogCancel>
+          <AlertDialogAction asChild>
+            <Button
+              className="rounded-2xl bg-red-600 hover:bg-red-700 text-white"
+              disabled={confirmLoading}
+              onClick={async (event) => {
+                event.preventDefault()
+                await handleConfirmDialogAction()
+              }}
+            >
+              {confirmLoading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Siliniyor...
+                </span>
+              ) : (
+                confirmDialog.confirmLabel || 'Onayla'
+              )}
+            </Button>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
 
   // Permissions
   const canCreate = hasPermission(userRole, "customer-management", "canCreate")
@@ -224,10 +349,10 @@ export default function CustomersPage() {
           bağlı_bayi_adı: item.dealer?.dealer_name || item.bağlı_bayi_adı || 'Belirtilmemiş',
           notlar: (item.notes || item.notlar || []).map((n: any) => ({
             id: String(n.id),
-            yazar: n.user?.name || n.yazar || 'Sistem',
+            yazar: n.author?.name || n.user?.name || n.yazar || 'Sistem',
             tarih: n.created_at || n.tarih || new Date().toLocaleDateString('tr-TR'),
-            içerik: n.içerik || n.content || n.note || '',
-          })),
+            içerik: n.note || n.içerik || n.content || n.message || '',
+          })).filter((note: any) => Boolean(note.içerik?.trim())),
           son_güncelleme: item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : (item.son_güncelleme || new Date().toLocaleDateString('tr-TR')),
           evrak_durumu: (item.evrak_durumu || 'Eksik') as "Tamam" | "Eksik",
           eksik_evraklar: item.eksik_evraklar || [],
@@ -503,49 +628,72 @@ export default function CustomersPage() {
     }
   }
 
-  const handleDeleteDocument = async (doc: any) => {
-    if (!confirm('Bu evrağı silmek istediğinizden emin misiniz?')) return
-
-    try {
-      await documentApi.delete(doc.id)
-
-      // Refresh customer data to show updated documents
-      if (selectedCustomer) {
+  const handleDeleteDocument = (doc: any) => {
+    openConfirmDialog({
+      title: "Evrakı Sil",
+      description: "Bu evrağı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+      confirmLabel: "Evet, Sil",
+      action: async () => {
         try {
-          const response = await customerApi.getById(selectedCustomer.id)
+          await documentApi.delete(doc.id)
 
-          const transformedCustomer = {
-            id: response.id,
-            ad_soyad: response.ad_soyad || response.name || 'Bilinmeyen',
-            tc_no: response.tc_no || '',
-            telefon: response.telefon || response.phone || '',
-            email: response.email || '',
-            plaka: response.plaka || '',
-            hasar_tarihi: response.hasar_tarihi || response.damage_date || '',
-            başvuru_durumu: response.başvuru_durumu || 'İnceleniyor',
-            ödemeler: response.ödemeler || [],
-            evraklar: response.evraklar || response.documents || [],
-            bağlı_bayi_id: response.bağlı_bayi_id || '',
-            bağlı_bayi_adı: response.bağlı_bayi_adı || 'Belirtilmemiş',
-            notlar: response.notlar || response.notes || [],
-            son_güncelleme: response.son_güncelleme || new Date().toLocaleDateString('tr-TR'),
-            evrak_durumu: response.evrak_durumu || 'Eksik',
-            eksik_evraklar: response.eksik_evraklar || [],
-            dosya_kilitli: response.dosya_kilitli || false,
-            dosya_tipi: response.dosya_tipi || 'deger-kaybi',
-            yüklenen_evraklar: response.yüklenen_evraklar || [],
+          if (selectedCustomer) {
+            try {
+              const response = await customerApi.getById(selectedCustomer.id)
+
+              const transformedCustomer = {
+                id: response.id,
+                ad_soyad: response.ad_soyad || response.name || 'Bilinmeyen',
+                tc_no: response.tc_no || '',
+                telefon: response.telefon || response.phone || '',
+                email: response.email || '',
+                plaka: response.plaka || '',
+                hasar_tarihi: response.hasar_tarihi || response.damage_date || '',
+                başvuru_durumu: response.başvuru_durumu || 'İnceleniyor',
+                ödemeler: response.ödemeler || [],
+                evraklar: response.evraklar || response.documents || [],
+                bağlı_bayi_id: response.bağlı_bayi_id || '',
+                bağlı_bayi_adı: response.bağlı_bayi_adı || 'Belirtilmemiş',
+                notlar: response.notlar || response.notes || [],
+                son_güncelleme: response.son_güncelleme || new Date().toLocaleDateString('tr-TR'),
+                evrak_durumu: response.evrak_durumu || 'Eksik',
+                eksik_evraklar: response.eksik_evraklar || [],
+                dosya_kilitli: response.dosya_kilitli || false,
+                dosya_tipi: response.dosya_tipi || 'deger-kaybi',
+                yüklenen_evraklar: response.yüklenen_evraklar || [],
+              }
+
+              setSelectedCustomer(transformedCustomer)
+            } catch (error) {
+              console.error('Failed to refresh customer data:', error)
+            }
           }
 
-          setSelectedCustomer(transformedCustomer)
+          await fetchCustomers()
         } catch (error) {
-          console.error('Failed to refresh customer data:', error)
+          console.error('Delete error:', error)
+          throw error
         }
-      }
+      },
+    })
+  }
 
-      fetchCustomers() // Refresh the main list
-    } catch (error: any) {
-      console.error('Delete error:', error)
-    }
+  const handleDeleteCustomer = (customer: Customer) => {
+    openConfirmDialog({
+      title: "Müşteri Kaydını Sil",
+      description: `${customer.ad_soyad} adlı müşteriyi silmek istediğinizden emin misiniz?`,
+      confirmLabel: "Evet, Sil",
+      action: async () => {
+        try {
+          await customerApi.delete(customer.id)
+          await fetchCustomers()
+        } catch (error: any) {
+          console.error('Customer delete error:', error)
+          setError(error?.message || 'Müşteri silinemedi')
+          throw error
+        }
+      },
+    })
   }
 
   // File closing handler
@@ -756,12 +904,15 @@ export default function CustomersPage() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-4 border-[#0B3D91] border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-600">Yükleniyor...</p>
-        </div>
-      </main>
+      <>
+        {confirmDialogElement}
+        <main className="min-h-screen flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-8 h-8 border-4 border-[#0B3D91] border-t-transparent rounded-full animate-spin" />
+            <p className="text-slate-600">Yükleniyor...</p>
+          </div>
+        </main>
+      </>
     )
   }
 
@@ -774,8 +925,10 @@ export default function CustomersPage() {
     const customer = filteredCustomers[0]
 
     return (
-      <main className="p-6">
-        <div className="space-y-6">
+      <>
+        {confirmDialogElement}
+        <main className="p-6">
+          <div className="space-y-6">
           {/* Header */}
           <div>
             <h1 className="text-3xl font-bold tracking-tight" style={{ color: "#0B3D91" }}>
@@ -941,15 +1094,18 @@ export default function CustomersPage() {
             onUpload={handleUniversalDocumentUpload}
             preselectedType={selectedDocType}
           />
-        </div>
-      </main>
+          </div>
+        </main>
+      </>
     )
   }
 
   // DEALER & ADMIN/OPERATIONS VIEW - List view
   return (
-    <main className="p-4 md:p-6 pb-20 md:pb-6">
-      <div className="space-y-4 md:space-y-6">
+    <>
+      {confirmDialogElement}
+      <main className="p-4 md:p-6 pb-20 md:pb-6">
+        <div className="space-y-4 md:space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 md:gap-6 md:flex-row md:items-center md:justify-between">
           <div>
@@ -1125,13 +1281,7 @@ export default function CustomersPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="rounded-xl text-red-600 hover:text-red-700"
-                                onClick={() => {
-                                  if (confirm('Bu müşteriyi silmek istediğinizden emin misiniz?')) {
-                                    customerApi.delete(customer.id)
-                                      .then(() => fetchCustomers())
-                                      .catch((err) => setError(err.message))
-                                  }
-                                }}
+                                onClick={() => handleDeleteCustomer(customer)}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -1259,13 +1409,7 @@ export default function CustomersPage() {
                           variant="outline"
                           size="sm"
                           className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => {
-                            if (confirm('Bu müşteriyi silmek istediğinizden emin misiniz?')) {
-                              customerApi.delete(customer.id)
-                                .then(() => fetchCustomers())
-                                .catch((err) => setError(err.message))
-                            }
-                          }}
+                          onClick={() => handleDeleteCustomer(customer)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -2029,7 +2173,8 @@ export default function CustomersPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   )
 }

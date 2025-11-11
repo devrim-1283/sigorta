@@ -55,7 +55,16 @@ export async function getCustomers(params?: {
         file_type: true,
         documents: true,
         payments: true,
-        notes: true,
+      notes: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
       },
       orderBy: { created_at: 'desc' },
       take: params?.perPage || 50,
@@ -104,11 +113,18 @@ export async function getCustomers(params?: {
         tarih: p.tarih.toISOString().split('T')[0],
         durum: p.durum,
       })) || [],
-      notes: c.notes?.map(n => ({
-        id: Number(n.id),
-        note: n.note,
-        created_at: n.created_at.toISOString(),
-      })) || [],
+      notes: c.notes?.map(n => {
+        const content = (n as any).içerik ?? (n as any).note ?? ''
+        return {
+          id: Number(n.id),
+          content,
+          created_at: n.created_at ? n.created_at.toISOString() : null,
+          author: n.user ? {
+            id: Number(n.user.id),
+            name: n.user.name,
+          } : null,
+        }
+      }).filter(n => Boolean(n.content?.trim())) || [],
     })),
     total,
   }
