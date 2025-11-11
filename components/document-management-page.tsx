@@ -39,11 +39,29 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
 
   // Transform API data to match component interface
   const transformDocument = (apiDoc: any): DocumentData => {
+    const rawDate = apiDoc.yüklenme_tarihi || apiDoc.created_at
+    let formattedDate: string | undefined
+
+    if (rawDate) {
+      try {
+        const date = new Date(rawDate)
+        if (!isNaN(date.getTime())) {
+          formattedDate = date.toLocaleString('tr-TR')
+        } else if (typeof rawDate === 'string') {
+          formattedDate = rawDate
+        }
+      } catch (error) {
+        if (typeof rawDate === 'string') {
+          formattedDate = rawDate
+        }
+      }
+    }
+
     return {
       id: apiDoc.id.toString(),
       tip: apiDoc.tip || apiDoc.document_type,
       dosya_adı: apiDoc.dosya_adı || apiDoc.file_name,
-      yüklenme_tarihi: apiDoc.yüklenme_tarihi || apiDoc.created_at,
+      yüklenme_tarihi: formattedDate,
       durum: apiDoc.durum || apiDoc.status,
       müşteri_adı: apiDoc.customer?.ad_soyad || apiDoc.müşteri_adı,
       bayi_adı: apiDoc.customer?.dealer?.dealer_name || apiDoc.bayi_adı,

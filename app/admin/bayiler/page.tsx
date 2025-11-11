@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context"
 import type { UserRole } from "@/lib/role-config"
 
 import { dealerApi } from "@/lib/api-client"
+import { toast } from "@/hooks/use-toast"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -101,6 +102,7 @@ export default function DealersPage() {
     address: "",
     tax_number: "",
     status: "active",
+    password: "",
   })
   const [formError, setFormError] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -182,26 +184,105 @@ export default function DealersPage() {
       address: "",
       tax_number: "",
       status: "active",
+      password: "",
     })
     setFormError("")
     setSelectedDealer(null)
   }
 
+  const generateStrongPassword = () => {
+    const lowercase = "abcdefghijklmnopqrstuvwxyz"
+    const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    const digits = "0123456789"
+    const symbols = "!@#$%^&*()-_=+[]{}<>?,."
+    const allChars = lowercase + uppercase + digits + symbols
+    const length = 14
+
+    const getRandomChar = (charset: string) => {
+      if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
+        const array = new Uint32Array(1)
+        window.crypto.getRandomValues(array)
+        return charset[array[0] % charset.length]
+      }
+
+      return charset[Math.floor(Math.random() * charset.length)]
+    }
+
+    const guarantee = [
+      getRandomChar(lowercase),
+      getRandomChar(uppercase),
+      getRandomChar(digits),
+      getRandomChar(symbols),
+    ]
+
+    const remainingLength = Math.max(length - guarantee.length, 0)
+    for (let i = 0; i < remainingLength; i++) {
+      guarantee.push(getRandomChar(allChars))
+    }
+
+    // Shuffle to avoid predictable positions
+    for (let i = guarantee.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[guarantee[i], guarantee[j]] = [guarantee[j], guarantee[i]]
+    }
+
+    return guarantee.join("")
+  }
+
+  const handleGeneratePassword = async () => {
+    const password = generateStrongPassword()
+    setFormData((prev) => ({ ...prev, password }))
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(password)
+        toast({
+          title: "Şifre oluşturuldu",
+          description: "Yeni şifre panoya kopyalandı.",
+        })
+      } else {
+        throw new Error("Clipboard API not available")
+      }
+    } catch (error) {
+      console.error("Password copy failed:", error)
+      toast({
+        title: "Şifre kopyalanamadı",
+        description: `Yeni şifre: ${password}`,
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleAddDealer = async (event: React.FormEvent) => {
     event.preventDefault()
-    setSubmitting(true)
     setFormError("")
+
+    const trimmedEmail = formData.email.trim()
+    const password = formData.password.trim()
+
+    if (!trimmedEmail) {
+      setFormError("Bayi kullanıcı hesabı için e-posta adresi gereklidir.")
+      return
+    }
+
+    if (password.length < 8) {
+      setFormError("Şifre en az 8 karakter olmalıdır.")
+      return
+    }
+
+    setSubmitting(true)
 
     try {
       await dealerApi.create({
         dealer_name: formData.dealer_name,
         contact_person: formData.contact_person || null,
         phone: formData.phone,
-        email: formData.email || null,
+        email: trimmedEmail,
         city: formData.city || null,
         address: formData.address || null,
         tax_number: formData.tax_number || null,
         status: formData.status,
+        password,
       })
 
       setShowAddModal(false)
@@ -218,11 +299,19 @@ export default function DealersPage() {
     event.preventDefault()
     if (!selectedDealer) return
 
-    setSubmitting(true)
     setFormError("")
 
+    const trimmedPassword = formData.password.trim()
+
+    if (trimmedPassword && trimmedPassword.length < 8) {
+      setFormError("Yeni şifre en az 8 karakter olmalıdır.")
+      return
+    }
+
+    setSubmitting(true)
+
     try {
-      await dealerApi.update(selectedDealer.id, {
+      const payload: any = {
         dealer_name: formData.dealer_name,
         contact_person: formData.contact_person || null,
         phone: formData.phone,
@@ -231,7 +320,13 @@ export default function DealersPage() {
         address: formData.address || null,
         tax_number: formData.tax_number || null,
         status: formData.status,
-      })
+      }
+
+      if (trimmedPassword) {
+        payload.password = trimmedPassword
+      }
+
+      await dealerApi.update(selectedDealer.id, payload)
 
       setShowEditModal(false)
       resetForm()
@@ -254,6 +349,7 @@ export default function DealersPage() {
       address: dealer.address || "",
       tax_number: dealer.tax_number || "",
       status: dealer.status || "active",
+      password: "",
     })
     setShowEditModal(true)
   }
@@ -505,7 +601,7 @@ export default function DealersPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="email">E-posta</Label>
+                        <Label htmlFor="email">E-posta *</Label>
                         <Input
                           id="email"
                           name="email"
@@ -513,7 +609,37 @@ export default function DealersPage() {
                           value={formData.email}
                           onChange={handleInputChange}
                           className="rounded-xl"
+                          required
                         />
+                      </div>
+
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label htmlFor="password_add">Bayi Şifresi *</Label>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <Input
+                            id="password_add"
+                            name="password"
+                            type="password"
+                            value={formData.password}
+                            onChange={handleInputChange}
+                            className="rounded-xl flex-1"
+                            required
+                            minLength={8}
+                            placeholder="En az 8 karakter"
+                            autoComplete="new-password"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-xl sm:w-auto"
+                            onClick={handleGeneratePassword}
+                          >
+                            Rastgele Şifre
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Oluşturulan şifre otomatik olarak panoya kopyalanır. En az 8 karakter olmalıdır.
+                        </p>
                       </div>
 
                       <div className="space-y-2">
@@ -813,7 +939,36 @@ export default function DealersPage() {
                   value={formData.email}
                   onChange={handleInputChange}
                   className="rounded-xl"
+                  autoComplete="email"
                 />
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="password_edit_field">Yeni Şifre</Label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    id="password_edit_field"
+                    name="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className="rounded-xl flex-1"
+                    minLength={8}
+                    placeholder="Boş bırakılırsa değişmez"
+                    autoComplete="new-password"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl sm:w-auto"
+                    onClick={handleGeneratePassword}
+                  >
+                    Rastgele Şifre
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Boş bırakırsanız mevcut şifre korunur. Oluşturulan şifre otomatik olarak panoya kopyalanır.
+                </p>
               </div>
 
               <div className="space-y-2">
