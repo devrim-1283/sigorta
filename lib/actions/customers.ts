@@ -308,18 +308,30 @@ export async function createCustomer(data: {
 
   try {
     // Normalize and validate phone number
-    const phoneValidation = validatePhone(data.telefon)
-    if (!phoneValidation.valid) {
-      throw new Error(phoneValidation.error || 'Geçersiz telefon numarası')
+    let normalizedPhone: string
+    try {
+      const phoneValidation = validatePhone(data.telefon)
+      if (!phoneValidation.valid) {
+        throw new Error(phoneValidation.error || 'Geçersiz telefon numarası')
+      }
+      normalizedPhone = phoneValidation.sanitized
+    } catch (error: any) {
+      // Return user-friendly error message
+      throw new Error(error.message || 'Telefon numarası formatı geçersiz. Lütfen 05XXXXXXXXX formatında girin.')
     }
-    const normalizedPhone = phoneValidation.sanitized
 
     // Normalize and validate TC No
-    const tcValidation = validateTCNo(data.tc_no)
-    if (!tcValidation.valid) {
-      throw new Error(tcValidation.error || 'Geçersiz TC Kimlik No')
+    let normalizedTC: string
+    try {
+      const tcValidation = validateTCNo(data.tc_no)
+      if (!tcValidation.valid) {
+        throw new Error(tcValidation.error || 'Geçersiz TC Kimlik No')
+      }
+      normalizedTC = tcValidation.sanitized
+    } catch (error: any) {
+      // Return user-friendly error message
+      throw new Error(error.message || 'TC Kimlik No formatı geçersiz.')
     }
-    const normalizedTC = tcValidation.sanitized
 
     // Normalize plaka (uppercase, remove spaces)
     const normalizedPlaka = data.plaka.trim().toUpperCase().replace(/\s+/g, '')
@@ -413,9 +425,15 @@ export async function createCustomer(data: {
       }
 
       const conflictFields = conflicts.join(', ')
-      throw new Error(
-        `Bu ${conflictFields || 'bilgiler'} ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.`
-      )
+      const errorMessage = conflicts.length > 0
+        ? `Bu ${conflictFields} ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.`
+        : 'Bu bilgiler ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.'
+      
+      // Create a proper error object that will be caught by the client
+      const error = new Error(errorMessage)
+      // Add a property to identify this as a validation error (not a server error)
+      ;(error as any).isValidationError = true
+      throw error
     }
 
     // Handle field name variations and type conversions
@@ -572,15 +590,34 @@ export async function createCustomer(data: {
     console.error('[createCustomer] Error name:', error.name)
     console.error('[createCustomer] Error message:', error.message)
     
-    // Provide more specific error messages
-    if (error.code === 'P2002') {
-      throw new Error('Bu TC No, Telefon veya Plaka ile kayıtlı bir müşteri zaten var')
-    }
-    if (error.code === 'P2003') {
-      throw new Error('Seçilen dosya tipi veya bayi bulunamadı')
+    // If it's already a validation error with a user-friendly message, re-throw it
+    if (error.isValidationError || error.message) {
+      // Preserve the original error message for user-friendly display
+      const userMessage = error.message || 'Müşteri oluşturulamadı'
+      const customError = new Error(userMessage)
+      ;(customError as any).isValidationError = true
+      throw customError
     }
     
-    throw new Error(error.message || 'Müşteri oluşturulamadı')
+    // Handle Prisma errors
+    if (error.code === 'P2002') {
+      const userMessage = 'Bu TC No, Telefon veya Plaka ile kayıtlı bir müşteri zaten var'
+      const customError = new Error(userMessage)
+      ;(customError as any).isValidationError = true
+      throw customError
+    }
+    if (error.code === 'P2003') {
+      const userMessage = 'Seçilen dosya tipi veya bayi bulunamadı'
+      const customError = new Error(userMessage)
+      ;(customError as any).isValidationError = true
+      throw customError
+    }
+    
+    // Generic error with user-friendly message
+    const userMessage = error.message || 'Müşteri oluşturulurken bir hata oluştu. Lütfen bilgileri kontrol edip tekrar deneyin.'
+    const customError = new Error(userMessage)
+    ;(customError as any).isValidationError = true
+    throw customError
   }
 }
 

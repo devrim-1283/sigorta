@@ -109,32 +109,51 @@ export function useCustomers(params?: { search?: string; status?: string; per_pa
       await fetchCustomers()
       toast({
         title: 'Başarılı',
-        description: 'Müşteri oluşturuldu',
+        description: 'Müşteri başarıyla oluşturuldu',
       })
       return newCustomer
     } catch (err: any) {
       console.error('[useCustomers] Create error:', err)
-      const errorMessage = err?.message || err?.error || err?.toString() || 'Müşteri oluşturulamadı'
+      
+      // Extract user-friendly error message
+      let errorMessage = 'Müşteri oluşturulamadı'
+      
+      if (err?.message) {
+        errorMessage = err.message
+      } else if (err?.error) {
+        errorMessage = err.error
+      } else if (typeof err === 'string') {
+        errorMessage = err
+      } else if (err?.toString && typeof err.toString === 'function') {
+        errorMessage = err.toString()
+      }
+      
+      // Normalize error message for checking
       const normalized = errorMessage.toLowerCase()
       const isAlreadyExists =
         normalized.includes('zaten var') ||
         normalized.includes('kayıtlı') ||
         normalized.includes('unique') ||
-        normalized.includes('benzersiz')
+        normalized.includes('benzersiz') ||
+        normalized.includes('mevcut kaydı')
 
+      // Show appropriate toast based on error type
       if (isAlreadyExists) {
         toast({
-          title: 'Üye kayıtlı',
-          description: errorMessage || 'Bu TC No, Telefon veya Plaka ile kayıtlı bir müşteri zaten var.',
+          title: 'Müşteri Zaten Kayıtlı',
+          description: errorMessage,
+          variant: 'destructive',
         })
-        // Do not throw to avoid red error flows in UI
+        // Return null instead of throwing to avoid breaking UI flow
         return null
       } else {
+        // Show validation or other errors
         toast({
           title: 'Hata',
           description: errorMessage,
           variant: 'destructive',
         })
+        // Still throw for error handling in calling code
         throw new Error(errorMessage)
       }
     }

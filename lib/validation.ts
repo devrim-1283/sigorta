@@ -41,30 +41,42 @@ export function validatePhone(phone: string): { valid: boolean; sanitized: strin
   // Handle different formats
   let normalized = digitsOnly
 
-  // If starts with 90 (country code without +), remove it
-  if (digitsOnly.length === 12 && digitsOnly.startsWith('90')) {
-    normalized = digitsOnly.substring(2)
-  }
-  // If starts with 905 (country code + area code), remove country code
-  else if (digitsOnly.length === 12 && digitsOnly.startsWith('905')) {
-    normalized = '0' + digitsOnly.substring(2)
-  }
-  // If 10 digits starting with 5, add leading 0
-  else if (digitsOnly.length === 10) {
-    if (!digitsOnly.startsWith('5')) {
-      return { valid: false, sanitized: '', error: 'Telefon numarası 5 ile başlamalı' }
+  // Priority: Check 12-digit formats first (country code)
+  if (digitsOnly.length === 12) {
+    // Format: +905XXXXXXXXX or 905XXXXXXXXX (country code 90 + area code 5)
+    if (digitsOnly.startsWith('905')) {
+      // Remove country code (90), keep area code (5) and add leading 0
+      normalized = '0' + digitsOnly.substring(2) // 0 + 5386912283 = 05386912283
     }
-    normalized = `0${digitsOnly}`
+    // Format: 90XXXXXXXXXX (country code 90, but not starting with 905)
+    else if (digitsOnly.startsWith('90')) {
+      // Remove country code, result should be 10 digits starting with 5
+      normalized = digitsOnly.substring(2)
+      if (normalized.length === 10 && normalized.startsWith('5')) {
+        normalized = '0' + normalized
+      } else {
+        return { valid: false, sanitized: '', error: 'Geçersiz telefon numarası formatı' }
+      }
+    } else {
+      return { valid: false, sanitized: '', error: 'Geçersiz telefon numarası formatı' }
+    }
   }
-  // If 11 digits, check if it starts with 05
+  // 11 digits: should be 05XXXXXXXXX
   else if (digitsOnly.length === 11) {
     if (!digitsOnly.startsWith('05')) {
       return { valid: false, sanitized: '', error: 'Telefon numarası 05 ile başlamalı' }
     }
     normalized = digitsOnly
   }
+  // 10 digits: should be 5XXXXXXXXX, add leading 0
+  else if (digitsOnly.length === 10) {
+    if (!digitsOnly.startsWith('5')) {
+      return { valid: false, sanitized: '', error: 'Telefon numarası 5 ile başlamalı' }
+    }
+    normalized = `0${digitsOnly}`
+  }
   else {
-    return { valid: false, sanitized: '', error: 'Geçersiz telefon numarası formatı' }
+    return { valid: false, sanitized: '', error: `Geçersiz telefon numarası formatı (${digitsOnly.length} haneli, 10-12 haneli olmalı)` }
   }
 
   // Final validation: should be 11 digits starting with 05
