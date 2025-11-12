@@ -76,7 +76,7 @@ type ApplicationStatus =
   | "İCRA AŞAMASINDA"
   | "TAHKİM BAŞVURUSU YAPILDI"
   | "TAHKİM AŞAMASINDA"
-  | "KAPALI"
+  | "DOSYA KAPATILDI"
 
 // Customer data structure
 interface Customer {
@@ -462,7 +462,7 @@ export default function CustomersPage() {
         return "bg-yellow-100 text-yellow-800 border-yellow-300"
       case "TAHKİM AŞAMASINDA":
         return "bg-indigo-100 text-indigo-800 border-indigo-300"
-      case "KAPALI":
+      case "DOSYA KAPATILDI":
         return "bg-gray-100 text-gray-800 border-gray-300"
       default:
         return "bg-gray-100 text-gray-800 border-gray-300"
@@ -1441,7 +1441,7 @@ export default function CustomersPage() {
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2">
                 Başvuru Durumu
-                {customer.dosya_kilitli && customer.başvuru_durumu === "KAPALI" && (
+                {customer.dosya_kilitli && customer.başvuru_durumu === "DOSYA KAPATILDI" && (
                   <Badge className="bg-green-100 text-green-800 border-green-300 rounded-xl flex items-center gap-1">
                     <CheckCircle2 className="h-4 w-4" />
                     Tamamlandı
@@ -1655,7 +1655,7 @@ export default function CustomersPage() {
                     <SelectItem value="İCRA AŞAMASINDA">İCRA AŞAMASINDA</SelectItem>
                     <SelectItem value="TAHKİM BAŞVURUSU YAPILDI">TAHKİM BAŞVURUSU YAPILDI</SelectItem>
                     <SelectItem value="TAHKİM AŞAMASINDA">TAHKİM AŞAMASINDA</SelectItem>
-                    <SelectItem value="KAPALI">KAPALI</SelectItem>
+                    <SelectItem value="DOSYA KAPATILDI">DOSYA KAPATILDI</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -2625,7 +2625,7 @@ export default function CustomersPage() {
                     <SelectItem value="İCRA AŞAMASINDA">İCRA AŞAMASINDA</SelectItem>
                     <SelectItem value="TAHKİM BAŞVURUSU YAPILDI">TAHKİM BAŞVURUSU YAPILDI</SelectItem>
                     <SelectItem value="TAHKİM AŞAMASINDA">TAHKİM AŞAMASINDA</SelectItem>
-                    <SelectItem value="KAPALI">KAPALI</SelectItem>
+                    <SelectItem value="DOSYA KAPATILDI">DOSYA KAPATILDI</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

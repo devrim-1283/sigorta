@@ -983,7 +983,7 @@ export async function closeCustomerFile(id: number, reason: string, sigortadanYa
 
   const updateData: any = {
     dosya_kilitli: true,
-    başvuru_durumu: 'KAPALI',
+      başvuru_durumu: 'DOSYA KAPATILDI',
     dosya_kapanma_nedeni: reason,
     dosya_kapanma_tarihi: new Date(),
   }
