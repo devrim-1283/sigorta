@@ -364,13 +364,17 @@ export async function createCustomer(data: {
       return digits
     }
 
-    // Check duplicate customer by TC No, phone, or plate
-    // First check by TC No and Plaka (exact match)
-    const customersByTCOrPlaka = await prisma.customer.findMany({
+    // Normalize ad_soyad for comparison (trim, lowercase, remove extra spaces)
+    const normalizedAdSoyad = data.ad_soyad.trim().toLowerCase().replace(/\s+/g, ' ')
+
+    // Check duplicate customer by TC No, Ad Soyad, phone, or plate
+    // First check by TC No, Ad Soyad, and Plaka (exact match)
+    const customersByTCOrPlakaOrAdSoyad = await prisma.customer.findMany({
       where: {
         OR: [
           { tc_no: normalizedTC },
           { plaka: { equals: normalizedPlaka, mode: 'insensitive' } },
+          { ad_soyad: { equals: normalizedAdSoyad, mode: 'insensitive' } },
         ],
       },
       select: {
@@ -383,21 +387,29 @@ export async function createCustomer(data: {
     })
 
     // Check if any of these match
-    let existingCustomer = customersByTCOrPlaka.find(c => {
+    let existingCustomer = customersByTCOrPlakaOrAdSoyad.find(c => {
       const existingTC = c.tc_no?.replace(/\D/g, '') || ''
       const existingPlaka = c.plaka?.trim().toUpperCase().replace(/\s+/g, '') || ''
-      return existingTC === normalizedTC || existingPlaka === normalizedPlaka
+      const existingAdSoyad = c.ad_soyad?.trim().toLowerCase().replace(/\s+/g, ' ') || ''
+      return existingTC === normalizedTC || existingPlaka === normalizedPlaka || existingAdSoyad === normalizedAdSoyad
     })
 
-    // If not found, check by phone number
+    // If not found, check by phone number and ad soyad
     if (!existingCustomer) {
-      // Get customers with phone numbers that might match (starting with same digits)
+      // Get customers with phone numbers that might match (starting with same digits) or same ad soyad
       const phonePrefix = normalizedPhone.substring(0, 3) // First 3 digits
       const potentialMatches = await prisma.customer.findMany({
         where: {
-          telefon: {
-            startsWith: phonePrefix,
-          },
+          OR: [
+            {
+              telefon: {
+                startsWith: phonePrefix,
+              },
+            },
+            {
+              ad_soyad: { equals: normalizedAdSoyad, mode: 'insensitive' },
+            },
+          ],
         },
         select: {
           id: true,
@@ -411,7 +423,8 @@ export async function createCustomer(data: {
       // Find exact match after normalization
       existingCustomer = potentialMatches.find(c => {
         const normalizedExisting = normalizePhoneForComparison(c.telefon)
-        return normalizedExisting === normalizedPhone
+        const existingAdSoyad = c.ad_soyad?.trim().toLowerCase().replace(/\s+/g, ' ') || ''
+        return normalizedExisting === normalizedPhone || existingAdSoyad === normalizedAdSoyad
       }) || null
     }
 
@@ -421,11 +434,16 @@ export async function createCustomer(data: {
       // Compare normalized values
       const existingTC = existingCustomer.tc_no?.replace(/\D/g, '') || ''
       const existingPlaka = existingCustomer.plaka?.trim().toUpperCase().replace(/\s+/g, '') || ''
+      const existingAdSoyad = existingCustomer.ad_soyad?.trim().toLowerCase().replace(/\s+/g, ' ') || ''
       const normalizedExistingPhone = normalizePhoneForComparison(existingCustomer.telefon)
       
       if (existingTC === normalizedTC) {
         conflicts.push('TC Kimlik No')
         conflictDetails.push(`TC Kimlik No: ${existingCustomer.tc_no}`)
+      }
+      if (existingAdSoyad === normalizedAdSoyad) {
+        conflicts.push('Ad Soyad')
+        conflictDetails.push(`Ad Soyad: ${existingCustomer.ad_soyad}`)
       }
       if (normalizedExistingPhone === normalizedPhone) {
         conflicts.push('Telefon Numarası')

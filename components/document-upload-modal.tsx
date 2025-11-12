@@ -46,6 +46,13 @@ export function DocumentUploadModal({
       setSelectedCustomer(customerId)
     }
   }, [customerId])
+
+  // Update documentType when preselectedType prop changes
+  useEffect(() => {
+    if (preselectedType) {
+      setDocumentType(preselectedType)
+    }
+  }, [preselectedType])
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string>("")
 

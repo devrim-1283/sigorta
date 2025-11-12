@@ -668,10 +668,31 @@ export default function CustomersPage() {
     }
   }
 
+  // Map required document names to modal document type values
+  const mapDocNameToModalType = (docName: string): DocumentType => {
+    const mapping: Record<string, DocumentType> = {
+      'Müşteri vekaleti': 'musteri-vekaleti',
+      'Eksper raporu': 'eksper-raporu',
+      'Kaza tutanağı': 'kaza-tutanagi',
+      'Mağdur ruhsatı': 'masdur-ruhsati',
+      'Olay yeri resimleri': 'olay-yeri-foto',
+      'Onarım resimleri': 'onarim-foto',
+      'IBAN bilgisi': 'iban-bilgisi',
+      'Vekalet': 'vekalet',
+      'Parça farkını beyan eden resimler': 'parca-farki-foto',
+      'Parça farkını beyan eden faturalar': 'parca-farki-fatura',
+      'Muvafakatname': 'muvafakatname',
+      'Araç ruhsatı': 'arac-ruhsati',
+    }
+    return mapping[docName] || (docName as DocumentType)
+  }
+
   // Handle new file upload button click
   const handleNewFileUploadClick = (docType: FileDocType) => {
     setCurrentUploadingDocType(docType)
-    setSelectedDocType(docType as DocumentType)
+    // Map the document name to the modal's document type value
+    const modalDocType = mapDocNameToModalType(docType)
+    setSelectedDocType(modalDocType)
     setShowDocUploadModal(true)
   }
 
@@ -2305,7 +2326,17 @@ export default function CustomersPage() {
                   !newFileData.telefon ||
                   !newFileData.plaka ||
                   !newFileData.hasar_tarihi ||
-                  !newFileData.dosya_tipi
+                  !newFileData.dosya_tipi ||
+                  (() => {
+                    // Check if all required documents are uploaded
+                    if (!newFileData.dosya_tipi) return true
+                    const fileTypeConfig = getFileTypeConfig(Number(newFileData.dosya_tipi))
+                    if (!fileTypeConfig || !fileTypeConfig.requiredDocuments.length) return false
+                    const allRequiredUploaded = fileTypeConfig.requiredDocuments.every((doc) => 
+                      newFileUploadedDocs.includes(doc.name)
+                    )
+                    return !allRequiredUploaded
+                  })()
                 }
               >
                 Dosya Oluştur
