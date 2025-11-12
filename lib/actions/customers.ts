@@ -212,74 +212,101 @@ export async function getCustomer(id: number) {
       ? {
           id: Number(customer.file_type.id),
           name: customer.file_type.name,
-          description: customer.file_type.description,
-          required_for_approval: customer.file_type.required_for_approval,
+          description: customer.file_type.description || null,
+          required_for_approval: customer.file_type.required_for_approval || false,
         }
       : null,
     documents:
       customer.documents
-        .map((doc: any) => ({
-          id: Number(doc.id),
-          customer_id: Number(doc.customer_id),
-          tip: doc.tip,
-          dosya_adı: (doc as any).dosya_adı || (doc as any).belge_adi || 'Belge',
-          dosya_yolu: doc.dosya_yolu,
-          dosya_boyutu: doc.dosya_boyutu ? Number(doc.dosya_boyutu) : null,
-          mime_type: doc.mime_type,
-          durum: doc.durum,
-          red_nedeni: doc.red_nedeni,
-          document_type: doc.document_type,
-          is_result_document: doc.is_result_document,
-          uploaded_by: Number(doc.uploaded_by),
-          onaylayan_id: doc.onaylayan_id ? Number(doc.onaylayan_id) : null,
-          onay_tarihi: doc.onay_tarihi ? doc.onay_tarihi.toISOString() : null,
-          created_at: doc.created_at ? doc.created_at.toISOString() : null,
-          updated_at: doc.updated_at ? doc.updated_at.toISOString() : null,
-          uploader: doc.uploader
-            ? {
-                id: Number(doc.uploader.id),
-                name: doc.uploader.name,
-                email: doc.uploader.email,
-              }
-            : null,
-          approver: doc.approver
-            ? {
-                id: Number(doc.approver.id),
-                name: doc.approver.name,
-                email: doc.approver.email,
-              }
-            : null,
-        })) || [],
+        ?.map((doc: any) => {
+          // Handle BigInt for IDs and sizes
+          const docId = typeof doc.id === 'bigint' ? Number(doc.id) : Number(doc.id)
+          const customerId = typeof doc.customer_id === 'bigint' ? Number(doc.customer_id) : Number(doc.customer_id)
+          const uploadedBy = typeof doc.uploaded_by === 'bigint' ? Number(doc.uploaded_by) : Number(doc.uploaded_by)
+          const dosyaBoyutu = doc.dosya_boyutu ? (typeof doc.dosya_boyutu === 'bigint' ? Number(doc.dosya_boyutu) : Number(doc.dosya_boyutu)) : null
+          const onaylayanId = doc.onaylayan_id ? (typeof doc.onaylayan_id === 'bigint' ? Number(doc.onaylayan_id) : Number(doc.onaylayan_id)) : null
+          
+          return {
+            id: docId,
+            customer_id: customerId,
+            tip: doc.tip || null,
+            dosya_adı: (doc as any).dosya_adı || (doc as any).belge_adi || 'Belge',
+            dosya_yolu: doc.dosya_yolu || null,
+            dosya_boyutu: dosyaBoyutu,
+            mime_type: doc.mime_type || null,
+            durum: doc.durum || null,
+            red_nedeni: doc.red_nedeni || null,
+            document_type: doc.document_type || null,
+            is_result_document: doc.is_result_document || false,
+            uploaded_by: uploadedBy,
+            onaylayan_id: onaylayanId,
+            onay_tarihi: doc.onay_tarihi ? doc.onay_tarihi.toISOString() : null,
+            created_at: doc.created_at ? doc.created_at.toISOString() : null,
+            updated_at: doc.updated_at ? doc.updated_at.toISOString() : null,
+            uploader: doc.uploader
+              ? {
+                  id: typeof doc.uploader.id === 'bigint' ? Number(doc.uploader.id) : Number(doc.uploader.id),
+                  name: doc.uploader.name || null,
+                  email: doc.uploader.email || null,
+                }
+              : null,
+            approver: doc.approver
+              ? {
+                  id: typeof doc.approver.id === 'bigint' ? Number(doc.approver.id) : Number(doc.approver.id),
+                  name: doc.approver.name || null,
+                  email: doc.approver.email || null,
+                }
+              : null,
+          }
+        }) || [],
     payments:
-      customer.payments?.map((payment: any) => ({
-        id: Number(payment.id),
-        tutar: payment.tutar ? Number(payment.tutar) : null,
-        tarih: payment.tarih ? payment.tarih.toISOString() : null,
-        durum: payment.durum,
-        açıklama: (payment as any).açıklama || payment.description || null,
-        created_at: payment.created_at ? payment.created_at.toISOString() : null,
-        updated_at: payment.updated_at ? payment.updated_at.toISOString() : null,
-        recorder: payment.recorder
-          ? {
-              id: Number(payment.recorder.id),
-              name: payment.recorder.name,
-              email: payment.recorder.email,
-            }
-          : null,
-      })) || [],
+      customer.payments?.map((payment: any) => {
+        // Handle BigInt for tutar
+        let tutarValue: number | null = null
+        if (payment.tutar) {
+          tutarValue = typeof payment.tutar === 'bigint' ? Number(payment.tutar) : Number(payment.tutar)
+        }
+        
+        // Handle Date for tarih
+        let tarihValue: string | null = null
+        if (payment.tarih) {
+          if (payment.tarih instanceof Date) {
+            tarihValue = payment.tarih.toISOString()
+          } else if (typeof payment.tarih === 'string') {
+            tarihValue = payment.tarih
+          }
+        }
+        
+        return {
+          id: typeof payment.id === 'bigint' ? Number(payment.id) : Number(payment.id),
+          tutar: tutarValue,
+          tarih: tarihValue,
+          durum: payment.durum || null,
+          açıklama: (payment as any).açıklama || payment.description || null,
+          created_at: payment.created_at ? payment.created_at.toISOString() : null,
+          updated_at: payment.updated_at ? payment.updated_at.toISOString() : null,
+          recorder: payment.recorder
+            ? {
+                id: typeof payment.recorder.id === 'bigint' ? Number(payment.recorder.id) : Number(payment.recorder.id),
+                name: payment.recorder.name || null,
+                email: payment.recorder.email || null,
+              }
+            : null,
+        }
+      }) || [],
     notes:
       customer.notes?.map((note: any) => {
         const content = note.içerik ?? note.note ?? note.content ?? ''
         return {
-          id: Number(note.id),
-          content,
+          id: typeof note.id === 'bigint' ? Number(note.id) : Number(note.id),
+          content: content || '',
           created_at: note.created_at ? note.created_at.toISOString() : null,
           updated_at: note.updated_at ? note.updated_at.toISOString() : null,
           author: note.user
             ? {
-                id: Number(note.user.id),
-                name: note.user.name,
-                email: note.user.email,
+                id: typeof note.user.id === 'bigint' ? Number(note.user.id) : Number(note.user.id),
+                name: note.user.name || null,
+                email: note.user.email || null,
               }
             : null,
         }
