@@ -56,11 +56,23 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
   const [stats, setStats] = useState<any>(null)
+  const [searchTerm, setSearchTerm] = useState("")
 
   // Theme color based on role
   const themeColor = userRole === 'bayi' ? '#F57C00' : '#0B3D91'
 
-  const menuItems = getMenuItemsForRole(userRole, stats)
+  const allMenuItems = getMenuItemsForRole(userRole, stats)
+  
+  // Filter menu items based on search term
+  const menuItems = searchTerm.trim() 
+    ? allMenuItems.filter(item => {
+        const labelMatch = item.label.toLowerCase().includes(searchTerm.toLowerCase())
+        const submenuMatch = item.submenu?.some(sub => 
+          sub.label.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        return labelMatch || submenuMatch
+      })
+    : allMenuItems
 
   const toggleSubmenu = (title: string) => {
     setExpandedMenus((prev) => ({
@@ -152,20 +164,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         style={{ backgroundColor: themeColor }}
       >
         <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex items-center justify-between p-4 border-b border-white/10">
-            <div className={cn(
-              "flex items-center gap-3 transition-all duration-300",
-              !sidebarOpen && "justify-center"
-            )}>
-              <img src="/oksijen-logo.png" alt="Logo" className="h-8 w-auto" />
-              {sidebarOpen && (
-                <div>
-                  <h2 className="font-semibold text-white">Sigorta</h2>
-                  <p className="text-xs text-white/70">Yönetim Sistemi</p>
-                </div>
-              )}
-            </div>
+          {/* Header - Logo removed, just menu toggle */}
+          <div className="flex items-center justify-end p-4 border-b border-white/10">
             <Button
               variant="ghost"
               size="icon"
@@ -183,9 +183,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 h-4 w-4" />
                 <input
                   type="text"
-                  placeholder="Ara..."
+                  placeholder="Menü ara..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full rounded-2xl bg-white/10 border-white/20 text-white placeholder:text-white/50 pl-9 pr-4 py-2 text-sm"
                 />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -281,8 +291,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
           {/* User Profile */}
           <div className="p-4 border-t border-white/10">
-            <div className="flex items-center gap-3 p-2 rounded-2xl bg-slate-800/50">
-              <Avatar className="h-8 w-8">
+            <div className={cn(
+              "flex items-center gap-3 p-2 rounded-2xl bg-slate-800/50",
+              !sidebarOpen && "justify-center"
+            )}>
+              <Avatar className="h-8 w-8 flex-shrink-0">
                 <AvatarImage src="/placeholder.svg" />
                 <AvatarFallback className="bg-[#F57C00] text-white text-xs font-bold">
                   {user?.name?.charAt(0) || "U"}
@@ -298,29 +311,35 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   </p>
                 </div>
               )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleLogout}
-                className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/10 rounded-lg"
-                title="Çıkış Yap"
-              >
-                <LogOut className="h-3 w-3" />
-              </Button>
+              {sidebarOpen && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleLogout}
+                  className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/10 rounded-lg flex-shrink-0"
+                  title="Çıkış Yap"
+                >
+                  <LogOut className="h-3 w-3" />
+                </Button>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Mobile Menu Button */}
-      <div className="md:hidden fixed top-4 left-4 z-20">
-        <Button
-          onClick={() => setMobileMenuOpen(true)}
-          variant="outline"
-          className="rounded-xl bg-white/90 border-2 shadow-lg"
-        >
-          <Menu className="h-4 w-4" />
-        </Button>
+      {/* Mobile Header with Menu Button */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-20 bg-white border-b border-slate-200 shadow-sm">
+        <div className="flex items-center justify-between px-4 py-3">
+          <h1 className="text-lg font-bold text-slate-800">Sigorta Yönetim</h1>
+          <Button
+            onClick={() => setMobileMenuOpen(true)}
+            variant="ghost"
+            size="icon"
+            className="rounded-xl"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
 
       {/* Sidebar - Mobile */}
@@ -419,7 +438,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <div className={cn(
         "transition-all duration-300 ease-in-out",
         sidebarOpen ? "md:ml-64" : "md:ml-20",
-        "pt-20 md:pt-0"
+        "pt-16 md:pt-0" // Padding for mobile header
       )}>
         {children}
       </div>

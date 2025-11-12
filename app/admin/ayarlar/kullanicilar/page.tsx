@@ -208,12 +208,28 @@ export default function UserManagementPage() {
 
   const handleGeneratePassword = () => {
     const newPassword = generateStrongPassword()
-    setFormData({ ...formData, password: newPassword })
-    navigator.clipboard.writeText(newPassword)
-    toast({
-      title: "Şifre Oluşturuldu",
-      description: "Rastgele şifre oluşturuldu ve panoya kopyalandı.",
+    // Update state immediately
+    setFormData((prev) => {
+      const updated = { ...prev, password: newPassword }
+      return updated
     })
+    
+    // Use setTimeout to ensure state is updated before showing toast
+    setTimeout(async () => {
+      try {
+        await navigator.clipboard.writeText(newPassword)
+        toast({
+          title: "Şifre Oluşturuldu",
+          description: "Rastgele şifre oluşturuldu ve panoya kopyalandı.",
+        })
+      } catch (error) {
+        console.error("Password copy failed:", error)
+        toast({
+          title: "Şifre Oluşturuldu",
+          description: `Yeni şifre: ${newPassword}`,
+        })
+      }
+    }, 0)
   }
 
   const handleCopyPassword = () => {
@@ -754,7 +770,7 @@ export default function UserManagementPage() {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
-                      onChange={(e) => setFormData({...formData, password: e.target.value})}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
                       className="rounded-2xl pr-10"
                     />
                     <Button
@@ -886,7 +902,7 @@ export default function UserManagementPage() {
                       id="edit_password"
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
-                      onChange={(e) => setFormData({...formData, password: e.target.value})}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
                       className="rounded-2xl pr-10"
                       placeholder="Şifre değiştirmek için doldurun"
                     />

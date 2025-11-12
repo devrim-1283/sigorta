@@ -237,26 +237,32 @@ export default function DealersPage() {
 
   const handleGeneratePassword = async () => {
     const password = generateStrongPassword()
-    setFormData((prev) => ({ ...prev, password }))
+    // Update state immediately
+    setFormData((prev) => {
+      const updated = { ...prev, password }
+      return updated
+    })
 
-    try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(password)
+    // Use setTimeout to ensure state is updated before showing toast
+    setTimeout(async () => {
+      try {
+        if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(password)
+          toast({
+            title: "Şifre oluşturuldu",
+            description: "Yeni şifre panoya kopyalandı.",
+          })
+        } else {
+          throw new Error("Clipboard API not available")
+        }
+      } catch (error) {
+        console.error("Password copy failed:", error)
         toast({
           title: "Şifre oluşturuldu",
-          description: "Yeni şifre panoya kopyalandı.",
+          description: `Yeni şifre: ${password}`,
         })
-      } else {
-        throw new Error("Clipboard API not available")
       }
-    } catch (error) {
-      console.error("Password copy failed:", error)
-      toast({
-        title: "Şifre kopyalanamadı",
-        description: `Yeni şifre: ${password}`,
-        variant: "destructive",
-      })
-    }
+    }, 0)
   }
 
   const handleCopyPassword = async () => {

@@ -146,7 +146,6 @@ export default function CustomersPage() {
 
   // Modal states
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-  const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showDocUploadModal, setShowDocUploadModal] = useState(false)
   const [selectedDocType, setSelectedDocType] = useState<DocumentType | undefined>()
   const [showCloseFileModal, setShowCloseFileModal] = useState(false)
@@ -1078,30 +1077,41 @@ export default function CustomersPage() {
   const handleGeneratePassword = async (forNewFile: boolean = false) => {
     const password = generateStrongPassword()
     
+    // Update state immediately
     if (forNewFile) {
-      setNewFileData((prev) => ({ ...prev, password }))
+      setNewFileData((prev) => {
+        const updated = { ...prev, password }
+        // Force re-render by ensuring state update
+        return updated
+      })
     } else {
-      setEditFormData((prev) => ({ ...prev, password }))
-    }
-
-    try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(password)
-        toast({
-          title: "Şifre oluşturuldu",
-          description: "Yeni şifre panoya kopyalandı.",
-        })
-      } else {
-        throw new Error("Clipboard API not available")
-      }
-    } catch (error) {
-      console.error("Password copy failed:", error)
-      toast({
-        title: "Şifre kopyalanamadı",
-        description: `Yeni şifre: ${password}`,
-        variant: "destructive",
+      setEditFormData((prev) => {
+        const updated = { ...prev, password }
+        // Force re-render by ensuring state update
+        return updated
       })
     }
+
+    // Use setTimeout to ensure state is updated before showing toast
+    setTimeout(async () => {
+      try {
+        if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(password)
+          toast({
+            title: "Şifre oluşturuldu",
+            description: "Yeni şifre panoya kopyalandı.",
+          })
+        } else {
+          throw new Error("Clipboard API not available")
+        }
+      } catch (error) {
+        console.error("Password copy failed:", error)
+        toast({
+          title: "Şifre oluşturuldu",
+          description: `Yeni şifre: ${password}`,
+        })
+      }
+    }, 0)
   }
 
   const handleCopyNewFilePassword = async () => {
@@ -1664,8 +1674,7 @@ export default function CustomersPage() {
                               size="icon"
                               className="rounded-xl"
                               onClick={() => {
-                                setSelectedCustomer(customer)
-                                setShowDetailsModal(true)
+                                router.push(`/admin/musteriler/${customer.id}`)
                               }}
                             >
                               <Eye className="h-4 w-4" />
@@ -1751,8 +1760,7 @@ export default function CustomersPage() {
                         size="icon"
                         className="rounded-xl -mt-2 -mr-2"
                         onClick={() => {
-                          setSelectedCustomer(customer)
-                          setShowDetailsModal(true)
+                          router.push(`/admin/musteriler/${customer.id}`)
                         }}
                       >
                         <Eye className="h-5 w-5" />
@@ -1826,380 +1834,6 @@ export default function CustomersPage() {
           )}
         </div>
 
-        {/* Customer Detail Modal */}
-        <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl w-[95vw]">
-            <DialogHeader>
-              <DialogTitle className="text-lg md:text-2xl font-bold flex flex-col md:flex-row md:items-center gap-2" style={{ color: "#0B3D91" }}>
-                <span className="break-words">{selectedCustomer?.ad_soyad}</span>
-                <span className="hidden md:inline">-</span>
-                <span className="text-sm md:text-2xl">Detaylı Bilgiler</span>
-                {selectedCustomer?.dosya_kilitli && (
-                  <Badge className="bg-blue-100 text-blue-800 border-blue-300 rounded-xl flex items-center gap-1 w-fit">
-                    <Lock className="h-3 w-3" />
-                    Dosya Kapalı
-                  </Badge>
-                )}
-              </DialogTitle>
-            </DialogHeader>
-
-            {selectedCustomer && (
-              <Tabs defaultValue="info" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 rounded-2xl gap-1">
-                  <TabsTrigger value="info" className="rounded-xl text-xs md:text-sm">
-                    Bilgiler
-                  </TabsTrigger>
-                  <TabsTrigger value="documents" className="rounded-xl text-xs md:text-sm">
-                    Evraklar
-                  </TabsTrigger>
-                  {(userRole === "admin" || userRole === "operasyon" || userRole === "superadmin") && (
-                    <TabsTrigger value="result-documents" className="rounded-xl text-xs md:text-sm">
-                      Sonuç
-                    </TabsTrigger>
-                  )}
-                  <TabsTrigger value="status" className="rounded-xl text-xs md:text-sm">
-                    Durum
-                  </TabsTrigger>
-                  <TabsTrigger value="payments" className="rounded-xl text-xs md:text-sm">
-                    Ödemeler
-                  </TabsTrigger>
-                </TabsList>
-
-                {/* Basic Info Tab */}
-                <TabsContent value="info" className="space-y-4 mt-6">
-                  <Card className="rounded-2xl">
-                    <CardContent className="p-4 md:p-6 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Ad Soyad</p>
-                          <p className="font-semibold">{selectedCustomer.ad_soyad}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">TC Kimlik No</p>
-                          <p className="font-semibold">{selectedCustomer.tc_no}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Telefon</p>
-                          <p className="font-semibold">{selectedCustomer.telefon}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Email</p>
-                          <p className="font-semibold">{selectedCustomer.email}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Plaka</p>
-                          <p className="font-semibold">{selectedCustomer.plaka}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Hasar Tarihi</p>
-                          <p className="font-semibold">{selectedCustomer.hasar_tarihi}</p>
-                        </div>
-                      </div>
-
-                      {shouldShowDealerInfo && (
-                        <div className="pt-4 border-t">
-                          <p className="text-sm text-muted-foreground">Bağlı Bayi</p>
-                          <p className="font-semibold">{selectedCustomer.bağlı_bayi_adı}</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                {/* Documents Tab */}
-                <TabsContent value="documents" className="space-y-4 mt-6">
-                  <div className="flex justify-end mb-4">
-                    {canCreate && (
-                      <Button
-                        className="rounded-2xl"
-                        style={{ backgroundColor: "#F57C00", color: "white" }}
-                        onClick={() => handleDocUploadClick()}
-                      >
-                        <Upload className="mr-2 h-4 w-4" />
-                        Yeni Evrak Yükle
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    {selectedCustomer.evraklar.map((doc) => (
-                      <DocumentCard
-                        key={doc.id}
-                        document={{
-                          id: doc.id,
-                          tip: doc.tip as DocumentType,
-                          dosya_adı: doc.dosya_adı,
-                          yüklenme_tarihi: doc.yüklenme_tarihi,
-                          durum: doc.durum as any,
-                        }}
-                        userRole={userRole}
-                        canUpload={canCreate}
-                        canDelete={canDelete}
-                        showDealerInfo={shouldShowDealerInfo}
-                        onView={handleViewDocument}
-                        onDownload={handleDownloadDocument}
-                        onDelete={handleDeleteDocument}
-                        onUpload={handleDocUploadClick}
-                      />
-                    ))}
-                  </div>
-                </TabsContent>
-
-                {(userRole === "admin" || userRole === "operasyon" || userRole === "superadmin") && (
-                  <TabsContent value="result-documents" className="space-y-4 mt-6">
-                    <Card className="rounded-2xl">
-                      <CardContent className="p-6 space-y-6">
-                        {/* Status Dropdown */}
-                        <div>
-                          <Label className="text-sm font-semibold mb-2">Başvuru Durumu</Label>
-                          <Select
-                            value={selectedCustomer.başvuru_durumu}
-                            onValueChange={(value) => {
-                              handleStatusUpdate(value as ApplicationStatus)
-                            }}
-                            disabled={selectedCustomer.dosya_kilitli}
-                          >
-                            <SelectTrigger className="w-full rounded-2xl border-2 mt-2">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
-                              <SelectItem value="İnceleniyor">İnceleniyor</SelectItem>
-                              <SelectItem value="Başvuru Aşamasında">Başvuru Aşamasında</SelectItem>
-                              <SelectItem value="Dava Aşamasında">Dava Aşamasında</SelectItem>
-                              <SelectItem value="Onaylandı">Onaylandı</SelectItem>
-                              <SelectItem value="Tamamlandı">Tamamlandı</SelectItem>
-                              <SelectItem value="Beklemede">Beklemede</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Result Documents List */}
-                        <div>
-                          <div className="flex items-center justify-between mb-4">
-                            <Label className="text-sm font-semibold">Sonuç Evrakları</Label>
-                            {!selectedCustomer.dosya_kilitli && canCreate && (
-                              <Button
-                                size="sm"
-                                className="rounded-xl"
-                                style={{ backgroundColor: "#F57C00", color: "white" }}
-                                onClick={() => handleDocUploadClick()}
-                              >
-                                <Upload className="mr-2 h-4 w-4" />
-                                Yükle
-                              </Button>
-                            )}
-                          </div>
-
-                          <div className="space-y-3">
-                            {selectedCustomer.evraklar.map((doc) => (
-                              <div key={doc.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                                <div className="flex items-center gap-3">
-                                  <FileText className="h-5 w-5 text-blue-600" />
-                                  <div>
-                                    <p className="font-semibold text-sm">{doc.tip}</p>
-                                    <p className="text-xs text-muted-foreground">{doc.dosya_adı}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Badge
-                                    className={cn(
-                                      "rounded-xl text-xs",
-                                      doc.durum === "Onaylandı"
-                                        ? "bg-green-100 text-green-800"
-                                        : doc.durum === "Beklemede"
-                                          ? "bg-yellow-100 text-yellow-800"
-                                          : "bg-gray-100 text-gray-800",
-                                    )}
-                                  >
-                                    {doc.durum === "Onaylandı" ? "Yüklendi" : "Bekliyor"}
-                                  </Badge>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="rounded-xl"
-                                    onClick={() => handleViewDocument(doc)}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Close File Button */}
-                        {!selectedCustomer.dosya_kilitli && (userRole === "admin" || userRole === "superadmin") && (
-                          <div className="pt-4 border-t">
-                            <Button
-                              variant="outline"
-                              className="rounded-2xl border-2 border-red-300 text-red-700 hover:bg-red-50 bg-transparent"
-                              onClick={() => setShowCloseFileModal(true)}
-                            >
-                              <Lock className="mr-2 h-4 w-4" />
-                              Dosyayı Kapat
-                            </Button>
-                          </div>
-                        )}
-
-                        {selectedCustomer.dosya_kilitli && (
-                          <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-2xl flex items-start gap-3">
-                            <Lock className="h-5 w-5 text-blue-600 mt-0.5" />
-                            <div>
-                              <p className="font-semibold text-blue-900">Dosya Kapatılmış</p>
-                              <p className="text-sm text-blue-800 mt-1">
-                                Bu dosya tamamlanmış ve kilitlenmiştir. Değişiklik yapılamaz.
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                )}
-
-                {/* Status Tab */}
-                <TabsContent value="status" className="space-y-4 mt-6">
-                  <Card className="rounded-2xl">
-                    <CardContent className="p-6 space-y-6">
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">Başvuru Durumu</p>
-                        {canUpdateStatus ? (
-                          <Select
-                            value={selectedCustomer.başvuru_durumu}
-                            onValueChange={(value) => {
-                              handleStatusUpdate(value as ApplicationStatus)
-                            }}
-                            disabled={selectedCustomer.dosya_kilitli}
-                          >
-                            <SelectTrigger className="w-full rounded-2xl border-2">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
-                              <SelectItem value="İnceleniyor">İnceleniyor</SelectItem>
-                              <SelectItem value="Başvuru Aşamasında">Başvuru Aşamasında</SelectItem>
-                              <SelectItem value="Dava Aşamasında">Dava Aşamasında</SelectItem>
-                              <SelectItem value="Onaylandı">Onaylandı</SelectItem>
-                              <SelectItem value="Tamamlandı">Tamamlandı</SelectItem>
-                              <SelectItem value="Beklemede">Beklemede</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge
-                            className={cn(
-                              "text-lg px-4 py-2 rounded-xl border",
-                              getStatusColor(selectedCustomer.başvuru_durumu),
-                            )}
-                          >
-                            {selectedCustomer.başvuru_durumu}
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">Durum Değişikliği Notu Ekle</p>
-                        <Textarea
-                          placeholder="Not ekleyin..."
-                          value={newNote}
-                          onChange={(e) => setNewNote(e.target.value)}
-                          className="rounded-2xl"
-                          rows={4}
-                          disabled={selectedCustomer.dosya_kilitli}
-                        />
-                        <Button
-                          className="mt-2 rounded-2xl"
-                          style={{ backgroundColor: "#0B3D91", color: "white" }}
-                          disabled={selectedCustomer.dosya_kilitli}
-                          onClick={handleAddNote}
-                        >
-                          Not Ekle
-                        </Button>
-                      </div>
-
-                      <div>
-                        <p className="font-semibold mb-3">İç Notlar</p>
-                        <div className="space-y-3">
-                          {(selectedCustomer.notlar || selectedCustomer.notes || []).length > 0 ? (
-                            (selectedCustomer.notlar || selectedCustomer.notes || []).map((note) => {
-                              let formatted = note.tarih || note.created_at
-                              if (formatted) {
-                                try {
-                                  const date = new Date(formatted)
-                                  if (!isNaN(date.getTime())) {
-                                    formatted = date.toLocaleString('tr-TR', {
-                                      year: 'numeric',
-                                      month: '2-digit',
-                                      day: '2-digit',
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })
-                                  }
-                                } catch (error) {
-                                  formatted = note.tarih || note.created_at
-                                }
-                              }
-                              return (
-                                <div key={note.id} className="p-4 bg-slate-50 rounded-xl">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <p className="font-semibold text-sm">{note.yazar || note.author || note.user?.name || 'Sistem'}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {formatted || new Date().toLocaleString('tr-TR')}
-                                    </p>
-                                  </div>
-                                  <p className="text-sm whitespace-pre-line">{note.içerik || note.content || note.note || note.message}</p>
-                                </div>
-                              )
-                            })
-                          ) : (
-                            <p className="text-center text-muted-foreground py-4">Henüz not eklenmemiş.</p>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                {/* Payments Tab */}
-                <TabsContent value="payments" className="space-y-4 mt-6">
-                  <div className="space-y-3">
-                    {selectedCustomer.ödemeler.map((payment) => (
-                      <Card key={payment.id} className="rounded-2xl">
-                        <CardContent className="p-4 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="h-12 w-12 rounded-xl bg-green-100 flex items-center justify-center">
-                              <DollarSign className="h-6 w-6 text-green-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold">{payment.açıklama}</p>
-                              <p className="text-sm text-muted-foreground">{payment.tarih}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-xl" style={{ color: "#F57C00" }}>
-                              {payment.tutar}
-                            </p>
-                            <Badge
-                              className={cn(
-                                "rounded-xl mt-1",
-                                payment.durum === "Ödendi"
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-yellow-100 text-yellow-800",
-                              )}
-                            >
-                              {payment.durum}
-                            </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                    {selectedCustomer.ödemeler.length === 0 && (
-                      <p className="text-center text-muted-foreground py-8">Henüz ödeme kaydı bulunmuyor.</p>
-                    )}
-                  </div>
-                </TabsContent>
-              </Tabs>
-            )}
-          </DialogContent>
-        </Dialog>
 
         {/* Close File Modal */}
         <Dialog open={showCloseFileModal} onOpenChange={setShowCloseFileModal}>
@@ -2368,8 +2002,8 @@ export default function CustomersPage() {
                       <Input
                         id="new_password"
                         type={showNewFilePassword ? "text" : "password"}
-                        value={newFileData.password}
-                        onChange={(e) => setNewFileData({ ...newFileData, password: e.target.value })}
+                        value={newFileData.password || ""}
+                        onChange={(e) => setNewFileData((prev) => ({ ...prev, password: e.target.value }))}
                         placeholder="Şifre belirleyin veya otomatik üretin"
                         className="rounded-2xl pr-10"
                       />
@@ -2691,8 +2325,8 @@ export default function CustomersPage() {
                       <Input
                         id="edit_password"
                         type={showPassword ? "text" : "password"}
-                        value={editFormData.password}
-                        onChange={(e) => setEditFormData({ ...editFormData, password: e.target.value })}
+                        value={editFormData.password || ""}
+                        onChange={(e) => setEditFormData((prev) => ({ ...prev, password: e.target.value }))}
                         placeholder="Şifre belirleyin veya otomatik üretin"
                         className="rounded-2xl pr-10"
                       />

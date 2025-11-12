@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Upload, X, FileText, AlertCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -39,6 +39,13 @@ export function DocumentUploadModal({
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [documentType, setDocumentType] = useState<DocumentType>(preselectedType || "Kimlik")
   const [selectedCustomer, setSelectedCustomer] = useState<string>(customerId || "")
+  
+  // Update selectedCustomer when customerId prop changes
+  useEffect(() => {
+    if (customerId && !selectedCustomer) {
+      setSelectedCustomer(customerId)
+    }
+  }, [customerId])
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string>("")
 
@@ -136,60 +143,65 @@ export function DocumentUploadModal({
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
-          {/* Customer Selection */}
-          {requireCustomer && customerOptions.length > 0 && (
+          {/* Document Type and Customer Selection - Side by Side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Document Type Selection */}
             <div className="space-y-2">
-              <Label className="font-semibold">Müşteri *</Label>
-              <Select value={selectedCustomer} onValueChange={handleCustomerChange}>
+              <Label className="font-semibold">Evrak Tipi</Label>
+              <Select value={documentType} onValueChange={(value) => setDocumentType(value as DocumentType)}>
                 <SelectTrigger className="rounded-2xl border-2">
-                  <SelectValue placeholder="Müşteri seçin" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
-                  {customerOptions.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="Kimlik">Kimlik</SelectItem>
+                  <SelectItem value="Ruhsat">Ruhsat</SelectItem>
+                  <SelectItem value="Kaza Fotoğrafları">Kaza Fotoğrafları</SelectItem>
+                  <SelectItem value="Vekaletname">Vekaletname</SelectItem>
+                  <SelectItem value="Diğer">Diğer</SelectItem>
+                  {/* Additional document types from file-types-config */}
+                  <SelectItem value="musteri-vekaleti">Müşteri Vekaleti</SelectItem>
+                  <SelectItem value="eksper-raporu">Eksper Raporu</SelectItem>
+                  <SelectItem value="kaza-tutanagi">Kaza Tutanağı</SelectItem>
+                  <SelectItem value="masdur-ruhsati">Maşdur Ruhsatı</SelectItem>
+                  <SelectItem value="olay-yeri-foto">Olay Yeri Fotoğrafları</SelectItem>
+                  <SelectItem value="onarim-foto">Onarım Fotoğrafları</SelectItem>
+                  <SelectItem value="iban-bilgisi">İBAN Bilgisi</SelectItem>
+                  <SelectItem value="vekalet">Vekalet</SelectItem>
+                  <SelectItem value="parca-farki-foto">Parça Farkı Fotoğrafları</SelectItem>
+                  <SelectItem value="parca-farki-fatura">Parça Farkı Faturaları</SelectItem>
+                  <SelectItem value="muvafakatname">Muvafakatname</SelectItem>
+                  <SelectItem value="arac-ruhsati">Araç Ruhsatı</SelectItem>
+                  <SelectItem value="saglik-raporu">Sağlık Raporu</SelectItem>
+                  <SelectItem value="alkol-metabolit-raporu">Alkol-Metabolit Raporu</SelectItem>
+                  <SelectItem value="adli-tip-raporu">Adli Tıp Raporu</SelectItem>
+                  <SelectItem value="hasar-tespit-tutanagi">Hasar Tespit Tutanağı</SelectItem>
+                  <SelectItem value="kasko-deger-listesi">Kasko Değer Listesi</SelectItem>
+                  <SelectItem value="onarim-faturalari">Onarım Faturaları</SelectItem>
+                  <SelectItem value="icra-takip-dosyasi">İcra Takip Dosyası</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          )}
-          
-          {/* Document Type Selection */}
-          <div className="space-y-2">
-            <Label className="font-semibold">Evrak Tipi</Label>
-            <Select value={documentType} onValueChange={(value) => setDocumentType(value as DocumentType)}>
-              <SelectTrigger className="rounded-2xl border-2">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Kimlik">Kimlik</SelectItem>
-                <SelectItem value="Ruhsat">Ruhsat</SelectItem>
-                <SelectItem value="Kaza Fotoğrafları">Kaza Fotoğrafları</SelectItem>
-                <SelectItem value="Vekaletname">Vekaletname</SelectItem>
-                <SelectItem value="Diğer">Diğer</SelectItem>
-                {/* Additional document types from file-types-config */}
-                <SelectItem value="musteri-vekaleti">Müşteri Vekaleti</SelectItem>
-                <SelectItem value="eksper-raporu">Eksper Raporu</SelectItem>
-                <SelectItem value="kaza-tutanagi">Kaza Tutanağı</SelectItem>
-                <SelectItem value="masdur-ruhsati">Maşdur Ruhsatı</SelectItem>
-                <SelectItem value="olay-yeri-foto">Olay Yeri Fotoğrafları</SelectItem>
-                <SelectItem value="onarim-foto">Onarım Fotoğrafları</SelectItem>
-                <SelectItem value="iban-bilgisi">İBAN Bilgisi</SelectItem>
-                <SelectItem value="vekalet">Vekalet</SelectItem>
-                <SelectItem value="parca-farki-foto">Parça Farkı Fotoğrafları</SelectItem>
-                <SelectItem value="parca-farki-fatura">Parça Farkı Faturaları</SelectItem>
-                <SelectItem value="muvafakatname">Muvafakatname</SelectItem>
-                <SelectItem value="arac-ruhsati">Araç Ruhsatı</SelectItem>
-                <SelectItem value="saglik-raporu">Sağlık Raporu</SelectItem>
-                <SelectItem value="alkol-metabolit-raporu">Alkol-Metabolit Raporu</SelectItem>
-                <SelectItem value="adli-tip-raporu">Adli Tıp Raporu</SelectItem>
-                <SelectItem value="hasar-tespit-tutanagi">Hasar Tespit Tutanağı</SelectItem>
-                <SelectItem value="kasko-deger-listesi">Kasko Değer Listesi</SelectItem>
-                <SelectItem value="onarim-faturalari">Onarım Faturaları</SelectItem>
-                <SelectItem value="icra-takip-dosyasi">İcra Takip Dosyası</SelectItem>
-              </SelectContent>
-            </Select>
+
+            {/* Customer Selection */}
+            {customerOptions.length > 0 && (
+              <div className="space-y-2">
+                <Label className="font-semibold">
+                  Müşteri {requireCustomer && '*'}
+                </Label>
+                <Select value={selectedCustomer} onValueChange={handleCustomerChange}>
+                  <SelectTrigger className="rounded-2xl border-2">
+                    <SelectValue placeholder="Müşteri seçin" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
+                    {customerOptions.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           {/* Drag & Drop Area */}
