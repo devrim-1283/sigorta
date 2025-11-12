@@ -1,7 +1,7 @@
 'use server'
 
 import prisma from '@/lib/db'
-import { requireAuth } from './auth'
+import { requireAuth, getCurrentUser } from './auth'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'

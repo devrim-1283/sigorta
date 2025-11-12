@@ -381,50 +381,58 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       variant="ghost"
                       onClick={() => toggleSubmenu(item.id)}
                       className={cn(
-                        "w-full justify-start rounded-2xl px-3 py-2 text-left font-normal text-white/90 hover:bg-slate-800/50 hover:text-white"
+                        "w-full justify-start rounded-2xl px-4 py-3 text-left font-medium text-white/90 hover:bg-white/10 hover:text-white transition-all duration-200"
                       )}
                     >
-                      <div className="flex items-center gap-3 w-full">
-                        {renderIcon(item.icon)}
-                        <span className="flex-1">{item.label}</span>
+                      <div className="flex items-center gap-3 w-full min-w-0">
+                        <div className="flex-shrink-0">{renderIcon(item.icon)}</div>
+                        <span className="flex-1 text-sm font-semibold truncate">{item.label}</span>
+                        {item.badge && (
+                          <span className="ml-auto rounded-full font-semibold px-2 py-0.5 text-xs bg-white/20 text-white flex-shrink-0">
+                            {item.badge}
+                          </span>
+                        )}
                         <ChevronDown className={cn(
-                          "h-4 w-4 transition-transform",
+                          "h-4 w-4 transition-transform flex-shrink-0",
                           expandedMenus[item.id] ? "rotate-180" : ""
                         )} />
                       </div>
                     </Button>
                   ) : (
-                    <Link href={item.route}>
+                    <Link href={item.route} className="block">
                       <Button
                         variant="ghost"
                         onClick={() => setMobileMenuOpen(false)}
                         className={cn(
-                          "w-full justify-start rounded-2xl px-3 py-2 text-left font-normal text-white/90 hover:bg-slate-800/50 hover:text-white",
-                          "data-[active=true]:bg-[#F57C00] data-[active=true]:text-white data-[active=true]:hover:bg-[#F57C00]/90"
+                          "w-full justify-start rounded-2xl px-4 py-3 text-left font-medium text-white/90 hover:bg-white/10 hover:text-white transition-all duration-200",
+                          pathname === item.route && "bg-white/20 text-white"
                         )}
-                        data-active={pathname === item.route}
                       >
-                        <div className="flex items-center gap-3 w-full">
-                          {renderIcon(item.icon)}
-                          <span className="flex-1">{item.label}</span>
+                        <div className="flex items-center gap-3 w-full min-w-0">
+                          <div className="flex-shrink-0">{renderIcon(item.icon)}</div>
+                          <span className="flex-1 text-sm font-semibold truncate">{item.label}</span>
+                          {item.badge && (
+                            <span className="ml-auto rounded-full font-semibold px-2 py-0.5 text-xs bg-white/20 text-white flex-shrink-0">
+                              {item.badge}
+                            </span>
+                          )}
                         </div>
                       </Button>
                     </Link>
                   )}
                   {item.hasSubmenu && expandedMenus[item.id] && item.submenu && (
-                    <div className="ml-6 mt-1 space-y-1">
+                    <div className="ml-4 mt-1 space-y-1">
                       {item.submenu.map((subItem) => (
-                        <Link key={subItem.id} href={subItem.route}>
+                        <Link key={subItem.id} href={subItem.route} className="block">
                           <Button
                             variant="ghost"
                             onClick={() => setMobileMenuOpen(false)}
                             className={cn(
-                              "w-full justify-start rounded-xl px-3 py-2 text-left text-sm font-medium text-white/80 hover:bg-slate-800/50 hover:text-white",
-                              "data-[active=true]:bg-[#F57C00] data-[active=true]:text-white data-[active=true]:hover:bg-[#F57C00]/90"
+                              "w-full justify-start rounded-xl px-3 py-2 text-left text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white transition-all",
+                              pathname === subItem.route && "bg-white/20 text-white"
                             )}
-                            data-active={pathname === subItem.route}
                           >
-                            {subItem.label}
+                            <span className="truncate">{subItem.label}</span>
                           </Button>
                         </Link>
                       ))}
@@ -434,6 +442,35 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               ))}
             </div>
           </ScrollArea>
+
+          {/* User Profile */}
+          <div className="p-4 border-t border-white/10">
+            <div className="flex items-center gap-3 p-2 rounded-2xl bg-white/10">
+              <Avatar className="h-8 w-8 flex-shrink-0">
+                <AvatarImage src="/placeholder.svg" />
+                <AvatarFallback className="bg-[#F57C00] text-white text-xs font-bold">
+                  {user?.name?.charAt(0) || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {user?.name || "Admin User"}
+                </p>
+                <p className="text-xs text-white/70 truncate">
+                  {user?.email || "admin@sigorta.com"}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLogout}
+                className="h-7 w-7 text-white/70 hover:text-white hover:bg-white/10 rounded-lg flex-shrink-0"
+                title="Çıkış Yap"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
