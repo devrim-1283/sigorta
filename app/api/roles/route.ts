@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, description } = body
+    const { name, description, permissions } = body
 
     if (!name) {
       return NextResponse.json(
@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         description: description || null,
+        permissions: permissions || null,
         created_at: new Date(),
         updated_at: new Date(),
       },

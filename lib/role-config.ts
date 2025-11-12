@@ -331,14 +331,8 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
     displayName: "Müşteri",
     menuItems: [
       {
-        id: "dashboard",
-        label: "Ana Sayfa",
-        icon: "Home",
-        route: "/admin/dashboard",
-      },
-      {
         id: "customer-management",
-        label: "Başvuru Durumum",
+        label: "Durumum",
         icon: "FileText",
         route: "/admin/musteriler",
         permissions: {

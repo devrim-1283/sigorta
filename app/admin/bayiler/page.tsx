@@ -245,21 +245,21 @@ export default function DealersPage() {
 
     // Use setTimeout to ensure state is updated before showing toast
     setTimeout(async () => {
-      try {
-        if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(password)
-          toast({
-            title: "Şifre oluşturuldu",
-            description: "Yeni şifre panoya kopyalandı.",
-          })
-        } else {
-          throw new Error("Clipboard API not available")
-        }
-      } catch (error) {
-        console.error("Password copy failed:", error)
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(password)
         toast({
           title: "Şifre oluşturuldu",
-          description: `Yeni şifre: ${password}`,
+          description: "Yeni şifre panoya kopyalandı.",
+        })
+      } else {
+        throw new Error("Clipboard API not available")
+      }
+    } catch (error) {
+      console.error("Password copy failed:", error)
+      toast({
+          title: "Şifre oluşturuldu",
+        description: `Yeni şifre: ${password}`,
         })
       }
     }, 0)
@@ -663,18 +663,18 @@ export default function DealersPage() {
                         <Label htmlFor="password_add">Bayi Şifresi *</Label>
                         <div className="flex gap-2">
                           <div className="relative flex-1">
-                            <Input
-                              id="password_add"
-                              name="password"
+                          <Input
+                            id="password_add"
+                            name="password"
                               type={showPassword ? "text" : "password"}
-                              value={formData.password}
-                              onChange={handleInputChange}
+                            value={formData.password}
+                            onChange={handleInputChange}
                               className="rounded-xl pr-10"
-                              required
-                              minLength={8}
-                              placeholder="En az 8 karakter"
-                              autoComplete="new-password"
-                            />
+                            required
+                            minLength={8}
+                            placeholder="En az 8 karakter"
+                            autoComplete="new-password"
+                          />
                             <Button
                               type="button"
                               variant="ghost"
@@ -1020,17 +1020,17 @@ export default function DealersPage() {
                 <Label htmlFor="password_edit_field">Yeni Şifre</Label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <Input
-                      id="password_edit_field"
-                      name="password"
+                  <Input
+                    id="password_edit_field"
+                    name="password"
                       type={showPassword ? "text" : "password"}
-                      value={formData.password}
-                      onChange={handleInputChange}
+                    value={formData.password}
+                    onChange={handleInputChange}
                       className="rounded-xl pr-10"
-                      minLength={8}
-                      placeholder="Boş bırakılırsa değişmez"
-                      autoComplete="new-password"
-                    />
+                    minLength={8}
+                    placeholder="Boş bırakılırsa değişmez"
+                    autoComplete="new-password"
+                  />
                     <Button
                       type="button"
                       variant="ghost"

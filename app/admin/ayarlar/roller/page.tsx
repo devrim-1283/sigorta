@@ -10,8 +10,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Shield, Plus, Edit, Trash2, Users, Lock } from "lucide-react"
+import { Shield, Plus, Edit, Trash2, Users, Lock, Check, X } from "lucide-react"
 import { type UserRole } from "@/lib/role-config"
+import { AVAILABLE_PAGES, type PagePermission } from "@/lib/available-pages"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -20,9 +24,24 @@ interface Role {
   id: number
   name: string
   description: string | null
+  permissions: string | null // JSON string
   created_at: string
   _count?: {
     users: number
+  }
+}
+
+interface RolePermissions {
+  pages: {
+    [pageId: string]: {
+      canView?: boolean
+      canCreate?: boolean
+      canEdit?: boolean
+      canDelete?: boolean
+      canViewAll?: boolean
+      canViewOwn?: boolean
+      canExport?: boolean
+    }
   }
 }
 
@@ -38,7 +57,8 @@ export default function RoleManagementPage() {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null)
   const [formData, setFormData] = useState({
     name: "",
-    description: ""
+    description: "",
+    permissions: {} as RolePermissions["pages"]
   })
 
   useEffect(() => {
@@ -107,16 +127,24 @@ export default function RoleManagementPage() {
 
   const handleCreateRole = async () => {
     try {
+      const permissionsData: RolePermissions = {
+        pages: formData.permissions
+      }
+      
       const response = await fetch('/api/roles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          permissions: JSON.stringify(permissionsData)
+        })
       })
       
       if (response.ok) {
         setShowCreateModal(false)
         fetchRoles()
-        setFormData({ name: "", description: "" })
+        setFormData({ name: "", description: "", permissions: {} })
       }
     } catch (error) {
       console.error('Failed to create role:', error)
@@ -127,16 +155,25 @@ export default function RoleManagementPage() {
     if (!selectedRole) return
     
     try {
+      const permissionsData: RolePermissions = {
+        pages: formData.permissions
+      }
+      
       const response = await fetch(`/api/roles/${selectedRole.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          permissions: JSON.stringify(permissionsData)
+        })
       })
       
       if (response.ok) {
         setShowEditModal(false)
         fetchRoles()
         setSelectedRole(null)
+        setFormData({ name: "", description: "", permissions: {} })
       }
     } catch (error) {
       console.error('Failed to update role:', error)
@@ -164,11 +201,65 @@ export default function RoleManagementPage() {
 
   const openEditModal = (role: Role) => {
     setSelectedRole(role)
+    
+    // Parse permissions from JSON
+    let permissions: RolePermissions["pages"] = {}
+    if (role.permissions) {
+      try {
+        const parsed = JSON.parse(role.permissions)
+        permissions = parsed.pages || {}
+      } catch (e) {
+        console.error('Failed to parse permissions:', e)
+      }
+    }
+    
     setFormData({
       name: role.name,
-      description: role.description || ""
+      description: role.description || "",
+      permissions: permissions
     })
     setShowEditModal(true)
+  }
+
+  const isReadOnlyRole = (roleName: string) => {
+    return roleName === 'bayi' || roleName === 'musteri'
+  }
+
+  const togglePagePermission = (pageId: string, permission: string) => {
+    if (!selectedRole || isReadOnlyRole(selectedRole.name)) return
+    
+    setFormData(prev => {
+      const newPermissions = { ...prev.permissions }
+      if (!newPermissions[pageId]) {
+        newPermissions[pageId] = {}
+      }
+      newPermissions[pageId] = {
+        ...newPermissions[pageId],
+        [permission]: !newPermissions[pageId][permission as keyof typeof newPermissions[typeof pageId]]
+      }
+      return { ...prev, permissions: newPermissions }
+    })
+  }
+
+  const togglePageView = (pageId: string) => {
+    if (!selectedRole || isReadOnlyRole(selectedRole.name)) return
+    
+    setFormData(prev => {
+      const newPermissions = { ...prev.permissions }
+      const currentView = newPermissions[pageId]?.canView || false
+      
+      if (!currentView) {
+        // Enable view - initialize page permissions
+        newPermissions[pageId] = {
+          canView: true,
+        }
+      } else {
+        // Disable view - remove page from permissions
+        delete newPermissions[pageId]
+      }
+      
+      return { ...prev, permissions: newPermissions }
+    })
   }
 
   if (isLoading || !isAuthenticated) {
@@ -247,6 +338,7 @@ export default function RoleManagementPage() {
                       size="sm"
                       onClick={() => openEditModal(role)}
                       className="rounded-xl flex-1"
+                      disabled={isReadOnlyRole(role.name)}
                     >
                       <Edit className="h-4 w-4 mr-1" />
                       Düzenle
@@ -256,7 +348,7 @@ export default function RoleManagementPage() {
                       size="sm"
                       onClick={() => handleDeleteRole(role.id)}
                       className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
-                      disabled={role.name === 'superadmin'}
+                      disabled={role.name === 'superadmin' || isReadOnlyRole(role.name)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -288,40 +380,142 @@ export default function RoleManagementPage() {
 
         {/* Create Role Modal */}
         <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[800px] max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>Yeni Rol Ekle</DialogTitle>
               <DialogDescription>
-                Sisteme yeni bir rol ekleyin
+                Sisteme yeni bir rol ekleyin ve sayfa erişimlerini belirleyin
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="name">Rol Adı *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  placeholder="ornek-rol"
-                  className="rounded-2xl mt-2"
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  Küçük harf ve tire kullanın (örn: ozel-rol)
-                </p>
+            <ScrollArea className="max-h-[70vh] pr-4">
+              <div className="space-y-6 py-4">
+                <div>
+                  <Label htmlFor="name">Rol Adı *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    placeholder="ornek-rol"
+                    className="rounded-2xl mt-2"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Küçük harf ve tire kullanın (örn: ozel-rol)
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="description">Açıklama</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    placeholder="Bu rol hakkında açıklama..."
+                    className="rounded-2xl mt-2 min-h-[100px]"
+                  />
+                </div>
+
+                {/* Page Permissions */}
+                <div className="space-y-4">
+                  <Separator />
+                  <div>
+                    <Label className="text-base font-semibold">Sayfa Erişimleri ve İzinler</Label>
+                    <p className="text-xs text-slate-500 mt-1 mb-4">
+                      Bu rolün hangi sayfaları görüntüleyebileceğini ve o sayfalarda ne işlem yapabileceğini belirleyin
+                    </p>
+                    
+                    <div className="space-y-4">
+                      {AVAILABLE_PAGES.map((page) => {
+                        const pagePerms = formData.permissions[page.pageId] || {}
+                        const hasAccess = pagePerms.canView || false
+                        
+                        return (
+                          <Card key={page.pageId} className="rounded-2xl border-2">
+                            <CardContent className="p-4">
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <Checkbox
+                                      checked={hasAccess}
+                                      onCheckedChange={() => {
+                                        setFormData(prev => {
+                                          const newPermissions = { ...prev.permissions }
+                                          const currentView = newPermissions[page.pageId]?.canView || false
+                                          
+                                          if (!currentView) {
+                                            newPermissions[page.pageId] = {
+                                              canView: true,
+                                            }
+                                          } else {
+                                            delete newPermissions[page.pageId]
+                                          }
+                                          
+                                          return { ...prev, permissions: newPermissions }
+                                        })
+                                      }}
+                                      className="rounded"
+                                    />
+                                    <Label className="font-semibold text-base cursor-pointer">
+                                      {page.pageName}
+                                    </Label>
+                                  </div>
+                                  <Badge variant={hasAccess ? "default" : "outline"} className="rounded-xl">
+                                    {hasAccess ? "Erişim Var" : "Erişim Yok"}
+                                  </Badge>
+                                </div>
+                                
+                                {hasAccess && (
+                                  <div className="pl-8 space-y-2 pt-2 border-t">
+                                    {Object.entries(page.permissions).map(([permKey, permValue]) => {
+                                      if (permKey === 'canView') return null
+                                      
+                                      const isChecked = pagePerms[permKey as keyof typeof pagePerms] || false
+                                      
+                                      return (
+                                        <div key={permKey} className="flex items-center gap-2">
+                                          <Checkbox
+                                            checked={isChecked}
+                                            onCheckedChange={() => {
+                                              setFormData(prev => {
+                                                const newPermissions = { ...prev.permissions }
+                                                if (!newPermissions[page.pageId]) {
+                                                  newPermissions[page.pageId] = {}
+                                                }
+                                                newPermissions[page.pageId] = {
+                                                  ...newPermissions[page.pageId],
+                                                  [permKey]: !newPermissions[page.pageId][permKey as keyof typeof newPermissions[typeof page.pageId]]
+                                                }
+                                                return { ...prev, permissions: newPermissions }
+                                              })
+                                            }}
+                                            className="rounded"
+                                          />
+                                          <Label className="text-sm cursor-pointer">
+                                            {permKey === 'canCreate' && 'Oluşturabilir'}
+                                            {permKey === 'canEdit' && 'Düzenleyebilir'}
+                                            {permKey === 'canDelete' && 'Silebilir'}
+                                            {permKey === 'canViewAll' && 'Tümünü Görebilir'}
+                                            {permKey === 'canViewOwn' && 'Sadece Kendi Verilerini Görebilir'}
+                                            {permKey === 'canExport' && 'Dışa Aktarabilir'}
+                                          </Label>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="description">Açıklama</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  placeholder="Bu rol hakkında açıklama..."
-                  className="rounded-2xl mt-2 min-h-[100px]"
-                />
-              </div>
-            </div>
+            </ScrollArea>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCreateModal(false)} className="rounded-2xl">
+              <Button variant="outline" onClick={() => {
+                setShowCreateModal(false)
+                setFormData({ name: "", description: "", permissions: {} })
+              }} className="rounded-2xl">
                 İptal
               </Button>
               <Button onClick={handleCreateRole} className="rounded-2xl bg-blue-600 hover:bg-blue-700">
@@ -333,46 +527,166 @@ export default function RoleManagementPage() {
 
         {/* Edit Role Modal */}
         <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[800px] max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>Rol Düzenle</DialogTitle>
               <DialogDescription>
-                Rol bilgilerini güncelleyin
+                {selectedRole && isReadOnlyRole(selectedRole.name) 
+                  ? "Bayi ve Müşteri rolleri varsayılan izinlere sahiptir ve düzenlenemez."
+                  : "Rol bilgilerini ve sayfa erişimlerini güncelleyin"}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="edit_name">Rol Adı *</Label>
-                <Input
-                  id="edit_name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="rounded-2xl mt-2"
-                  disabled={selectedRole?.name === 'superadmin'}
-                />
-                {selectedRole?.name === 'superadmin' && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    Sistem rolleri değiştirilemez
-                  </p>
+            <ScrollArea className="max-h-[70vh] pr-4">
+              <div className="space-y-6 py-4">
+                <div>
+                  <Label htmlFor="edit_name">Rol Adı *</Label>
+                  <Input
+                    id="edit_name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="rounded-2xl mt-2"
+                    disabled={selectedRole?.name === 'superadmin' || (selectedRole && isReadOnlyRole(selectedRole.name))}
+                  />
+                  {selectedRole?.name === 'superadmin' && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      Sistem rolleri değiştirilemez
+                    </p>
+                  )}
+                  {selectedRole && isReadOnlyRole(selectedRole.name) && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      Bayi ve Müşteri rolleri varsayılan izinlere sahiptir
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="edit_description">Açıklama</Label>
+                  <Textarea
+                    id="edit_description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    className="rounded-2xl mt-2 min-h-[100px]"
+                    disabled={selectedRole && isReadOnlyRole(selectedRole.name)}
+                  />
+                </div>
+
+                {/* Page Permissions */}
+                {selectedRole && !isReadOnlyRole(selectedRole.name) && (
+                  <div className="space-y-4">
+                    <Separator />
+                    <div>
+                      <Label className="text-base font-semibold">Sayfa Erişimleri ve İzinler</Label>
+                      <p className="text-xs text-slate-500 mt-1 mb-4">
+                        Bu rolün hangi sayfaları görüntüleyebileceğini ve o sayfalarda ne işlem yapabileceğini belirleyin
+                      </p>
+                      
+                      <div className="space-y-4">
+                        {AVAILABLE_PAGES.map((page) => {
+                          const pagePerms = formData.permissions[page.pageId] || {}
+                          const hasAccess = pagePerms.canView || false
+                          
+                          return (
+                            <Card key={page.pageId} className="rounded-2xl border-2">
+                              <CardContent className="p-4">
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <Checkbox
+                                        checked={hasAccess}
+                                        onCheckedChange={() => togglePageView(page.pageId)}
+                                        className="rounded"
+                                      />
+                                      <Label className="font-semibold text-base cursor-pointer">
+                                        {page.pageName}
+                                      </Label>
+                                    </div>
+                                    <Badge variant={hasAccess ? "default" : "outline"} className="rounded-xl">
+                                      {hasAccess ? "Erişim Var" : "Erişim Yok"}
+                                    </Badge>
+                                  </div>
+                                  
+                                  {hasAccess && (
+                                    <div className="pl-8 space-y-2 pt-2 border-t">
+                                      {Object.entries(page.permissions).map(([permKey, permValue]) => {
+                                        if (permKey === 'canView') return null
+                                        
+                                        const isChecked = pagePerms[permKey as keyof typeof pagePerms] || false
+                                        
+                                        return (
+                                          <div key={permKey} className="flex items-center gap-2">
+                                            <Checkbox
+                                              checked={isChecked}
+                                              onCheckedChange={() => togglePagePermission(page.pageId, permKey)}
+                                              className="rounded"
+                                            />
+                                            <Label className="text-sm cursor-pointer">
+                                              {permKey === 'canCreate' && 'Oluşturabilir'}
+                                              {permKey === 'canEdit' && 'Düzenleyebilir'}
+                                              {permKey === 'canDelete' && 'Silebilir'}
+                                              {permKey === 'canViewAll' && 'Tümünü Görebilir'}
+                                              {permKey === 'canViewOwn' && 'Sadece Kendi Verilerini Görebilir'}
+                                              {permKey === 'canExport' && 'Dışa Aktarabilir'}
+                                            </Label>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Read-only info for bayi and musteri */}
+                {selectedRole && isReadOnlyRole(selectedRole.name) && (
+                  <div className="space-y-4">
+                    <Separator />
+                    <Card className="rounded-2xl border-2 bg-blue-50 border-blue-200">
+                      <CardContent className="p-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Lock className="h-5 w-5 text-blue-600" />
+                            <Label className="font-semibold text-blue-900">Varsayılan İzinler</Label>
+                          </div>
+                          {selectedRole.name === 'bayi' && (
+                            <div className="pl-7 space-y-1 text-sm text-blue-800">
+                              <p>• Dashboard sayfasını görüntüleyebilir</p>
+                              <p>• Sadece kendi müşterilerini görebilir</p>
+                              <p>• Kendi müşterilerinin evraklarını görüntüleyebilir</p>
+                              <p>• Bildirimlerini görebilir</p>
+                            </div>
+                          )}
+                          {selectedRole.name === 'musteri' && (
+                            <div className="pl-7 space-y-1 text-sm text-blue-800">
+                              <p>• Dashboard sayfasını görüntüleyebilir</p>
+                              <p>• Sadece kendi başvuru durumunu görebilir</p>
+                              <p>• Bildirimlerini görebilir</p>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 )}
               </div>
-              <div>
-                <Label htmlFor="edit_description">Açıklama</Label>
-                <Textarea
-                  id="edit_description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="rounded-2xl mt-2 min-h-[100px]"
-                />
-              </div>
-            </div>
+            </ScrollArea>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowEditModal(false)} className="rounded-2xl">
+              <Button variant="outline" onClick={() => {
+                setShowEditModal(false)
+                setSelectedRole(null)
+                setFormData({ name: "", description: "", permissions: {} })
+              }} className="rounded-2xl">
                 İptal
               </Button>
-              <Button onClick={handleEditRole} className="rounded-2xl bg-blue-600 hover:bg-blue-700">
-                Güncelle
-              </Button>
+              {selectedRole && !isReadOnlyRole(selectedRole.name) && (
+                <Button onClick={handleEditRole} className="rounded-2xl bg-blue-600 hover:bg-blue-700">
+                  Güncelle
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

@@ -132,21 +132,21 @@ export default function CustomerLoginPage() {
               </div>
 
               {loginType === 'email' && (
-                <div className="space-y-2">
-                  <Label htmlFor="email">E-posta Adresi</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="musteri@sigorta.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 rounded-xl"
-                      required
-                    />
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">E-posta Adresi</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="musteri@sigorta.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10 rounded-xl"
+                    required
+                  />
                 </div>
+              </div>
               )}
 
               {loginType === 'tc_no' && (

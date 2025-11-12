@@ -1323,9 +1323,6 @@ export default function CustomerDetailPage() {
                           </div>
                         </div>
                       ))}
-                      {customer.ödemeler.length === 0 && (
-                        <p className="text-center text-muted-foreground py-8">Henüz ödeme kaydı bulunmuyor.</p>
-                      )}
                     </div>
                   </CardContent>
                 </Card>

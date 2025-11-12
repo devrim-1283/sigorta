@@ -13,7 +13,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, description } = body
+    const { name, description, permissions } = body
 
     // Don't allow changing system role names
     const existingRole = await prisma.role.findUnique({
@@ -25,6 +25,7 @@ export async function PUT(
     }
 
     const systemRoles = ['superadmin', 'birincil-admin', 'ikincil-admin', 'evrak-birimi', 'bayi', 'musteri']
+    const readOnlyRoles = ['bayi', 'musteri']
     
     const updateData: any = {
       description: description || null,
@@ -34,6 +35,11 @@ export async function PUT(
     // Only allow changing name if not a system role
     if (!systemRoles.includes(existingRole.name) && name) {
       updateData.name = name
+    }
+
+    // Only allow changing permissions if not a read-only role (bayi, musteri)
+    if (!readOnlyRoles.includes(existingRole.name) && permissions !== undefined) {
+      updateData.permissions = permissions || null
     }
 
     const role = await prisma.role.update({

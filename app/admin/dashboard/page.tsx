@@ -197,6 +197,23 @@ export default function AdminDashboardPage() {
     return null
   }
 
+  // Customer role - show only status page
+  if (userRole === "musteri") {
+    return (
+      <main className="p-6 md:p-8">
+        <div className="mb-10">
+          <h1 className="text-3xl font-bold tracking-tight" style={{ color: "#0B3D91" }}>
+            Ana Sayfa
+          </h1>
+          <p className="text-sm text-muted-foreground font-medium mt-1">Başvurunuzun güncel durumunu görüntüleyin</p>
+        </div>
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Başvuru durumunuzu görmek için "Başvuru Durumum" sayfasına gidin.</p>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="p-6 md:p-8">
       {/* Page Header */}

@@ -466,9 +466,9 @@ export async function deleteDocument(id: number) {
 
   // Try to delete physical file
   try {
-    const filePath = resolveDocumentPath(document.dosya_yolu)
-    if (filePath && existsSync(filePath)) {
-      await unlink(filePath)
+  const filePath = resolveDocumentPath(document.dosya_yolu)
+  if (filePath && existsSync(filePath)) {
+    await unlink(filePath)
     }
   } catch (fileError) {
     console.error('File deletion error (continuing with DB delete):', fileError)

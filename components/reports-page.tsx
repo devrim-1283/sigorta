@@ -52,6 +52,13 @@ export function ReportsPage({ userRole = "superadmin" }: ReportsPageProps) {
       color: "#F57C00",
     },
     {
+      title: "Pasif Müşteriler",
+      value: loading ? '...' : (stats?.passive_customers?.toString() || "0"),
+      change: loading ? '...' : "",
+      icon: Users,
+      color: "#6b7280",
+    },
+    {
       title: "Toplam Gelir",
       value: loading ? '...' : `₺${parseFloat(stats?.total_payments || '0').toLocaleString('tr-TR')}`,
       change: loading ? '...' : "",
@@ -184,7 +191,7 @@ export function ReportsPage({ userRole = "superadmin" }: ReportsPageProps) {
       </Card>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         {reportStats.map((stat, index) => {
           const Icon = stat.icon
           return (

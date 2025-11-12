@@ -49,13 +49,20 @@ import { useAuth } from "@/lib/auth-context"
 
 // Application status types
 type ApplicationStatus =
-  | "İnceleniyor"
-  | "Başvuru Aşamasında"
-  | "Dava Aşamasında"
-  | "Onaylandı"
-  | "Tamamlandı"
-  | "Beklemede"
-  | "Evrak Aşamasında" // Added for initial state of new files
+  | "EVRAK AŞAMASINDA"
+  | "BAŞVURU AŞAMASINDA"
+  | "BAŞVURU YAPILDI"
+  | "İCRA AŞAMASINDA"
+  | "TAHKİM BAŞVURUSU YAPILDI"
+  | "TAHKİM AŞAMASINDA"
+  | "DOSYA KAPATILDI"
+  | "İnceleniyor" // Legacy support
+  | "Başvuru Aşamasında" // Legacy support
+  | "Dava Aşamasında" // Legacy support
+  | "Onaylandı" // Legacy support
+  | "Tamamlandı" // Legacy support
+  | "Beklemede" // Legacy support
+  | "Evrak Aşamasında" // Legacy support
 
 // Customer data structure
 interface Customer {
@@ -220,6 +227,20 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
   // Get status badge color
   const getStatusColor = (status: ApplicationStatus) => {
     switch (status) {
+      case "EVRAK AŞAMASINDA":
+        return "bg-purple-100 text-purple-800 border-purple-300"
+      case "BAŞVURU AŞAMASINDA":
+        return "bg-orange-100 text-orange-800 border-orange-300"
+      case "BAŞVURU YAPILDI":
+        return "bg-blue-100 text-blue-800 border-blue-300"
+      case "İCRA AŞAMASINDA":
+        return "bg-red-100 text-red-800 border-red-300"
+      case "TAHKİM BAŞVURUSU YAPILDI":
+        return "bg-yellow-100 text-yellow-800 border-yellow-300"
+      case "TAHKİM AŞAMASINDA":
+        return "bg-amber-100 text-amber-800 border-amber-300"
+      case "DOSYA KAPATILDI":
+        return "bg-gray-100 text-gray-800 border-gray-300"
       case "İnceleniyor":
         return "bg-gray-100 text-gray-800 border-gray-300"
       case "Başvuru Aşamasında":
@@ -232,7 +253,7 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
         return "bg-blue-100 text-blue-800 border-blue-300"
       case "Beklemede":
         return "bg-yellow-100 text-yellow-800 border-yellow-300"
-      case "Evrak Aşamasında": // Added for new file initial state
+      case "Evrak Aşamasında":
         return "bg-purple-100 text-purple-800 border-purple-300"
       default:
         return "bg-gray-100 text-gray-800 border-gray-300"
@@ -241,6 +262,12 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
 
   // Transform API data to match component interface
   const transformCustomer = (apiCustomer: any): Customer => {
+    // If file is locked but status is not "DOSYA KAPATILDI", fix it
+    let başvuru_durumu = apiCustomer.başvuru_durumu as ApplicationStatus
+    if (apiCustomer.dosya_kilitli && başvuru_durumu !== "DOSYA KAPATILDI") {
+      başvuru_durumu = "DOSYA KAPATILDI"
+    }
+    
     return {
       id: apiCustomer.id.toString(),
       ad_soyad: apiCustomer.ad_soyad,
@@ -249,7 +276,7 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
       email: apiCustomer.email || "",
       plaka: apiCustomer.plaka,
       hasar_tarihi: apiCustomer.hasar_tarihi,
-      başvuru_durumu: apiCustomer.başvuru_durumu as ApplicationStatus,
+      başvuru_durumu: başvuru_durumu,
       evrak_durumu: apiCustomer.evrak_durumu,
       dosya_kilitli: apiCustomer.dosya_kilitli || false,
       bağlı_bayi_id: apiCustomer.bağlı_bayi_id?.toString() || apiCustomer.dealer?.id?.toString() || "",
@@ -280,7 +307,7 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
         tarih: n.created_at,
         içerik: n.note || n.içerik || n.content || n.message || '',
       })).filter((note: any) => Boolean(note.içerik?.trim())),
-      son_güncelleme: apiCustomer.son_güncelleme || apiCustomer.updated_at,
+      son_güncelleme: apiCustomer.son_güncelleme || apiCustomer.updated_at || (apiCustomer.updated_at ? new Date(apiCustomer.updated_at).toLocaleDateString('tr-TR') : 'Bilinmiyor'),
       dosya_tipi: apiCustomer.file_type?.name as FileType,
       yüklenen_evraklar: (apiCustomer.documents || []).map((d: any) => d.tip as FileDocType),
     }
@@ -454,12 +481,14 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Şu anki durum</p>
                 <Badge className={cn("text-lg px-4 py-2 rounded-xl border-2", getStatusColor(customer.başvuru_durumu))}>
-                  {customer.başvuru_durumu}
+                  {customer.dosya_kilitli && customer.başvuru_durumu !== "DOSYA KAPATILDI" 
+                    ? "DOSYA KAPATILDI" 
+                    : customer.başvuru_durumu}
                 </Badge>
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground mb-1">Son Güncelleme</p>
-                <p className="font-semibold">{customer.son_güncelleme}</p>
+                <p className="font-semibold">{customer.son_güncelleme || customer.updated_at || 'Bilinmiyor'}</p>
               </div>
             </div>
 

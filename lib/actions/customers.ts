@@ -31,8 +31,14 @@ export async function getCustomers(params?: {
 }) {
   try {
     await requireAuth()
+    const user = await getCurrentUser()
 
     const where: any = {}
+
+    // For customer role, filter by their TC number
+    if (user?.role?.name === 'musteri' && user?.tc_no) {
+      where.tc_no = user.tc_no
+    }
 
   if (params?.search) {
     where.OR = [
@@ -130,7 +136,7 @@ export async function getCustomers(params?: {
     })),
     total,
   }
-
+    
     return result
   } catch (error: any) {
     console.error('[getCustomers] Error:', error.message)
@@ -220,7 +226,7 @@ export async function getCustomer(id: number) {
             id: docId,
             customer_id: customerId,
             tip: doc.tip || null,
-            dosya_adı: (doc as any).dosya_adı || (doc as any).belge_adi || 'Belge',
+          dosya_adı: (doc as any).dosya_adı || (doc as any).belge_adi || 'Belge',
             dosya_yolu: doc.dosya_yolu || null,
             dosya_boyutu: dosyaBoyutu,
             mime_type: doc.mime_type || null,
@@ -230,23 +236,23 @@ export async function getCustomer(id: number) {
             is_result_document: doc.is_result_document || false,
             uploaded_by: uploadedBy,
             onaylayan_id: onaylayanId,
-            onay_tarihi: doc.onay_tarihi ? doc.onay_tarihi.toISOString() : null,
-            created_at: doc.created_at ? doc.created_at.toISOString() : null,
-            updated_at: doc.updated_at ? doc.updated_at.toISOString() : null,
-            uploader: doc.uploader
-              ? {
+          onay_tarihi: doc.onay_tarihi ? doc.onay_tarihi.toISOString() : null,
+          created_at: doc.created_at ? doc.created_at.toISOString() : null,
+          updated_at: doc.updated_at ? doc.updated_at.toISOString() : null,
+          uploader: doc.uploader
+            ? {
                   id: typeof doc.uploader.id === 'bigint' ? Number(doc.uploader.id) : Number(doc.uploader.id),
                   name: doc.uploader.name || null,
                   email: doc.uploader.email || null,
-                }
-              : null,
-            approver: doc.approver
-              ? {
+              }
+            : null,
+          approver: doc.approver
+            ? {
                   id: typeof doc.approver.id === 'bigint' ? Number(doc.approver.id) : Number(doc.approver.id),
                   name: doc.approver.name || null,
                   email: doc.approver.email || null,
-                }
-              : null,
+              }
+            : null,
           }
         }) || [],
     payments:
@@ -272,16 +278,16 @@ export async function getCustomer(id: number) {
           tutar: tutarValue,
           tarih: tarihValue,
           durum: payment.durum || null,
-          açıklama: (payment as any).açıklama || payment.description || null,
-          created_at: payment.created_at ? payment.created_at.toISOString() : null,
-          updated_at: payment.updated_at ? payment.updated_at.toISOString() : null,
+        açıklama: (payment as any).açıklama || payment.description || null,
+        created_at: payment.created_at ? payment.created_at.toISOString() : null,
+        updated_at: payment.updated_at ? payment.updated_at.toISOString() : null,
           recorder: payment.creator
-            ? {
+          ? {
                 id: typeof payment.creator.id === 'bigint' ? Number(payment.creator.id) : Number(payment.creator.id),
                 name: payment.creator.name || null,
                 email: payment.creator.email || null,
-              }
-            : null,
+            }
+          : null,
         }
       }) || [],
     notes:
@@ -320,7 +326,7 @@ export async function createCustomer(data: {
   password?: string
 }) {
   const user = await requireAuth()
-
+  
   try {
     // Normalize and validate phone number
     let normalizedPhone: string
@@ -726,7 +732,7 @@ export async function createCustomer(data: {
         userMessage = 'Bu plaka ile kayıtlı bir müşteri zaten mevcut. Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.'
       } else {
         userMessage = `Bu ${target} ile kayıtlı bir müşteri zaten mevcut. Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.`
-      }
+    }
     }
     // Handle Prisma foreign key errors
     else if (error.code === 'P2003') {
@@ -808,14 +814,14 @@ export async function updateCustomer(id: number, data: Partial<{
     const { password, ...customerUpdateData } = data
     const updateData: any = { ...customerUpdateData }
     
-    if (data.file_type_id) updateData.file_type_id = BigInt(data.file_type_id)
-    if (data.dealer_id) updateData.dealer_id = BigInt(data.dealer_id)
-    if (data.hasar_tarihi) {
-      updateData.hasar_tarihi =
-        typeof data.hasar_tarihi === 'string'
-          ? new Date(data.hasar_tarihi)
-          : data.hasar_tarihi
-    }
+  if (data.file_type_id) updateData.file_type_id = BigInt(data.file_type_id)
+  if (data.dealer_id) updateData.dealer_id = BigInt(data.dealer_id)
+  if (data.hasar_tarihi) {
+    updateData.hasar_tarihi =
+      typeof data.hasar_tarihi === 'string'
+        ? new Date(data.hasar_tarihi)
+        : data.hasar_tarihi
+  }
 
     // Update normalized values
     if (data.tc_no) updateData.tc_no = normalizedTC
@@ -824,13 +830,13 @@ export async function updateCustomer(id: number, data: Partial<{
 
     // Update customer
     const customer = await tx.customer.update({
-      where: { id: BigInt(id) },
-      data: updateData,
-      include: {
-        dealer: true,
-        file_type: true,
-      },
-    })
+    where: { id: BigInt(id) },
+    data: updateData,
+    include: {
+      dealer: true,
+      file_type: true,
+    },
+  })
 
     // Handle password update if provided
     if (data.password && data.password.trim()) {
@@ -893,8 +899,8 @@ export async function updateCustomer(id: number, data: Partial<{
       }
     }
 
-    revalidatePath('/dashboard/customers')
-    revalidatePath(`/dashboard/customers/${id}`)
+  revalidatePath('/dashboard/customers')
+  revalidatePath(`/dashboard/customers/${id}`)
     revalidatePath('/admin/musteriler')
 
     // Send notification if status changed (outside transaction)
@@ -957,12 +963,12 @@ export async function updateCustomer(id: number, data: Partial<{
       console.error('Notification error (non-critical):', notifError)
     }
 
-    return {
-      ...customer,
-      id: Number(customer.id),
-      file_type_id: Number(customer.file_type_id),
-      dealer_id: customer.dealer_id ? Number(customer.dealer_id) : null,
-    }
+  return {
+    ...customer,
+    id: Number(customer.id),
+    file_type_id: Number(customer.file_type_id),
+    dealer_id: customer.dealer_id ? Number(customer.dealer_id) : null,
+  }
   })
 }
 
@@ -982,10 +988,10 @@ export async function closeCustomerFile(id: number, reason: string, sigortadanYa
   await requireAuth()
 
   const updateData: any = {
-    dosya_kilitli: true,
+      dosya_kilitli: true,
       başvuru_durumu: 'DOSYA KAPATILDI',
-    dosya_kapanma_nedeni: reason,
-    dosya_kapanma_tarihi: new Date(),
+      dosya_kapanma_nedeni: reason,
+      dosya_kapanma_tarihi: new Date(),
   }
 
   if (sigortadanYatanTutar !== undefined) {

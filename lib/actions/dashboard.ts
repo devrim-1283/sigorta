@@ -69,6 +69,20 @@ export async function getDashboardStats() {
     },
   })
 
+  // Count passive customers (DOSYA KAPATILDI status)
+  const passiveCustomers = await prisma.customer.count({
+    where: { 
+      başvuru_durumu: 'DOSYA KAPATILDI'
+    },
+  })
+
+  // Count active customers (all except DOSYA KAPATILDI)
+  const activeCustomers = await prisma.customer.count({
+    where: { 
+      başvuru_durumu: { not: 'DOSYA KAPATILDI' }
+    },
+  })
+
   // Get file type distribution
   const fileTypeDistribution = await prisma.customer.groupBy({
     by: ['file_type_id'],
@@ -105,6 +119,8 @@ export async function getDashboardStats() {
 
   const result = {
     total_customers: totalCustomers,
+    active_customers: activeCustomers,
+    passive_customers: passiveCustomers,
     total_dealers: activeDealers, // Use only active dealers (not deleted)
     total_documents: totalDocuments,
     total_payments: totalPayments._sum.tutar?.toString() || '0',
@@ -115,9 +131,6 @@ export async function getDashboardStats() {
     unread_notifications: unreadNotifications,
     pending_payments: pendingPayments,
     closed_files_today: closedFilesToday,
-    active_customers: await prisma.customer.count({
-      where: { başvuru_durumu: { not: 'Tamamlandı' } },
-    }),
     pending_cases: await prisma.customer.count({
       where: { başvuru_durumu: 'Beklemede' },
     }),

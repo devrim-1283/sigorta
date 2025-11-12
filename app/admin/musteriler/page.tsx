@@ -1157,19 +1157,17 @@ export default function CustomersPage() {
   const handleGeneratePassword = async (forNewFile: boolean = false) => {
     const password = generateStrongPassword()
     
-    // Update state immediately
+    // Update state immediately with explicit state update
     if (forNewFile) {
-      setNewFileData((prev) => {
-        const updated = { ...prev, password }
-        // Force re-render by ensuring state update
-        return updated
-      })
+      setNewFileData((prev) => ({
+        ...prev,
+        password: password
+      }))
     } else {
-      setEditFormData((prev) => {
-        const updated = { ...prev, password }
-        // Force re-render by ensuring state update
-        return updated
-      })
+      setEditFormData((prev) => ({
+        ...prev,
+        password: password
+      }))
     }
 
     // Use setTimeout to ensure state is updated before showing toast
@@ -1191,7 +1189,7 @@ export default function CustomersPage() {
           description: `Yeni şifre: ${password}`,
         })
       }
-    }, 0)
+    }, 100)
   }
 
   const handleCopyNewFilePassword = async () => {
