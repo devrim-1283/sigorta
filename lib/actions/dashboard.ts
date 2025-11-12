@@ -11,7 +11,7 @@ export async function getDashboardStats() {
 
     const [
     totalCustomers,
-    totalDealers,
+    activeDealers,
     totalDocuments,
     totalPayments,
     totalPolicies,
@@ -25,7 +25,7 @@ export async function getDashboardStats() {
     recentDocuments,
   ] = await Promise.all([
     prisma.customer.count(),
-    prisma.dealer.count(),
+    prisma.dealer.count({ where: { deleted_at: null } }),
     prisma.document.count(),
     prisma.payment.aggregate({ _sum: { tutar: true } }),
     prisma.policy.count(),
@@ -75,7 +75,7 @@ export async function getDashboardStats() {
 
   const result = {
     total_customers: totalCustomers,
-    total_dealers: totalDealers,
+    total_dealers: activeDealers, // Use only active dealers (not deleted)
     total_documents: totalDocuments,
     total_payments: totalPayments._sum.tutar?.toString() || '0',
     total_policies: totalPolicies,

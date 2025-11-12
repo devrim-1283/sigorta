@@ -266,6 +266,17 @@ export default function UserManagementPage() {
         return
       }
 
+      // Check if selected role is müşteri/customer
+      const selectedRole = roles.find(r => String(r.id) === formData.role_id)
+      if (selectedRole && (selectedRole.name === 'musteri' || selectedRole.name === 'customer')) {
+        toast({
+          title: "Hata",
+          description: "Müşteri rolü ile kullanıcı eklenemez. Müşteriler müşteri yönetimi sayfasından eklenmelidir.",
+          variant: "destructive",
+        })
+        return
+      }
+
       await userApi.create({
         name: formData.name,
         email: formData.email || null,
@@ -378,6 +389,16 @@ export default function UserManagementPage() {
   }
 
   const handleDeleteUser = async (userId: number) => {
+    // Prevent superadmin from deleting themselves
+    if (user && Number(user.id) === userId) {
+      toast({
+        title: "Hata",
+        description: "Kendi hesabınızı silemezsiniz",
+        variant: "destructive",
+      })
+      return
+    }
+
     if (!confirm('Bu kullanıcıyı silmek istediğinizden emin misiniz?')) return
     
     try {
@@ -550,28 +571,28 @@ export default function UserManagementPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredUsers.map((user) => (
-                          <tr key={user.id} className="border-b hover:bg-slate-50 transition-colors">
+                        {filteredUsers.map((userItem) => (
+                          <tr key={userItem.id} className="border-b hover:bg-slate-50 transition-colors">
                             <td className="p-4">
-                              <div className="font-medium">{user.ad_soyad || user.name}</div>
-                              {user.telefon || user.phone ? (
-                                <div className="text-sm text-slate-500">{user.telefon || user.phone}</div>
+                              <div className="font-medium">{userItem.ad_soyad || userItem.name}</div>
+                              {userItem.telefon || userItem.phone ? (
+                                <div className="text-sm text-slate-500">{userItem.telefon || userItem.phone}</div>
                               ) : null}
                             </td>
                             <td className="p-4">
-                              <div className="text-slate-600">{user.email || '-'}</div>
-                              {user.tc_no && (
-                                <div className="text-sm text-slate-500">TC: {user.tc_no}</div>
+                              <div className="text-slate-600">{userItem.email || '-'}</div>
+                              {userItem.tc_no && (
+                                <div className="text-sm text-slate-500">TC: {userItem.tc_no}</div>
                               )}
                             </td>
                             <td className="p-4">
-                              <Badge className={cn("rounded-xl border", getRoleBadgeColor(user.role.name))}>
-                                {getRoleDisplayName(user.role.name)}
+                              <Badge className={cn("rounded-xl border", getRoleBadgeColor(userItem.role.name))}>
+                                {getRoleDisplayName(userItem.role.name)}
                               </Badge>
                             </td>
                             <td className="p-4">
-                              <Badge className={cn("rounded-xl", (user.aktif ?? user.is_active ?? true) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
-                                {(user.aktif ?? user.is_active ?? true) ? 'Aktif' : 'Pasif'}
+                              <Badge className={cn("rounded-xl", (userItem.aktif ?? userItem.is_active ?? true) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
+                                {(userItem.aktif ?? userItem.is_active ?? true) ? 'Aktif' : 'Pasif'}
                               </Badge>
                             </td>
                             <td className="p-4">
@@ -579,19 +600,21 @@ export default function UserManagementPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => openEditModal(user)}
+                                  onClick={() => openEditModal(userItem)}
                                   className="rounded-xl"
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteUser(user.id)}
-                                  className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {user && Number(user.id) !== userItem.id && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteUser(userItem.id)}
+                                    className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -623,42 +646,44 @@ export default function UserManagementPage() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {usersByCategory[category]?.map((user) => (
-                        <Card key={user.id} className="rounded-2xl border-2 hover:shadow-md transition-shadow">
+                      {usersByCategory[category]?.map((userItem) => (
+                        <Card key={userItem.id} className="rounded-2xl border-2 hover:shadow-md transition-shadow">
                           <CardContent className="p-4">
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
-                                <h3 className="font-bold text-lg">{user.ad_soyad || user.name}</h3>
-                                <p className="text-sm text-slate-600">{user.email || '-'}</p>
-                                {user.telefon || user.phone ? (
-                                  <p className="text-xs text-slate-500 mt-1">{user.telefon || user.phone}</p>
+                                <h3 className="font-bold text-lg">{userItem.ad_soyad || userItem.name}</h3>
+                                <p className="text-sm text-slate-600">{userItem.email || '-'}</p>
+                                {userItem.telefon || userItem.phone ? (
+                                  <p className="text-xs text-slate-500 mt-1">{userItem.telefon || userItem.phone}</p>
                                 ) : null}
                               </div>
-                              <Badge className={cn("rounded-xl border", getRoleBadgeColor(user.role.name))}>
-                                {getRoleDisplayName(user.role.name)}
+                              <Badge className={cn("rounded-xl border", getRoleBadgeColor(userItem.role.name))}>
+                                {getRoleDisplayName(userItem.role.name)}
                               </Badge>
                             </div>
                             <div className="flex items-center justify-between mt-4">
-                              <Badge className={cn("rounded-xl", (user.aktif ?? user.is_active ?? true) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
-                                {(user.aktif ?? user.is_active ?? true) ? 'Aktif' : 'Pasif'}
+                              <Badge className={cn("rounded-xl", (userItem.aktif ?? userItem.is_active ?? true) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
+                                {(userItem.aktif ?? userItem.is_active ?? true) ? 'Aktif' : 'Pasif'}
                               </Badge>
                               <div className="flex gap-2">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => openEditModal(user)}
+                                  onClick={() => openEditModal(userItem)}
                                   className="rounded-xl"
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteUser(user.id)}
-                                  className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {user && Number(user.id) !== userItem.id && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteUser(userItem.id)}
+                                    className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </CardContent>
@@ -747,9 +772,10 @@ export default function UserManagementPage() {
                     variant="outline"
                     onClick={handleGeneratePassword}
                     className="rounded-2xl"
+                    title="Rastgele şifre üret ve kopyala"
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    Rastgele
+                    Üret
                   </Button>
                   {formData.password && (
                     <Button
@@ -757,6 +783,7 @@ export default function UserManagementPage() {
                       variant="outline"
                       onClick={handleCopyPassword}
                       className="rounded-2xl"
+                      title="Şifreyi kopyala"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -770,11 +797,13 @@ export default function UserManagementPage() {
                     <SelectValue placeholder="Rol seçin" />
                   </SelectTrigger>
                   <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
-                    {roles.map(role => (
-                      <SelectItem key={role.id} value={String(role.id)}>
-                        {getRoleDisplayName(role.name)}
-                      </SelectItem>
-                    ))}
+                    {roles
+                      .filter(role => role.name !== 'musteri' && role.name !== 'customer')
+                      .map(role => (
+                        <SelectItem key={role.id} value={String(role.id)}>
+                          {getRoleDisplayName(role.name)}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -884,9 +913,10 @@ export default function UserManagementPage() {
                       })
                     }}
                     className="rounded-2xl"
+                    title="Rastgele şifre üret ve kopyala"
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    Rastgele
+                    Üret
                   </Button>
                   {formData.password && (
                     <Button
@@ -900,6 +930,7 @@ export default function UserManagementPage() {
                         })
                       }}
                       className="rounded-2xl"
+                      title="Şifreyi kopyala"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>

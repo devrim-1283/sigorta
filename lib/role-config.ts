@@ -371,6 +371,11 @@ export function getMenuItemsForRole(role: UserRole, stats?: any): MenuItem[] {
     if (item.id === "accounting" && stats?.total_payments !== undefined) {
       return { ...item, badge: stats.total_payments.toString() }
     }
+    if (item.id === "notifications" && stats?.unread_notifications !== undefined) {
+      // Only show badge if there are unread notifications
+      const notificationCount = stats.unread_notifications
+      return { ...item, badge: notificationCount > 0 ? notificationCount.toString() : undefined }
+    }
     return item
   })
 }

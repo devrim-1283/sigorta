@@ -416,13 +416,14 @@ export default function CustomersPage() {
                 .filter((dealer) => dealer.id)
             : []
 
-        setDealerOptions((prev) => {
-          const baseOption = prev[0]
-          const unique = mapped.filter(
-            (dealer, index, arr) => arr.findIndex((d) => d.id === dealer.id) === index,
-          )
-          return [baseOption, ...unique]
-        })
+        // Remove duplicates
+        const unique = mapped.filter(
+          (dealer, index, arr) => arr.findIndex((d) => d.id === dealer.id) === index,
+        )
+
+        // Reset dealer options to avoid duplicates
+        const baseOption = { id: "none", name: "Belirtilmemiş / Bilinmiyor" }
+        setDealerOptions([baseOption, ...unique])
       } catch (error) {
         console.error("Bayi listesi alınamadı:", error)
       }
@@ -1177,14 +1178,23 @@ export default function CustomersPage() {
       password: '', // Don't show existing password for security
     })
     setShowPassword(false)
-    if (customer.bağlı_bayi_id && !dealerOptions.some((dealer) => dealer.id === customer.bağlı_bayi_id)) {
-      setDealerOptions((prev) => [
-        ...prev,
-        {
-          id: customer.bağlı_bayi_id,
-          name: customer.bağlı_bayi_adı || "Belirtilmemiş",
-        },
-      ])
+    // Ensure dealer is in options without duplicates
+    if (customer.bağlı_bayi_id && customer.bağlı_bayi_id !== 'none') {
+      const dealerExists = dealerOptions.some((dealer) => dealer.id === customer.bağlı_bayi_id)
+      if (!dealerExists) {
+        setDealerOptions((prev) => {
+          // Check if already exists to avoid duplicates
+          const exists = prev.some((d) => d.id === customer.bağlı_bayi_id)
+          if (exists) return prev
+          return [
+            ...prev,
+            {
+              id: customer.bağlı_bayi_id,
+              name: customer.bağlı_bayi_adı || "Belirtilmemiş",
+            },
+          ]
+        })
+      }
     }
     setShowEditModal(true)
   }
@@ -2543,7 +2553,40 @@ export default function CustomersPage() {
         />
 
         {/* Edit Customer Modal */}
-        <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+        <Dialog open={showEditModal} onOpenChange={(open) => {
+          setShowEditModal(open)
+          if (!open) {
+            // Reset form and dealer options when modal closes
+            setEditFormData({
+              ad_soyad: '',
+              tc_no: '',
+              telefon: '',
+              email: '',
+              plaka: '',
+              hasar_tarihi: '',
+              başvuru_durumu: 'İnceleniyor',
+              dealer_id: 'none',
+              password: '',
+            })
+            setShowPassword(false)
+            // Reload dealer options to avoid duplicates
+            const fetchDealers = async () => {
+              try {
+                const dealers = await dealerApi.list({ status: "active" })
+                setDealerOptions([
+                  { id: "none", name: "Belirtilmemiş / Bilinmiyor" },
+                  ...dealers.map((d: any) => ({
+                    id: String(d.id),
+                    name: d.dealer_name || d.name || 'Bilinmeyen Bayi',
+                  })),
+                ])
+              } catch (error) {
+                console.error('Failed to fetch dealers:', error)
+              }
+            }
+            fetchDealers()
+          }
+        }}>
           <DialogContent className="rounded-3xl max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-lg md:text-xl font-bold">Müşteri Düzenle</DialogTitle>
