@@ -14,6 +14,7 @@ export async function getResultDocuments(customerId: number) {
     where: {
       customer_id: BigInt(customerId),
       is_result_document: true,
+      deleted_at: null,
     },
     include: {
       result_document_type: true,

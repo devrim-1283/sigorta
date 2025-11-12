@@ -162,6 +162,10 @@ export const documentApi = {
   download: async (id: number) => {
     return await documentActions.getDocumentDownloadUrl(id)
   },
+
+  getStats: async () => {
+    return await documentActions.getDocumentStats()
+  },
 }
 
 // Payment API

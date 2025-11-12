@@ -24,7 +24,7 @@ export async function getDashboardStats() {
   ] = await Promise.all([
     prisma.customer.count(),
     prisma.dealer.count({ where: { deleted_at: null } }),
-    prisma.document.count(),
+    prisma.document.count({ where: { deleted_at: null } }),
     prisma.payment.aggregate({ _sum: { tutar: true } }),
     prisma.policy.count(),
     prisma.policy.count({ where: { status: 'active' } }),
@@ -49,6 +49,7 @@ export async function getDashboardStats() {
       },
     }),
     prisma.document.findMany({
+      where: { deleted_at: null },
       take: 5,
       orderBy: { created_at: 'desc' },
       include: {

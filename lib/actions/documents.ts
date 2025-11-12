@@ -59,7 +59,7 @@ export async function getDocuments(params?: {
 
   if (params?.search) {
     where.OR = [
-      { belge_adi: { contains: params.search, mode: 'insensitive' } },
+      { dosya_adı: { contains: params.search, mode: 'insensitive' } },
       {
         customer: {
           ad_soyad: { contains: params.search, mode: 'insensitive' },
@@ -81,7 +81,10 @@ export async function getDocuments(params?: {
   }
 
   const documents = await prisma.document.findMany({
-    where,
+    where: {
+      ...where,
+      deleted_at: null, // Only include non-deleted documents
+    },
     include: {
       customer: true,
       uploader: true,
@@ -114,6 +117,43 @@ export async function getDocuments(params?: {
         }
       : null,
   }))
+}
+
+// Get document statistics including deleted ones
+export async function getDocumentStats() {
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    throw new Error('Oturum açmanız gerekiyor')
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const [
+    totalDocuments,
+    uploadedToday,
+    deletedToday,
+  ] = await Promise.all([
+    prisma.document.count({ where: { deleted_at: null } }),
+    prisma.document.count({
+      where: {
+        deleted_at: null,
+        created_at: { gte: today },
+      },
+    }),
+    prisma.document.count({
+      where: {
+        deleted_at: { gte: today },
+      },
+    }),
+  ])
+
+  return {
+    totalDocuments,
+    uploadedToday,
+    deletedToday,
+  }
 }
 
 export async function getDocument(id: number) {
@@ -424,9 +464,12 @@ export async function deleteDocument(id: number) {
     // Continue even if file deletion fails
   }
 
-  // Hard delete from database (deleted_at field doesn't exist in schema)
-  await prisma.document.delete({
+  // Soft delete from database
+  await prisma.document.update({
     where: { id: BigInt(id) },
+    data: {
+      deleted_at: new Date(),
+    },
   })
 
   revalidatePath('/dashboard/documents')

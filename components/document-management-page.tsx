@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Filter, Upload, FileText } from "lucide-react"
+import { Search, Filter, Upload, FileText, Users, Building2, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,7 +12,7 @@ import { type UserRole, hasPermission, getModuleLabel } from "@/lib/role-config"
 import { DocumentCard, type DocumentData, type DocumentType } from "./document-card"
 import { DocumentUploadModal } from "./document-upload-modal"
 import { useDocuments } from "@/hooks/use-documents"
-import { documentApi, customerApi } from "@/lib/api-client"
+import { documentApi, customerApi, dealerApi, dashboardApi } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
 
 interface DocumentManagementPageProps {
@@ -27,13 +27,20 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
   const [selectedDocType, setSelectedDocType] = useState<DocumentType | undefined>()
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("")
   const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; name: string }>>([])
+  const [stats, setStats] = useState({
+    totalDocuments: 0,
+    totalCustomers: 0,
+    totalDealers: 0,
+    uploadedToday: 0,
+    deletedToday: 0,
+  })
 
   const canCreate = hasPermission(userRole, "document-management", "canCreate")
   const canDelete = hasPermission(userRole, "document-management", "canDelete")
   const moduleLabel = getModuleLabel(userRole, "document-management")
   const shouldShowDealerInfo = userRole === "bayi" || userRole === "superadmin"
 
-  // Fetch customers for selection
+  // Fetch customers for selection and statistics
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
@@ -49,6 +56,31 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
       }
     }
     fetchCustomers()
+  }, [])
+
+  // Fetch statistics
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [dashboardStats, documentStats, allCustomers, allDealers] = await Promise.all([
+          dashboardApi.getStats(),
+          documentApi.getStats(),
+          customerApi.list({ perPage: 10000 }),
+          dealerApi.list({ perPage: 1000 }),
+        ])
+        
+        setStats({
+          totalDocuments: documentStats?.totalDocuments || dashboardStats?.total_documents || 0,
+          totalCustomers: dashboardStats?.total_customers || (Array.isArray(allCustomers) ? allCustomers.length : allCustomers?.total || 0),
+          totalDealers: dashboardStats?.total_dealers || (Array.isArray(allDealers) ? allDealers.length : allDealers?.total || 0),
+          uploadedToday: documentStats?.uploadedToday || 0,
+          deletedToday: documentStats?.deletedToday || 0,
+        })
+      } catch (error) {
+        console.error('Error fetching statistics:', error)
+      }
+    }
+    fetchStats()
   }, [])
 
   // Use API hook
@@ -153,6 +185,25 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
 
     try {
       await deleteDocument(parseInt(doc.id))
+      // Refresh statistics after deletion
+      const fetchStats = async () => {
+        try {
+          const [dashboardStats, documentStats] = await Promise.all([
+            dashboardApi.getStats(),
+            documentApi.getStats(),
+          ])
+          
+          setStats(prev => ({
+            ...prev,
+            totalDocuments: documentStats?.totalDocuments || dashboardStats?.total_documents || 0,
+            uploadedToday: documentStats?.uploadedToday || 0,
+            deletedToday: documentStats?.deletedToday || 0,
+          }))
+        } catch (error) {
+          console.error('Error refreshing statistics:', error)
+        }
+      }
+      fetchStats()
     } catch (error) {
       console.error("Error deleting document:", error)
     }
@@ -191,6 +242,26 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
       if (refetch) {
         refetch()
       }
+      
+      // Refresh statistics after upload
+      const fetchStats = async () => {
+        try {
+          const [dashboardStats, documentStats] = await Promise.all([
+            dashboardApi.getStats(),
+            documentApi.getStats(),
+          ])
+          
+          setStats(prev => ({
+            ...prev,
+            totalDocuments: documentStats?.totalDocuments || dashboardStats?.total_documents || 0,
+            uploadedToday: documentStats?.uploadedToday || 0,
+            deletedToday: documentStats?.deletedToday || 0,
+          }))
+        } catch (error) {
+          console.error('Error refreshing statistics:', error)
+        }
+      }
+      fetchStats()
     } catch (error: any) {
       console.error("Error uploading document:", error)
       toast({
@@ -229,13 +300,13 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="rounded-2xl border-2">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Toplam Evrak</p>
-                <p className="text-3xl font-bold mt-1">{statusCounts.total}</p>
+                <p className="text-3xl font-bold mt-1">{stats.totalDocuments}</p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center">
                 <FileText className="h-6 w-6 text-blue-600" />
@@ -248,11 +319,12 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Onaylandı</p>
-                <p className="text-3xl font-bold mt-1 text-green-600">{statusCounts.approved}</p>
+                <p className="text-sm text-muted-foreground">Evrak Yükle</p>
+                <p className="text-3xl font-bold mt-1 text-green-600">{stats.uploadedToday}</p>
+                <p className="text-xs text-muted-foreground mt-1">Bugün</p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-green-100 flex items-center justify-center">
-                <FileText className="h-6 w-6 text-green-600" />
+                <Upload className="h-6 w-6 text-green-600" />
               </div>
             </div>
           </CardContent>
@@ -262,11 +334,12 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Beklemede</p>
-                <p className="text-3xl font-bold mt-1 text-yellow-600">{statusCounts.pending}</p>
+                <p className="text-sm text-muted-foreground">Evrak Kaldır</p>
+                <p className="text-3xl font-bold mt-1 text-red-600">{stats.deletedToday}</p>
+                <p className="text-xs text-muted-foreground mt-1">Bugün</p>
               </div>
-              <div className="h-12 w-12 rounded-xl bg-yellow-100 flex items-center justify-center">
-                <FileText className="h-6 w-6 text-yellow-600" />
+              <div className="h-12 w-12 rounded-xl bg-red-100 flex items-center justify-center">
+                <Trash2 className="h-6 w-6 text-red-600" />
               </div>
             </div>
           </CardContent>
@@ -276,11 +349,25 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Eksik</p>
-                <p className="text-3xl font-bold mt-1 text-orange-600">{statusCounts.missing}</p>
+                <p className="text-sm text-muted-foreground">Toplam Müşteri</p>
+                <p className="text-3xl font-bold mt-1" style={{ color: "#0B3D91" }}>{stats.totalCustomers}</p>
               </div>
-              <div className="h-12 w-12 rounded-xl bg-orange-100 flex items-center justify-center">
-                <FileText className="h-6 w-6 text-orange-600" />
+              <div className="h-12 w-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: "#E3F2FD" }}>
+                <Users className="h-6 w-6" style={{ color: "#0B3D91" }} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-2">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Toplam Bayi</p>
+                <p className="text-3xl font-bold mt-1" style={{ color: "#F57C00" }}>{stats.totalDealers}</p>
+              </div>
+              <div className="h-12 w-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: "#FFF3E0" }}>
+                <Building2 className="h-6 w-6" style={{ color: "#F57C00" }} />
               </div>
             </div>
           </CardContent>

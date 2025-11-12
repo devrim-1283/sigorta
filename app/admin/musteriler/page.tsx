@@ -241,14 +241,14 @@ export default function CustomersPage() {
       await confirmActionRef.current()
       // Success is handled by the action itself (toast notifications)
       } catch (error: any) {
-        console.error('Confirm dialog action error:', error)
+      console.error('Confirm dialog action error:', error)
         toast({
           title: 'Uyarı',
           description: error?.message || 'İşlem gerçekleştirilemedi',
           variant: 'default',
           duration: 5000,
         })
-      } finally {
+    } finally {
       setConfirmLoading(false)
       handleConfirmDialogClose()
     }
@@ -409,9 +409,9 @@ export default function CustomersPage() {
             : []
 
         // Remove duplicates
-        const unique = mapped.filter(
-          (dealer, index, arr) => arr.findIndex((d) => d.id === dealer.id) === index,
-        )
+          const unique = mapped.filter(
+            (dealer, index, arr) => arr.findIndex((d) => d.id === dealer.id) === index,
+          )
 
         // Reset dealer options to avoid duplicates
         const baseOption = { id: "none", name: "Belirtilmemiş / Bilinmiyor" }
@@ -1268,7 +1268,7 @@ export default function CustomersPage() {
       plaka: customer.plaka,
       hasar_tarihi: customer.hasar_tarihi,
       başvuru_durumu: customer.başvuru_durumu,
-      dealer_id: customer.bağlı_bayi_id || 'none',
+    dealer_id: customer.bağlı_bayi_id || 'none',
       password: '', // Don't show existing password for security
     })
     setShowPassword(false)
@@ -1281,15 +1281,15 @@ export default function CustomersPage() {
           const exists = prev.some((d) => d.id === customer.bağlı_bayi_id)
           if (exists) return prev
           return [
-            ...prev,
-            {
-              id: customer.bağlı_bayi_id,
-              name: customer.bağlı_bayi_adı || "Belirtilmemiş",
-            },
+      ...prev,
+      {
+        id: customer.bağlı_bayi_id,
+        name: customer.bağlı_bayi_adı || "Belirtilmemiş",
+      },
           ]
         })
       }
-    }
+  }
     setShowEditModal(true)
   }
 
