@@ -156,10 +156,9 @@ export default function AccountingPage() {
     try {
       if (!formData.type || !formData.amount || !formData.transaction_date) {
         toast({
-          title: 'Uyarı',
+          title: 'Hata',
           description: 'Lütfen tüm zorunlu alanları doldurun',
-          variant: 'default',
-          duration: 4000,
+          variant: 'destructive',
         })
         return
       }
@@ -354,10 +353,9 @@ export default function AccountingPage() {
     try {
       if (!formData.type || !formData.amount || !formData.transaction_date) {
         toast({
-          title: 'Uyarı',
+          title: 'Hata',
           description: 'Lütfen tüm zorunlu alanları doldurun',
-          variant: 'default',
-          duration: 4000,
+          variant: 'destructive',
         })
         return
       }

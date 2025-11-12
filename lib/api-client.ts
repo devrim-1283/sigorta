@@ -122,17 +122,8 @@ export const customerApi = {
     return await customerActions.deleteCustomer(typeof id === 'string' ? parseInt(id) : id)
   },
 
-  closeFile: async (id: number | string, reason?: string, accountingData?: {
-    customerPayment?: number | string
-    expenses?: number | string
-    dealerCommission?: number | string
-    netProfit?: number | string
-  }) => {
-    return await customerActions.closeCustomerFile(
-      typeof id === 'string' ? parseInt(id) : id, 
-      reason || '',
-      accountingData
-    )
+  closeFile: async (id: number | string, reason?: string) => {
+    return await customerActions.closeCustomerFile(typeof id === 'string' ? parseInt(id) : id, reason || '')
   },
 
   addNote: async (id: number | string, content: string) => {

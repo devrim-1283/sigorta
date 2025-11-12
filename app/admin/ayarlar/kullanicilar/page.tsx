@@ -97,9 +97,10 @@ export default function UserManagementPage() {
     
     if (!isLoading && isAuthenticated && userRole !== "superadmin") {
       toast({
-        title: "Yetkisiz Erişim",
+        title: "Uyarı",
         description: "Bu sayfaya sadece süper admin erişebilir.",
-        variant: "destructive",
+        variant: "default",
+        duration: 5000,
       })
       router.push("/admin/dashboard")
     }
@@ -415,9 +416,10 @@ export default function UserManagementPage() {
     // Prevent superadmin from deleting themselves
     if (user && Number(user.id) === userId) {
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: "Kendi hesabınızı silemezsiniz",
-        variant: "destructive",
+        variant: "default",
+        duration: 4000,
       })
       return
     }

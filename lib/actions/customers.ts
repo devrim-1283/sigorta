@@ -997,94 +997,21 @@ export async function deleteCustomer(id: number) {
   return { success: true }
 }
 
-export async function closeCustomerFile(
-  id: number, 
-  reason: string,
-  accountingData?: {
-    customerPayment?: number | string
-    expenses?: number | string
-    dealerCommission?: number | string
-    netProfit?: number | string
-  }
-) {
-  const user = await requireAuth()
-
-  // Import accounting action
-  const { createAccountingTransaction } = await import('./accounting')
-  const { Decimal } = await import('@prisma/client/runtime/library')
+export async function closeCustomerFile(id: number, reason: string) {
+  await requireAuth()
 
   const customer = await prisma.customer.update({
     where: { id: BigInt(id) },
     data: {
       dosya_kilitli: true,
-      başvuru_durumu: 'Tamamlandı',
+      başvuru_durumu: 'Dosya Kapatıldı',
       dosya_kapanma_nedeni: reason,
       dosya_kapanma_tarihi: new Date(),
     },
-    include: {
-      dealer: true,
-    },
   })
-
-  // Create accounting transactions if provided
-  if (accountingData) {
-    const transactionDate = new Date()
-    
-    // Müşteriye yatacak ödeme (income)
-    if (accountingData.customerPayment && parseFloat(accountingData.customerPayment.toString()) > 0) {
-      try {
-        await createAccountingTransaction({
-          type: 'income',
-          category: 'Müşteri Ödemesi',
-          description: `${customer.ad_soyad} müşterisine yapılacak ödeme`,
-          amount: accountingData.customerPayment,
-          transaction_date: transactionDate,
-        })
-      } catch (error) {
-        console.error('Failed to create customer payment transaction:', error)
-      }
-    }
-
-    // Yapılan harcamalar (expense)
-    if (accountingData.expenses && parseFloat(accountingData.expenses.toString()) > 0) {
-      try {
-        await createAccountingTransaction({
-          type: 'expense',
-          category: 'Dosya Harcamaları',
-          description: `${customer.ad_soyad} müşterisi için yapılan harcamalar`,
-          amount: accountingData.expenses,
-          transaction_date: transactionDate,
-        })
-      } catch (error) {
-        console.error('Failed to create expenses transaction:', error)
-      }
-    }
-
-    // Bayi primi (expense)
-    if (accountingData.dealerCommission && parseFloat(accountingData.dealerCommission.toString()) > 0) {
-      try {
-        await createAccountingTransaction({
-          type: 'expense',
-          category: 'Bayi Primi',
-          description: customer.dealer 
-            ? `${customer.dealer.dealer_name} bayi primisi - ${customer.ad_soyad} müşterisi`
-            : `Bayi primisi - ${customer.ad_soyad} müşterisi`,
-          amount: accountingData.dealerCommission,
-          transaction_date: transactionDate,
-        })
-      } catch (error) {
-        console.error('Failed to create dealer commission transaction:', error)
-      }
-    }
-
-    // Net kâr (calculated automatically from income - expenses)
-    // No need to create a separate transaction for net profit
-  }
 
   revalidatePath('/dashboard/customers')
   revalidatePath(`/dashboard/customers/${id}`)
-  revalidatePath('/admin/musteriler')
-  revalidatePath('/admin/muhasebe')
 
   return {
     ...customer,

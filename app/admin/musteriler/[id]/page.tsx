@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils"
 import { type UserRole } from "@/lib/role-config"
 import { DocumentCard, type DocumentType, type DocumentStatus } from "@/components/document-card"
 import { DocumentUploadModal } from "@/components/document-upload-modal"
-import { customerApi, documentApi, dealerApi } from "@/lib/api-client"
+import { customerApi, documentApi, dealerApi, accountingApi } from "@/lib/api-client"
 import {
   AlertDialog,
   AlertDialogContent,
@@ -130,6 +130,21 @@ export default function CustomerDetailPage() {
   const [selectedDocType, setSelectedDocType] = useState<DocumentType | undefined>()
   const [showCloseFileModal, setShowCloseFileModal] = useState(false)
   const [closeFileReason, setCloseFileReason] = useState("")
+  const [closeFilePayment, setCloseFilePayment] = useState("")
+  const [closeFileExpenses, setCloseFileExpenses] = useState("")
+  const [closeFileDealerCommission, setCloseFileDealerCommission] = useState("")
+  const [closeFileNetProfit, setCloseFileNetProfit] = useState("")
+  const [closeFileExpenseFiles, setCloseFileExpenseFiles] = useState<File[]>([])
+  
+  // Calculate net profit when payment, expenses, or dealer commission changes
+  useEffect(() => {
+    const payment = parseFloat(closeFilePayment) || 0
+    const expenses = parseFloat(closeFileExpenses) || 0
+    const dealerCommission = parseFloat(closeFileDealerCommission) || 0
+    const netProfit = payment - expenses - dealerCommission
+    setCloseFileNetProfit(netProfit >= 0 ? netProfit.toFixed(2) : "0.00")
+  }, [closeFilePayment, closeFileExpenses, closeFileDealerCommission])
+  
   const [newNote, setNewNote] = useState("")
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null)
@@ -449,13 +464,59 @@ export default function CustomerDetailPage() {
     if (!customer) return
 
     try {
+      // Close the customer file
       await customerApi.closeFile(customer.id, closeFileReason)
+      
+      // Create accounting transactions if values are provided
+      const today = new Date()
+      
+      // Müşteriye yatacak ödeme (income)
+      if (closeFilePayment && parseFloat(closeFilePayment) > 0) {
+        await accountingApi.create({
+          type: 'income',
+          category: 'Müşteri Ödemesi',
+          description: `${customer.ad_soyad} - Dosya Kapatma Ödemesi`,
+          amount: parseFloat(closeFilePayment),
+          transaction_date: today,
+        })
+      }
+      
+      // Yapılan harcamalar (expense)
+      if (closeFileExpenses && parseFloat(closeFileExpenses) > 0) {
+        await accountingApi.create({
+          type: 'expense',
+          category: 'Harcama',
+          description: `${customer.ad_soyad} - Dosya Kapatma Harcamaları`,
+          amount: parseFloat(closeFileExpenses),
+          transaction_date: today,
+        })
+      }
+      
+      // Bayi primi (expense)
+      if (closeFileDealerCommission && parseFloat(closeFileDealerCommission) > 0) {
+        await accountingApi.create({
+          type: 'expense',
+          category: 'Bayi Primi',
+          description: `${customer.ad_soyad} - Bayi Primi`,
+          amount: parseFloat(closeFileDealerCommission),
+          transaction_date: today,
+        })
+      }
+      
+      // Net kâr (calculated automatically by accounting system)
+      // No need to create a separate transaction for net profit
+      
       setShowCloseFileModal(false)
       setCloseFileReason("")
+      setCloseFilePayment("")
+      setCloseFileExpenses("")
+      setCloseFileDealerCommission("")
+      setCloseFileNetProfit("")
+      setCloseFileExpenseFiles([])
       await fetchCustomer()
       toast({
         title: "Başarılı",
-        description: "Dosya kapatıldı",
+        description: "Dosya kapatıldı ve muhasebe kayıtları oluşturuldu",
       })
     } catch (error: any) {
       console.error('Close file error:', error)
@@ -650,23 +711,15 @@ export default function CustomerDetailPage() {
         {/* Customer Details */}
         {customer && (
           <Tabs defaultValue="info" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 rounded-2xl gap-1">
+            <TabsList className="grid w-full grid-cols-3 rounded-2xl gap-1">
               <TabsTrigger value="info" className="rounded-xl text-xs md:text-sm">
                 Bilgiler
               </TabsTrigger>
               <TabsTrigger value="documents" className="rounded-xl text-xs md:text-sm">
                 Evraklar
               </TabsTrigger>
-              {(userRole === "admin" || userRole === "operasyon" || userRole === "superadmin") && (
-                <TabsTrigger value="result-documents" className="rounded-xl text-xs md:text-sm">
-                  Sonuç
-                </TabsTrigger>
-              )}
               <TabsTrigger value="status" className="rounded-xl text-xs md:text-sm">
                 Durum
-              </TabsTrigger>
-              <TabsTrigger value="payments" className="rounded-xl text-xs md:text-sm">
-                Ödemeler
               </TabsTrigger>
             </TabsList>
 
@@ -713,7 +766,7 @@ export default function CustomerDetailPage() {
 
             {/* Documents Tab */}
             <TabsContent value="documents" className="space-y-4 mt-4 md:mt-6">
-              <div className="flex justify-end mb-4">
+              <div className="flex justify-between items-center gap-2 mb-4 flex-wrap">
                 {canCreate && (
                   <Button
                     className="rounded-2xl w-full sm:w-auto"
@@ -722,6 +775,44 @@ export default function CustomerDetailPage() {
                   >
                     <Upload className="mr-2 h-4 w-4" />
                     Yeni Evrak Yükle
+                  </Button>
+                )}
+                {customer.evraklar.length > 0 && (
+                  <Button
+                    variant="outline"
+                    className="rounded-2xl w-full sm:w-auto"
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(`/api/customers/${customer.id}/documents/zip`)
+                        if (!response.ok) {
+                          throw new Error('ZIP oluşturulamadı')
+                        }
+                        const blob = await response.blob()
+                        const url = window.URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = `${customer.ad_soyad.replace(/[^a-zA-Z0-9]/g, '_')}_evraklar.zip`
+                        document.body.appendChild(a)
+                        a.click()
+                        document.body.removeChild(a)
+                        window.URL.revokeObjectURL(url)
+                        toast({
+                          title: "Başarılı",
+                          description: "Tüm evraklar ZIP olarak indirildi",
+                        })
+                      } catch (error: any) {
+                        console.error('ZIP download error:', error)
+                        toast({
+                          title: "Uyarı",
+                          description: error.message || "Evraklar indirilemedi",
+                          variant: "default",
+                          duration: 5000,
+                        })
+                      }
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Tümünü İndir (ZIP)
                   </Button>
                 )}
               </div>
@@ -753,38 +844,51 @@ export default function CustomerDetailPage() {
               </div>
             </TabsContent>
 
-            {(userRole === "admin" || userRole === "operasyon" || userRole === "superadmin") && (
-              <TabsContent value="result-documents" className="space-y-4 mt-6">
+            {/* Status Tab - Combines Status, Payments, and Results */}
+            <TabsContent value="status" className="space-y-4 mt-4 md:mt-6">
+              <div className="space-y-4">
+                {/* Status Update Section */}
                 <Card className="rounded-2xl">
-                  <CardContent className="p-6 space-y-6">
+                  <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
                     <div>
-                      <Label className="text-sm font-semibold mb-2">Başvuru Durumu</Label>
-                      <Select
-                        value={customer.başvuru_durumu}
-                        onValueChange={(value) => {
-                          handleStatusUpdate(value as ApplicationStatus)
-                        }}
-                        disabled={customer.dosya_kilitli}
-                      >
-                        <SelectTrigger className="w-full rounded-2xl border-2 mt-2">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
-                          <SelectItem value="İnceleniyor">İnceleniyor</SelectItem>
-                          <SelectItem value="Başvuru Aşamasında">Başvuru Aşamasında</SelectItem>
-                          <SelectItem value="Dava Aşamasında">Dava Aşamasında</SelectItem>
-                          <SelectItem value="Onaylandı">Onaylandı</SelectItem>
-                          <SelectItem value="Tamamlandı">Tamamlandı</SelectItem>
-                          <SelectItem value="Beklemede">Beklemede</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <p className="text-sm text-muted-foreground mb-2">Başvuru Durumu</p>
+                      {canUpdateStatus ? (
+                        <Select
+                          value={customer.başvuru_durumu}
+                          onValueChange={(value) => {
+                            handleStatusUpdate(value as ApplicationStatus)
+                          }}
+                          disabled={customer.dosya_kilitli}
+                        >
+                          <SelectTrigger className="w-full rounded-2xl border-2">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
+                            <SelectItem value="İnceleniyor">İnceleniyor</SelectItem>
+                            <SelectItem value="Başvuru Aşamasında">Başvuru Aşamasında</SelectItem>
+                            <SelectItem value="Dava Aşamasında">Dava Aşamasında</SelectItem>
+                            <SelectItem value="Onaylandı">Onaylandı</SelectItem>
+                            <SelectItem value="Tamamlandı">Tamamlandı</SelectItem>
+                            <SelectItem value="Beklemede">Beklemede</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge
+                          className={cn(
+                            "text-lg px-4 py-2 rounded-xl border",
+                            getStatusColor(customer.başvuru_durumu),
+                          )}
+                        >
+                          {customer.başvuru_durumu}
+                        </Badge>
+                      )}
                     </div>
 
                     {!customer.dosya_kilitli && (userRole === "admin" || userRole === "superadmin") && (
                       <div className="pt-4 border-t">
                         <Button
                           variant="outline"
-                          className="rounded-2xl border-2 border-red-300 text-red-700 hover:bg-red-50 bg-transparent"
+                          className="rounded-2xl border-2 border-red-300 text-red-700 hover:bg-red-50 bg-transparent w-full"
                           onClick={() => setShowCloseFileModal(true)}
                         >
                           <Lock className="mr-2 h-4 w-4" />
@@ -804,148 +908,111 @@ export default function CustomerDetailPage() {
                         </div>
                       </div>
                     )}
+
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">Durum Değişikliği Notu Ekle</p>
+                      <Textarea
+                        placeholder="Not ekleyin..."
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        className="rounded-2xl"
+                        rows={4}
+                        disabled={customer.dosya_kilitli}
+                      />
+                      <Button
+                        className="mt-2 rounded-2xl"
+                        style={{ backgroundColor: "#0B3D91", color: "white" }}
+                        disabled={customer.dosya_kilitli}
+                        onClick={handleAddNote}
+                      >
+                        Not Ekle
+                      </Button>
+                    </div>
+
+                    <div>
+                      <p className="font-semibold mb-3">İç Notlar</p>
+                      <div className="space-y-3">
+                        {(customer.notlar || customer.notes || []).length > 0 ? (
+                          (customer.notlar || customer.notes || []).map((note) => {
+                            let formatted = note.tarih || note.created_at
+                            if (formatted) {
+                              try {
+                                const date = new Date(formatted)
+                                if (!isNaN(date.getTime())) {
+                                  formatted = date.toLocaleString('tr-TR', {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })
+                                }
+                              } catch (error) {
+                                formatted = note.tarih || note.created_at
+                              }
+                            }
+                            return (
+                              <div key={note.id} className="p-4 bg-slate-50 rounded-xl">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="font-semibold text-sm">{note.yazar || note.author || note.user?.name || 'Sistem'}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatted || new Date().toLocaleString('tr-TR')}
+                                  </p>
+                                </div>
+                                <p className="text-sm whitespace-pre-line">{note.içerik || note.content || note.note || note.message}</p>
+                              </div>
+                            )
+                          })
+                        ) : (
+                          <p className="text-center text-muted-foreground py-4">Henüz not eklenmemiş.</p>
+                        )}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
-              </TabsContent>
-            )}
 
-            {/* Status Tab */}
-            <TabsContent value="status" className="space-y-4 mt-4 md:mt-6">
-              <Card className="rounded-2xl">
-                <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Başvuru Durumu</p>
-                    {canUpdateStatus ? (
-                      <Select
-                        value={customer.başvuru_durumu}
-                        onValueChange={(value) => {
-                          handleStatusUpdate(value as ApplicationStatus)
-                        }}
-                        disabled={customer.dosya_kilitli}
-                      >
-                        <SelectTrigger className="w-full rounded-2xl border-2">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
-                          <SelectItem value="İnceleniyor">İnceleniyor</SelectItem>
-                          <SelectItem value="Başvuru Aşamasında">Başvuru Aşamasında</SelectItem>
-                          <SelectItem value="Dava Aşamasında">Dava Aşamasında</SelectItem>
-                          <SelectItem value="Onaylandı">Onaylandı</SelectItem>
-                          <SelectItem value="Tamamlandı">Tamamlandı</SelectItem>
-                          <SelectItem value="Beklemede">Beklemede</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Badge
-                        className={cn(
-                          "text-lg px-4 py-2 rounded-xl border",
-                          getStatusColor(customer.başvuru_durumu),
-                        )}
-                      >
-                        {customer.başvuru_durumu}
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Durum Değişikliği Notu Ekle</p>
-                    <Textarea
-                      placeholder="Not ekleyin..."
-                      value={newNote}
-                      onChange={(e) => setNewNote(e.target.value)}
-                      className="rounded-2xl"
-                      rows={4}
-                      disabled={customer.dosya_kilitli}
-                    />
-                    <Button
-                      className="mt-2 rounded-2xl"
-                      style={{ backgroundColor: "#0B3D91", color: "white" }}
-                      disabled={customer.dosya_kilitli}
-                      onClick={handleAddNote}
-                    >
-                      Not Ekle
-                    </Button>
-                  </div>
-
-                  <div>
-                    <p className="font-semibold mb-3">İç Notlar</p>
+                {/* Payments Section */}
+                <Card className="rounded-2xl">
+                  <CardContent className="p-4 md:p-6">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <DollarSign className="h-5 w-5" />
+                      Ödemeler
+                    </h3>
                     <div className="space-y-3">
-                      {(customer.notlar || customer.notes || []).length > 0 ? (
-                        (customer.notlar || customer.notes || []).map((note) => {
-                          let formatted = note.tarih || note.created_at
-                          if (formatted) {
-                            try {
-                              const date = new Date(formatted)
-                              if (!isNaN(date.getTime())) {
-                                formatted = date.toLocaleString('tr-TR', {
-                                  year: 'numeric',
-                                  month: '2-digit',
-                                  day: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })
-                              }
-                            } catch (error) {
-                              formatted = note.tarih || note.created_at
-                            }
-                          }
-                          return (
-                            <div key={note.id} className="p-4 bg-slate-50 rounded-xl">
-                              <div className="flex items-center justify-between mb-2">
-                                <p className="font-semibold text-sm">{note.yazar || note.author || note.user?.name || 'Sistem'}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {formatted || new Date().toLocaleString('tr-TR')}
-                                </p>
-                              </div>
-                              <p className="text-sm whitespace-pre-line">{note.içerik || note.content || note.note || note.message}</p>
+                      {customer.ödemeler.map((payment) => (
+                        <div key={payment.id} className="p-4 bg-slate-50 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-xl bg-green-100 flex items-center justify-center">
+                              <DollarSign className="h-5 w-5 text-green-600" />
                             </div>
-                          )
-                        })
-                      ) : (
-                        <p className="text-center text-muted-foreground py-4">Henüz not eklenmemiş.</p>
+                            <div>
+                              <p className="font-semibold">{payment.açıklama}</p>
+                              <p className="text-sm text-muted-foreground">{payment.tarih}</p>
+                            </div>
+                          </div>
+                          <div className="text-left sm:text-right w-full sm:w-auto">
+                            <p className="font-bold text-lg" style={{ color: "#F57C00" }}>
+                              {payment.tutar}
+                            </p>
+                            <Badge
+                              className={cn(
+                                "rounded-xl mt-1",
+                                payment.durum === "Ödendi"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-yellow-100 text-yellow-800",
+                              )}
+                            >
+                              {payment.durum}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                      {customer.ödemeler.length === 0 && (
+                        <p className="text-center text-muted-foreground py-8">Henüz ödeme kaydı bulunmuyor.</p>
                       )}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Payments Tab */}
-            <TabsContent value="payments" className="space-y-4 mt-4 md:mt-6">
-              <div className="space-y-3">
-                {customer.ödemeler.map((payment) => (
-                  <Card key={payment.id} className="rounded-2xl">
-                    <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-12 w-12 rounded-xl bg-green-100 flex items-center justify-center">
-                          <DollarSign className="h-6 w-6 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="font-semibold">{payment.açıklama}</p>
-                          <p className="text-sm text-muted-foreground">{payment.tarih}</p>
-                        </div>
-                      </div>
-                      <div className="text-left sm:text-right w-full sm:w-auto">
-                        <p className="font-bold text-lg sm:text-xl" style={{ color: "#F57C00" }}>
-                          {payment.tutar}
-                        </p>
-                        <Badge
-                          className={cn(
-                            "rounded-xl mt-1",
-                            payment.durum === "Ödendi"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-yellow-100 text-yellow-800",
-                          )}
-                        >
-                          {payment.durum}
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                {customer.ödemeler.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">Henüz ödeme kaydı bulunmuyor.</p>
-                )}
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
           </Tabs>
@@ -992,7 +1059,7 @@ export default function CustomerDetailPage() {
                 Bu dosyayı kapatmak üzeresiniz. Kapatılan dosyalar kilitlenir ve değişiklik yapılamaz.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto">
               <div>
                 <Label htmlFor="close-reason" className="text-sm font-semibold mb-2">
                   Kapatma Nedeni (Opsiyonel)
@@ -1003,8 +1070,97 @@ export default function CustomerDetailPage() {
                   value={closeFileReason}
                   onChange={(e) => setCloseFileReason(e.target.value)}
                   className="rounded-2xl mt-2"
-                  rows={4}
+                  rows={3}
                 />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                <div>
+                  <Label htmlFor="close-payment" className="text-sm font-semibold mb-2">
+                    Müşteriye Yatacak Ödeme (₺)
+                  </Label>
+                  <Input
+                    id="close-payment"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={closeFilePayment}
+                    onChange={(e) => setCloseFilePayment(e.target.value)}
+                    className="rounded-2xl mt-2"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="close-expenses" className="text-sm font-semibold mb-2">
+                    Yapılan Harcamalar (₺)
+                  </Label>
+                  <Input
+                    id="close-expenses"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={closeFileExpenses}
+                    onChange={(e) => setCloseFileExpenses(e.target.value)}
+                    className="rounded-2xl mt-2"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="close-dealer-commission" className="text-sm font-semibold mb-2">
+                    Bayi Primi (₺)
+                  </Label>
+                  <Input
+                    id="close-dealer-commission"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={closeFileDealerCommission}
+                    onChange={(e) => setCloseFileDealerCommission(e.target.value)}
+                    className="rounded-2xl mt-2"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="close-net-profit" className="text-sm font-semibold mb-2">
+                    Net Kâr (₺) - Otomatik Hesaplanır
+                  </Label>
+                  <Input
+                    id="close-net-profit"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={closeFileNetProfit}
+                    onChange={(e) => setCloseFileNetProfit(e.target.value)}
+                    className="rounded-2xl mt-2 bg-gray-50"
+                    readOnly
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Ödeme - Harcama - Bayi Primi
+                  </p>
+                </div>
+              </div>
+              
+              <div className="pt-4 border-t">
+                <Label htmlFor="close-expense-files" className="text-sm font-semibold mb-2">
+                  Harcama Belgeleri (Toplu Yükleme)
+                </Label>
+                <Input
+                  id="close-expense-files"
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    if (e.target.files) {
+                      setCloseFileExpenseFiles(Array.from(e.target.files))
+                    }
+                  }}
+                  className="rounded-2xl mt-2"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                />
+                {closeFileExpenseFiles.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {closeFileExpenseFiles.length} dosya seçildi
+                  </p>
+                )}
               </div>
             </div>
             <DialogFooter>
