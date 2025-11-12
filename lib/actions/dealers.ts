@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs'
 import { PrismaClient, Prisma } from '@prisma/client'
 import { createNotification } from './notifications'
 import { requireAuth } from './auth'
+import prisma from '@/lib/db'
+import { revalidatePath } from 'next/cache'
 
 async function getDealerRoleId(tx: Prisma.TransactionClient): Promise<bigint> {
   const role = await tx.role.findFirst({
@@ -17,10 +19,6 @@ async function getDealerRoleId(tx: Prisma.TransactionClient): Promise<bigint> {
 
   return role.id
 }
-
-import prisma from '@/lib/db'
-import { requireAuth } from './auth'
-import { revalidatePath } from 'next/cache'
 
 export async function getDealers(params?: {
   search?: string
