@@ -28,9 +28,7 @@ export async function GET(
     const customer = await prisma.customer.findUnique({
       where: { id: BigInt(customerId) },
       include: {
-        documents: {
-          where: { deleted_at: null },
-        },
+        documents: true,
       },
     })
 
