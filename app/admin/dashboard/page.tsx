@@ -62,12 +62,16 @@ export default function AdminDashboardPage() {
           }),
           policyApi.getRecent(6).catch(err => {
             console.error('Failed to fetch recent policies:', err)
-            return { data: [] }
+            return []
           })
         ])
 
         setStats(statsData)
-        setPolicies(policiesData?.data || policiesData || [])
+        // Handle both array and object response formats
+        const policiesList = Array.isArray(policiesData) 
+          ? policiesData 
+          : (policiesData?.data || policiesData?.policies || [])
+        setPolicies(policiesList)
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error)
       } finally {
@@ -241,7 +245,7 @@ export default function AdminDashboardPage() {
           <CardContent>
             <div className="space-y-2">
               <p className="text-3xl font-bold tracking-tight">
-                {loading ? '...' : (stats?.total_policies || stats?.total_customers || 0)}
+                {loading ? '...' : (stats?.total_policies || 0)}
               </p>
               <p className="text-sm text-muted-foreground font-semibold">Toplam Poliçe</p>
             </div>
@@ -375,11 +379,14 @@ export default function AdminDashboardPage() {
                 <CardContent className="space-y-4">
                   <div>
                     <h3 className="font-bold text-lg tracking-tight">
-                      {policy.customer_name || policy.customerName || `${policy.customer?.name} ${policy.customer?.surname}` || 'Bilinmeyen Müşteri'}
+                      {policy.customer?.ad_soyad || policy.customer_name || policy.customerName || `${policy.customer?.name || ''} ${policy.customer?.surname || ''}`.trim() || 'Bilinmeyen Müşteri'}
                     </h3>
                     <p className="text-sm text-muted-foreground font-semibold">
                       {policy.policy_type || policy.policyType || policy.policy_type_name || 'Poliçe'}
                     </p>
+                    {policy.policy_number && (
+                      <p className="text-xs text-muted-foreground mt-1">No: {policy.policy_number}</p>
+                    )}
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
@@ -389,7 +396,16 @@ export default function AdminDashboardPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground font-medium">Prim:</span>
                       <span className="font-bold text-lg" style={{ color: "#F57C00" }}>
-                        {policy.premium ? `₺${policy.premium.toLocaleString('tr-TR')}` : 'Belirtilmemiş'}
+                        {policy.premium ? `₺${(typeof policy.premium === 'string' ? parseFloat(policy.premium) : Number(policy.premium)).toLocaleString('tr-TR')}` : 'Belirtilmemiş'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground font-medium">Başlangıç:</span>
+                      <span className="font-bold">
+                        {policy.start_date ?
+                          new Date(policy.start_date).toLocaleDateString('tr-TR') :
+                          'Belirtilmemiş'
+                        }
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
