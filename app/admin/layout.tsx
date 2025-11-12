@@ -52,7 +52,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
   const userRole: UserRole = (user?.role?.name as UserRole) || "superadmin"
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const isCustomerRole = userRole === 'musteri'
+  const [sidebarOpen, setSidebarOpen] = useState(!isCustomerRole) // For customer, always open
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
   const [stats, setStats] = useState<any>(null)
@@ -159,7 +160,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <div
         className={cn(
           "fixed top-0 left-0 z-30 h-screen transition-all duration-300 ease-in-out border-r border-slate-200 hidden md:flex",
-          sidebarOpen ? "w-64" : "w-20"
+          isCustomerRole ? "w-64" : (sidebarOpen ? "w-64" : "w-20")
         )}
         style={{ backgroundColor: themeColor }}
       >
@@ -167,26 +168,28 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           {/* Header - Logo removed, title and menu toggle */}
           <div className={cn(
             "flex items-center p-4 border-b border-white/10",
-            sidebarOpen ? "justify-between" : "justify-center"
+            (isCustomerRole || sidebarOpen) ? "justify-between" : "justify-center"
           )}>
-              {sidebarOpen && (
+              {(isCustomerRole || sidebarOpen) && (
                 <div>
                   <h2 className="font-semibold text-white">Sigorta</h2>
                   <p className="text-xs text-white/70">Yönetim Sistemi</p>
                 </div>
               )}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-white hover:bg-white/10 flex-shrink-0"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
+            {!isCustomerRole && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="text-white hover:bg-white/10 flex-shrink-0"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            )}
           </div>
 
-          {/* Search */}
-          {sidebarOpen && (
+          {/* Search - Hide for customer role */}
+          {!isCustomerRole && sidebarOpen && (
             <div className="px-4 py-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 h-4 w-4" />
@@ -225,10 +228,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     >
                       <div className={cn(
                         "flex items-center w-full min-w-0",
-                        !sidebarOpen ? "justify-center" : "gap-3"
+                        (isCustomerRole || sidebarOpen) ? "gap-3" : "justify-center"
                       )}>
                         <div className="flex-shrink-0 transition-transform group-hover:scale-110">{renderIcon(item.icon)}</div>
-                        {sidebarOpen && (
+                        {(isCustomerRole || sidebarOpen) && (
                           <>
                             <span className="flex-1 text-sm font-semibold truncate min-w-0">{item.label}</span>
                             {item.badge && (
@@ -250,16 +253,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         variant="ghost"
                         className={cn(
                           "w-full rounded-2xl text-left font-medium text-white/90 hover:bg-white/10 hover:text-white transition-all duration-200 group",
-                          !sidebarOpen ? "justify-center px-2 py-3" : "justify-start px-4 py-3",
+                          (isCustomerRole || sidebarOpen) ? "justify-start px-4 py-3" : "justify-center px-2 py-3",
                           pathname === item.route && "bg-white/20 text-white"
                         )}
                       >
                         <div className={cn(
                           "flex items-center w-full min-w-0",
-                          !sidebarOpen ? "justify-center" : "gap-3"
+                          (isCustomerRole || sidebarOpen) ? "gap-3" : "justify-center"
                         )}>
                           <div className="flex-shrink-0 transition-transform group-hover:scale-110">{renderIcon(item.icon)}</div>
-                          {sidebarOpen && (
+                          {(isCustomerRole || sidebarOpen) && (
                             <>
                               <span className="flex-1 text-sm font-semibold truncate min-w-0">{item.label}</span>
                               {item.badge && (
@@ -273,7 +276,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       </Button>
                     </Link>
                   )}
-                  {item.hasSubmenu && expandedMenus[item.id] && sidebarOpen && item.submenu && (
+                  {item.hasSubmenu && expandedMenus[item.id] && (isCustomerRole || sidebarOpen) && item.submenu && (
                     <div className="ml-4 mt-1 space-y-1">
                       {item.submenu.map((subItem) => (
                         <Link key={subItem.id} href={subItem.route} className="block">
@@ -299,7 +302,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <div className="p-4 border-t border-white/10">
             <div className={cn(
               "flex items-center p-2 rounded-2xl bg-white/10",
-              !sidebarOpen ? "justify-center" : "gap-3"
+              (isCustomerRole || sidebarOpen) ? "gap-3" : "justify-center"
             )}>
               <Avatar className="h-8 w-8 flex-shrink-0">
                 <AvatarImage src="/placeholder.svg" />
@@ -307,7 +310,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   {user?.name?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>
-              {sidebarOpen && (
+              {(isCustomerRole || sidebarOpen) && (
                 <>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white truncate">
@@ -477,7 +480,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main Content */}
       <div className={cn(
         "transition-all duration-300 ease-in-out",
-        sidebarOpen ? "md:ml-64" : "md:ml-20",
+        isCustomerRole ? "md:ml-64" : (sidebarOpen ? "md:ml-64" : "md:ml-20"),
         "pt-16 md:pt-0" // Padding for mobile header
       )}>
         {children}
