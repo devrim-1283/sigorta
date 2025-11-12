@@ -592,24 +592,44 @@ export default function CustomerDetailPage() {
       // Close the customer file with calculated values
       await customerApi.closeFile(customer.id, closeFileReason, insuranceAmount, customerAmount)
       
-      // Create accounting transactions
+      // Create accounting transactions - Tüm finansal işlemler muhasebeye kaydediliyor
       const today = new Date()
       
-      // Yapılan harcamalar (expense)
+      // 1. Sigortadan yatan tutar (income)
       await accountingApi.create({
-        type: 'expense',
-        category: 'Harcama',
-        description: `${customer.ad_soyad} - Dosya Kapatma Harcamaları`,
-        amount: expenses,
+        type: 'income',
+        category: 'Sigorta Ödemesi',
+        description: `${customer.ad_soyad} - Sigortadan Yatan Tutar`,
+        amount: insuranceAmount,
         transaction_date: today,
       })
       
-      // Net kâr (income if positive, expense if negative)
+      // 2. Müşteriye yatan tutar (expense - müşteriye ödeme)
+      await accountingApi.create({
+        type: 'expense',
+        category: 'Müşteri Ödemesi',
+        description: `${customer.ad_soyad} - Müşteri Hakedişi (Sigortadan Yatan Tutarın %80'i)`,
+        amount: customerAmount,
+        transaction_date: today,
+      })
+      
+      // 3. Yapılan harcamalar (expense)
+      if (expenses > 0) {
+        await accountingApi.create({
+          type: 'expense',
+          category: 'Harcama',
+          description: `${customer.ad_soyad} - Dosya Kapatma Harcamaları`,
+          amount: expenses,
+          transaction_date: today,
+        })
+      }
+      
+      // 4. Net kâr (income if positive, expense if negative)
       if (netProfit > 0) {
         await accountingApi.create({
           type: 'income',
           category: 'Net Kâr',
-          description: `${customer.ad_soyad} - Dosya Kapatma Net Kârı`,
+          description: `${customer.ad_soyad} - Dosya Kapatma Net Kârı (Sigortadan Yatan Tutarın %20'si - Harcamalar)`,
           amount: netProfit,
           transaction_date: today,
         })
@@ -632,10 +652,18 @@ export default function CustomerDetailPage() {
       setUploadProgress({})
       setUploadedFileNames([])
       
+      // Refresh customer data and revalidate accounting page
       await fetchCustomer()
+      
+      // Revalidate accounting page to update statistics
+      if (typeof window !== 'undefined') {
+        // Client-side: trigger a refresh of accounting page if it's open
+        window.dispatchEvent(new CustomEvent('accounting-updated'))
+      }
+      
       toast({
         title: "Başarılı",
-        description: `Dosya kapatıldı, muhasebe kayıtları oluşturuldu${uploadedDocumentIds.length > 0 ? ` ve ${uploadedDocumentIds.length} dosya yüklendi` : ''}.`,
+        description: `Dosya kapatıldı, tüm finansal işlemler muhasebeye kaydedildi${uploadedDocumentIds.length > 0 ? ` ve ${uploadedDocumentIds.length} dosya yüklendi` : ''}.`,
       })
     } catch (error: any) {
       console.error('Close file error:', error)
