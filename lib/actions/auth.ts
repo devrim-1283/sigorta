@@ -13,9 +13,27 @@ export async function getCurrentUser() {
 
   const user = await prisma.user.findUnique({
     where: { id: BigInt(session.user.id) },
-    include: {
-      role: true,
-      dealer: true,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      tc_no: true,
+      is_active: true,
+      last_login_at: true,
+      role: {
+        select: {
+          id: true,
+          name: true,
+          display_name: true,
+        },
+      },
+      dealer: {
+        select: {
+          id: true,
+          dealer_name: true,
+        },
+      },
     },
   })
 

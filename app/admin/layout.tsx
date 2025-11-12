@@ -224,13 +224,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       )}
                     >
                       <div className={cn(
-                        "flex items-center w-full",
+                        "flex items-center w-full min-w-0",
                         !sidebarOpen ? "justify-center" : "gap-3"
                       )}>
                         <div className="flex-shrink-0 transition-transform group-hover:scale-110">{renderIcon(item.icon)}</div>
                         {sidebarOpen && (
                           <>
-                            <span className="flex-1 text-sm font-semibold truncate">{item.label}</span>
+                            <span className="flex-1 text-sm font-semibold truncate min-w-0">{item.label}</span>
                             {item.badge && (
                               <span className="ml-auto rounded-full font-semibold px-2 py-0.5 text-xs bg-white/20 text-white flex-shrink-0">
                                 {item.badge}
@@ -255,13 +255,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         )}
                       >
                         <div className={cn(
-                          "flex items-center w-full",
+                          "flex items-center w-full min-w-0",
                           !sidebarOpen ? "justify-center" : "gap-3"
                         )}>
                           <div className="flex-shrink-0 transition-transform group-hover:scale-110">{renderIcon(item.icon)}</div>
                           {sidebarOpen && (
                             <>
-                              <span className="flex-1 text-sm font-semibold truncate">{item.label}</span>
+                              <span className="flex-1 text-sm font-semibold truncate min-w-0">{item.label}</span>
                               {item.badge && (
                                 <span className="ml-auto rounded-full font-semibold px-2 py-0.5 text-xs bg-white/20 text-white flex-shrink-0">
                                   {item.badge}
@@ -284,7 +284,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                               pathname === subItem.route && "bg-white/20 text-white"
                             )}
                           >
-                            {subItem.label}
+                            <span className="truncate">{subItem.label}</span>
                           </Button>
                         </Link>
                       ))}
