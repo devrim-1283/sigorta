@@ -305,12 +305,6 @@ export async function uploadDocument(formData: FormData) {
     }
 
     // Sanitize original filename to prevent path traversal
-    function sanitizeFilename(filename: string): string {
-      const basename = path.basename(filename)
-      return basename
-        .replace(/[^a-zA-Z0-9._-]/g, '_')
-        .substring(0, 255)
-    }
     const originalName = sanitizeFilename(originalNameFromForm || file.name)
     data['dosya_adı'] = originalName
 
