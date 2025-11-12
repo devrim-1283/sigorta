@@ -12,6 +12,10 @@ import {
   Download,
   Trash2,
   ArrowLeft,
+  Edit,
+  RefreshCw,
+  Copy,
+  EyeOff,
 } from "lucide-react"
 
 // Force dynamic rendering
@@ -25,11 +29,12 @@ import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { type UserRole } from "@/lib/role-config"
 import { DocumentCard, type DocumentType, type DocumentStatus } from "@/components/document-card"
 import { DocumentUploadModal } from "@/components/document-upload-modal"
-import { customerApi, documentApi } from "@/lib/api-client"
+import { customerApi, documentApi, dealerApi } from "@/lib/api-client"
 import {
   AlertDialog,
   AlertDialogContent,
@@ -128,6 +133,20 @@ export default function CustomerDetailPage() {
   const [newNote, setNewNote] = useState("")
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editFormData, setEditFormData] = useState({
+    ad_soyad: '',
+    tc_no: '',
+    telefon: '',
+    email: '',
+    plaka: '',
+    hasar_tarihi: '',
+    başvuru_durumu: 'İnceleniyor' as ApplicationStatus,
+    dealer_id: 'none',
+    password: '',
+  })
+  const [showPassword, setShowPassword] = useState(false)
+  const [dealerOptions, setDealerOptions] = useState<{ id: string; name: string }[]>([])
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -138,8 +157,25 @@ export default function CustomerDetailPage() {
   useEffect(() => {
     if (customerId && isAuthenticated) {
       fetchCustomer()
+      fetchDealers()
     }
   }, [customerId, isAuthenticated])
+
+  const fetchDealers = async () => {
+    try {
+      const dealers = await dealerApi.getAll()
+      const options = [
+        { id: "none", name: "Belirtilmemiş / Bilinmiyor" },
+        ...dealers.map((d: any) => ({
+          id: String(d.id),
+          name: d.dealer_name || d.name || 'Bilinmeyen',
+        })),
+      ]
+      setDealerOptions(options)
+    } catch (error) {
+      console.error('Failed to fetch dealers:', error)
+    }
+  }
 
   const fetchCustomer = async () => {
     if (!customerId) return
@@ -425,6 +461,123 @@ export default function CustomerDetailPage() {
     }
   }
 
+  const openEditModal = () => {
+    if (!customer) return
+    setEditFormData({
+      ad_soyad: customer.ad_soyad || '',
+      tc_no: customer.tc_no || '',
+      telefon: customer.telefon || '',
+      email: customer.email || '',
+      plaka: customer.plaka || '',
+      hasar_tarihi: customer.hasar_tarihi || '',
+      başvuru_durumu: customer.başvuru_durumu || 'İnceleniyor',
+      dealer_id: customer.bağlı_bayi_id || 'none',
+      password: '',
+    })
+    setShowPassword(false)
+    setShowEditModal(true)
+  }
+
+  const handleEditCustomer = async () => {
+    if (!customer) return
+
+    try {
+      const payload: any = {
+        ...editFormData,
+        dealer_id:
+          editFormData.dealer_id && editFormData.dealer_id !== 'none'
+            ? parseInt(editFormData.dealer_id)
+            : null,
+      }
+
+      // Include password if provided
+      if (editFormData.password && editFormData.password.trim()) {
+        payload.password = editFormData.password.trim()
+      }
+
+      await customerApi.update(customer.id, payload)
+      
+      toast({
+        title: "Başarılı",
+        description: "Müşteri bilgileri güncellendi",
+      })
+
+      setShowEditModal(false)
+      setEditFormData({
+        ad_soyad: '',
+        tc_no: '',
+        telefon: '',
+        email: '',
+        plaka: '',
+        hasar_tarihi: '',
+        başvuru_durumu: 'İnceleniyor',
+        dealer_id: 'none',
+        password: '',
+      })
+      setShowPassword(false)
+      await fetchCustomer() // Refresh data
+    } catch (err: any) {
+      console.error('Edit customer error:', err)
+      toast({
+        title: "Hata",
+        description: err.message || 'Müşteri güncellenemedi',
+        variant: "destructive",
+      })
+    }
+  }
+
+  const generateStrongPassword = (length: number = 12): string => {
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz'
+    const numbers = '0123456789'
+    const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?'
+    const allChars = uppercase + lowercase + numbers + symbols
+    
+    let password = ''
+    // Ensure at least one character from each set
+    password += uppercase[Math.floor(Math.random() * uppercase.length)]
+    password += lowercase[Math.floor(Math.random() * lowercase.length)]
+    password += numbers[Math.floor(Math.random() * numbers.length)]
+    password += symbols[Math.floor(Math.random() * symbols.length)]
+    
+    // Fill the rest randomly
+    for (let i = password.length; i < length; i++) {
+      password += allChars[Math.floor(Math.random() * allChars.length)]
+    }
+    
+    // Shuffle the password
+    return password.split('').sort(() => Math.random() - 0.5).join('')
+  }
+
+  const handleGeneratePassword = () => {
+    const newPassword = generateStrongPassword(12)
+    setEditFormData((prev) => ({ ...prev, password: newPassword }))
+    setTimeout(() => {
+      navigator.clipboard.writeText(newPassword).then(() => {
+        toast({
+          title: "Şifre Oluşturuldu",
+          description: "Şifre panoya kopyalandı",
+        })
+      }).catch(() => {
+        toast({
+          title: "Şifre Oluşturuldu",
+          description: "Şifre: " + newPassword,
+        })
+      })
+    }, 100)
+  }
+
+  const handleCopyPassword = () => {
+    if (editFormData.password) {
+      navigator.clipboard.writeText(editFormData.password).then(() => {
+        toast({
+          title: "Kopyalandı",
+          description: "Şifre panoya kopyalandı",
+        })
+      })
+    }
+  }
+
   if (isLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -444,33 +597,46 @@ export default function CustomerDetailPage() {
     )
   }
 
+  const canEdit = userRole === "superadmin" || userRole === "operasyon" || userRole === "admin"
+
   return (
-    <main className="flex-1 overflow-auto bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <main className="flex-1 overflow-auto bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-2 md:gap-4 flex-wrap">
             <Button
               variant="ghost"
               onClick={() => router.push("/admin/musteriler")}
               className="rounded-2xl"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Geri Dön
+              <span className="hidden sm:inline">Geri Dön</span>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2 flex-wrap">
                 {customer.ad_soyad}
                 {customer.dosya_kilitli && (
-                  <Badge className="bg-blue-100 text-blue-800 border-blue-300 rounded-xl flex items-center gap-1">
+                  <Badge className="bg-blue-100 text-blue-800 border-blue-300 rounded-xl flex items-center gap-1 text-xs">
                     <Lock className="h-3 w-3" />
                     Dosya Kapalı
                   </Badge>
                 )}
               </h1>
-              <p className="text-slate-600 mt-1">Müşteri Detaylı Bilgileri</p>
+              <p className="text-slate-600 mt-1 text-sm md:text-base">Müşteri Detaylı Bilgileri</p>
             </div>
           </div>
+          {canEdit && !customer.dosya_kilitli && (
+            <Button
+              onClick={openEditModal}
+              className="rounded-2xl"
+              style={{ backgroundColor: "#0B3D91", color: "white" }}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Müşteri Düzenle</span>
+              <span className="sm:hidden">Düzenle</span>
+            </Button>
+          )}
         </div>
 
         {/* Customer Details */}
@@ -497,10 +663,10 @@ export default function CustomerDetailPage() {
             </TabsList>
 
             {/* Basic Info Tab */}
-            <TabsContent value="info" className="space-y-4 mt-6">
+            <TabsContent value="info" className="space-y-4 mt-4 md:mt-6">
               <Card className="rounded-2xl">
                 <CardContent className="p-4 md:p-6 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">Ad Soyad</p>
                       <p className="font-semibold">{customer.ad_soyad}</p>
@@ -538,11 +704,11 @@ export default function CustomerDetailPage() {
             </TabsContent>
 
             {/* Documents Tab */}
-            <TabsContent value="documents" className="space-y-4 mt-6">
+            <TabsContent value="documents" className="space-y-4 mt-4 md:mt-6">
               <div className="flex justify-end mb-4">
                 {canCreate && (
                   <Button
-                    className="rounded-2xl"
+                    className="rounded-2xl w-full sm:w-auto"
                     style={{ backgroundColor: "#F57C00", color: "white" }}
                     onClick={() => handleDocUploadClick()}
                   >
@@ -636,9 +802,9 @@ export default function CustomerDetailPage() {
             )}
 
             {/* Status Tab */}
-            <TabsContent value="status" className="space-y-4 mt-6">
+            <TabsContent value="status" className="space-y-4 mt-4 md:mt-6">
               <Card className="rounded-2xl">
-                <CardContent className="p-6 space-y-6">
+                <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">Başvuru Durumu</p>
                     {canUpdateStatus ? (
@@ -737,11 +903,11 @@ export default function CustomerDetailPage() {
             </TabsContent>
 
             {/* Payments Tab */}
-            <TabsContent value="payments" className="space-y-4 mt-6">
+            <TabsContent value="payments" className="space-y-4 mt-4 md:mt-6">
               <div className="space-y-3">
                 {customer.ödemeler.map((payment) => (
                   <Card key={payment.id} className="rounded-2xl">
-                    <CardContent className="p-4 flex items-center justify-between">
+                    <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
                         <div className="h-12 w-12 rounded-xl bg-green-100 flex items-center justify-center">
                           <DollarSign className="h-6 w-6 text-green-600" />
@@ -751,8 +917,8 @@ export default function CustomerDetailPage() {
                           <p className="text-sm text-muted-foreground">{payment.tarih}</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-xl" style={{ color: "#F57C00" }}>
+                      <div className="text-left sm:text-right w-full sm:w-auto">
+                        <p className="font-bold text-lg sm:text-xl" style={{ color: "#F57C00" }}>
                           {payment.tutar}
                         </p>
                         <Badge
@@ -842,6 +1008,221 @@ export default function CustomerDetailPage() {
                 className="rounded-2xl bg-red-600 hover:bg-red-700"
               >
                 Dosyayı Kapat
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Customer Modal */}
+        <Dialog open={showEditModal} onOpenChange={(open) => {
+          setShowEditModal(open)
+          if (!open) {
+            setEditFormData({
+              ad_soyad: '',
+              tc_no: '',
+              telefon: '',
+              email: '',
+              plaka: '',
+              hasar_tarihi: '',
+              başvuru_durumu: 'İnceleniyor',
+              dealer_id: 'none',
+              password: '',
+            })
+            setShowPassword(false)
+          }
+        }}>
+          <DialogContent className="rounded-3xl max-w-3xl max-h-[90vh] overflow-y-auto w-[95vw]">
+            <DialogHeader>
+              <DialogTitle className="text-lg md:text-xl font-bold">Müşteri Düzenle</DialogTitle>
+              <DialogDescription className="text-sm">
+                Müşteri bilgilerini güncelleyin.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit_ad_soyad" className="text-sm font-semibold mb-2">
+                    Ad Soyad *
+                  </Label>
+                  <Input
+                    id="edit_ad_soyad"
+                    placeholder="Ahmet Yılmaz"
+                    value={editFormData.ad_soyad}
+                    onChange={(e) => setEditFormData({ ...editFormData, ad_soyad: e.target.value })}
+                    className="rounded-2xl mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_tc_no" className="text-sm font-semibold mb-2">
+                    TC Kimlik No *
+                  </Label>
+                  <Input
+                    id="edit_tc_no"
+                    placeholder="12345678901"
+                    value={editFormData.tc_no}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 11)
+                      setEditFormData({ ...editFormData, tc_no: value })
+                    }}
+                    maxLength={11}
+                    className="rounded-2xl mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_telefon" className="text-sm font-semibold mb-2">
+                    Telefon *
+                  </Label>
+                  <Input
+                    id="edit_telefon"
+                    placeholder="+90 532 123 4567"
+                    value={editFormData.telefon}
+                    onChange={(e) => setEditFormData({ ...editFormData, telefon: e.target.value })}
+                    className="rounded-2xl mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_email" className="text-sm font-semibold mb-2">
+                    Email
+                  </Label>
+                  <Input
+                    id="edit_email"
+                    type="email"
+                    placeholder="ahmet@email.com"
+                    value={editFormData.email}
+                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                    className="rounded-2xl mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_plaka" className="text-sm font-semibold mb-2">
+                    Plaka *
+                  </Label>
+                  <Input
+                    id="edit_plaka"
+                    placeholder="34 ABC 123"
+                    value={editFormData.plaka}
+                    onChange={(e) => setEditFormData({ ...editFormData, plaka: e.target.value })}
+                    className="rounded-2xl mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_hasar_tarihi" className="text-sm font-semibold mb-2">
+                    Hasar Tarihi *
+                  </Label>
+                  <Input
+                    id="edit_hasar_tarihi"
+                    type="date"
+                    value={editFormData.hasar_tarihi}
+                    onChange={(e) => setEditFormData({ ...editFormData, hasar_tarihi: e.target.value })}
+                    className="rounded-2xl mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_başvuru_durumu" className="text-sm font-semibold mb-2">
+                    Başvuru Durumu
+                  </Label>
+                  <Select
+                    value={editFormData.başvuru_durumu}
+                    onValueChange={(value) => setEditFormData({ ...editFormData, başvuru_durumu: value as ApplicationStatus })}
+                  >
+                    <SelectTrigger id="edit_başvuru_durumu" className="w-full rounded-2xl border-2 mt-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
+                      <SelectItem value="İnceleniyor">İnceleniyor</SelectItem>
+                      <SelectItem value="Başvuru Aşamasında">Başvuru Aşamasında</SelectItem>
+                      <SelectItem value="Dava Aşamasında">Dava Aşamasında</SelectItem>
+                      <SelectItem value="Onaylandı">Onaylandı</SelectItem>
+                      <SelectItem value="Tamamlandı">Tamamlandı</SelectItem>
+                      <SelectItem value="Beklemede">Beklemede</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="edit_dealer" className="text-sm font-semibold mb-2">
+                    Bayi
+                  </Label>
+                  <Select
+                    value={editFormData.dealer_id}
+                    onValueChange={(value) => setEditFormData({ ...editFormData, dealer_id: value })}
+                  >
+                    <SelectTrigger id="edit_dealer" className="w-full rounded-2xl border-2 mt-2">
+                      <SelectValue placeholder="Bayi seçin (opsiyonel)" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
+                      {dealerOptions.map((dealer) => (
+                        <SelectItem key={dealer.id} value={dealer.id}>
+                          {dealer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="edit_password" className="text-sm font-semibold mb-2">
+                    Şifre (Değiştirmek için)
+                  </Label>
+                  <div className="flex gap-2 mt-2">
+                    <div className="relative flex-1">
+                      <Input
+                        id="edit_password"
+                        type={showPassword ? "text" : "password"}
+                        value={editFormData.password || ""}
+                        onChange={(e) => setEditFormData((prev) => ({ ...prev, password: e.target.value }))}
+                        placeholder="Yeni şifre belirleyin veya otomatik üretin"
+                        className="rounded-2xl pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4 text-gray-500" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-500" />
+                        )}
+                      </Button>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleGeneratePassword}
+                      className="rounded-2xl"
+                      title="Rastgele şifre üret ve kopyala"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Üret
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCopyPassword}
+                      disabled={!editFormData.password}
+                      className="rounded-2xl"
+                      title="Şifreyi kopyala"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Şifre belirlenirse müşteri hesabı bu şifre ile güncellenir. Boş bırakılırsa şifre değişmez.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setShowEditModal(false)} className="rounded-2xl w-full sm:w-auto">
+                İptal
+              </Button>
+              <Button
+                onClick={handleEditCustomer}
+                className="rounded-2xl w-full sm:w-auto"
+                style={{ backgroundColor: "#0B3D91", color: "white" }}
+              >
+                Kaydet
               </Button>
             </DialogFooter>
           </DialogContent>
