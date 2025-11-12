@@ -15,37 +15,8 @@ import * as fileTypeActions from './actions/file-types'
 import * as resultDocumentActions from './actions/result-documents'
 import * as accountingActions from './actions/accounting'
 
-// API Client class - now uses server actions internally
-class ApiClient {
-  // Token methods kept for compatibility (but not used with NextAuth)
-  setToken(token: string | null) {
-    // No-op with NextAuth (uses httpOnly cookies)
-  }
-
-  // Generic request method (deprecated, kept for compatibility)
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    throw new Error('Direct API requests deprecated. Use server actions instead.')
-  }
-
-  // HTTP methods (deprecated)
-  async get<T>(endpoint: string): Promise<T> {
-    throw new Error('Use server actions instead')
-  }
-
-  async post<T>(endpoint: string, data?: any): Promise<T> {
-    throw new Error('Use server actions instead')
-  }
-
-  async put<T>(endpoint: string, data?: any): Promise<T> {
-    throw new Error('Use server actions instead')
-  }
-
-  async delete<T>(endpoint: string): Promise<T> {
-    throw new Error('Use server actions instead')
-  }
-}
-
-export const apiClient = new ApiClient()
+// API Client - Server Actions Wrapper
+// Bu dosya mevcut API interface'ini korur ama server actions kullanır
 
 // Auth API
 export const authApi = {

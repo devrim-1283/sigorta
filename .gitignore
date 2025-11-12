@@ -22,6 +22,11 @@ yarn.lock
 
 # env files
 .env*
+ENV_*.txt
+QUICKSTART.txt
+*.env
+.env.local
+.env.production
 
 # vercel
 .vercel

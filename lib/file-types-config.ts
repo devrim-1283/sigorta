@@ -65,8 +65,13 @@ export const FILE_TYPES: FileTypeConfig[] = [
     name: 'Pert Farkı',
     description: 'Araç pert ilan edildiğinde değer farkı tazminatı',
     requiredDocuments: [
-      // Pert Farkı için zorunlu evraklar henüz belirlenmemiş
-      // İlerleyen süreçte eklenebilir
+      { name: 'Müşteri vekaleti', displayOrder: 1, required: true },
+      { name: 'Eksper raporu', displayOrder: 2, required: true },
+      { name: 'Kaza tutanağı', displayOrder: 3, required: true },
+      { name: 'Mağdur ruhsatı', displayOrder: 4, required: true },
+      { name: 'Olay yeri resimleri', displayOrder: 5, required: true },
+      { name: 'Onarım resimleri', displayOrder: 6, required: true },
+      { name: 'IBAN bilgisi', displayOrder: 7, required: true },
     ],
   },
 ]

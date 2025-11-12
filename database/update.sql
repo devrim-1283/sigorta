@@ -164,7 +164,16 @@ INSERT INTO required_documents (file_type_id, document_name, display_order) VALU
 (3, 'IBAN bilgisi', 5)
 ON CONFLICT (file_type_id, document_name) DO NOTHING;
 
--- Pert Farkı (file_type_id = 4) - Şimdilik boş, dinamik olarak eklenebilir
+-- Pert Farkı (file_type_id = 4) - Değer Kaybı ile aynı evraklar
+INSERT INTO required_documents (file_type_id, document_name, display_order) VALUES
+(4, 'Müşteri vekaleti', 1),
+(4, 'Eksper raporu', 2),
+(4, 'Kaza tutanağı', 3),
+(4, 'Mağdur ruhsatı', 4),
+(4, 'Olay yeri resimleri', 5),
+(4, 'Onarım resimleri', 6),
+(4, 'IBAN bilgisi', 7)
+ON CONFLICT (file_type_id, document_name) DO NOTHING;
 
 -- 8. Result Document Types tablosu oluştur (sonuç evrakları tipleri)
 CREATE TABLE IF NOT EXISTS result_document_types (

@@ -102,9 +102,7 @@ export function useCustomers(params?: { search?: string; status?: string; per_pa
 
   const createCustomer = async (data: any) => {
     try {
-      console.log('[useCustomers] Creating customer with data:', data)
       const newCustomer = await customerApi.create(data)
-      console.log('[useCustomers] Customer created:', newCustomer)
       // Refresh the customers list after successful creation
       await fetchCustomers()
       toast({

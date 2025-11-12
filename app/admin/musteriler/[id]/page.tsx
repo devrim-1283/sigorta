@@ -139,15 +139,6 @@ export default function CustomerDetailPage() {
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
   const [uploadedFileNames, setUploadedFileNames] = useState<string[]>([])
   
-  // Calculate net profit when payment, expenses, or dealer commission changes
-  useEffect(() => {
-    const payment = parseFloat(closeFilePayment) || 0
-    const expenses = parseFloat(closeFileExpenses) || 0
-    const dealerCommission = parseFloat(closeFileDealerCommission) || 0
-    const netProfit = payment - expenses - dealerCommission
-    setCloseFileNetProfit(netProfit >= 0 ? netProfit.toFixed(2) : "0.00")
-  }, [closeFilePayment, closeFileExpenses, closeFileDealerCommission])
-  
   const [newNote, setNewNote] = useState("")
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null)
@@ -491,6 +482,16 @@ export default function CustomerDetailPage() {
       toast({
         title: "Uyarı",
         description: "Bayi primi alanı zorunludur.",
+        variant: "default",
+        duration: 5000,
+      })
+      return
+    }
+
+    if (!closeFileNetProfit || closeFileNetProfit.trim() === "") {
+      toast({
+        title: "Uyarı",
+        description: "Net kâr alanı zorunludur.",
         variant: "default",
         duration: 5000,
       })
@@ -1132,14 +1133,14 @@ export default function CustomerDetailPage() {
 
         {/* Close File Modal */}
         <Dialog open={showCloseFileModal} onOpenChange={setShowCloseFileModal}>
-          <DialogContent className="rounded-3xl">
+          <DialogContent className="rounded-3xl max-w-4xl w-[95vw] sm:w-[90vw] md:w-[85vw] lg:w-[80vw]">
             <DialogHeader>
-              <DialogTitle className="text-xl font-bold">Dosyayı Kapat</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-xl sm:text-2xl font-bold">Dosyayı Kapat</DialogTitle>
+              <DialogDescription className="text-sm sm:text-base">
                 Bu dosyayı kapatmak üzeresiniz. Kapatılan dosyalar kilitlenir ve değişiklik yapılamaz.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto">
+            <div className="space-y-4 sm:space-y-6 py-4 max-h-[70vh] overflow-y-auto">
               <div>
                 <Label htmlFor="close-reason" className="text-sm font-semibold mb-2">
                   Kapatma Nedeni (Opsiyonel)
@@ -1154,9 +1155,9 @@ export default function CustomerDetailPage() {
                 />
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                <div>
-                  <Label htmlFor="close-payment" className="text-sm font-semibold mb-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pt-4 border-t">
+                <div className="sm:col-span-1">
+                  <Label htmlFor="close-payment" className="text-sm sm:text-base font-semibold mb-2">
                     Müşteriye Yatacak Ödeme (₺) <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -1167,17 +1168,17 @@ export default function CustomerDetailPage() {
                     placeholder="0.00"
                     value={closeFilePayment}
                     onChange={(e) => setCloseFilePayment(e.target.value)}
-                    className="rounded-2xl mt-2"
+                    className="rounded-2xl mt-2 text-sm sm:text-base"
                     required
                     disabled={uploadingFiles}
                   />
                   {closeFilePayment && parseFloat(closeFilePayment) <= 0 && (
-                    <p className="text-xs text-red-600 mt-1">Bu alan 0'dan büyük olmalıdır</p>
+                    <p className="text-xs text-orange-600 mt-1">Bu alan 0'dan büyük olmalıdır</p>
                   )}
                 </div>
                 
-                <div>
-                  <Label htmlFor="close-expenses" className="text-sm font-semibold mb-2">
+                <div className="sm:col-span-1">
+                  <Label htmlFor="close-expenses" className="text-sm sm:text-base font-semibold mb-2">
                     Yapılan Harcamalar (₺) <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -1188,17 +1189,17 @@ export default function CustomerDetailPage() {
                     placeholder="0.00"
                     value={closeFileExpenses}
                     onChange={(e) => setCloseFileExpenses(e.target.value)}
-                    className="rounded-2xl mt-2"
+                    className="rounded-2xl mt-2 text-sm sm:text-base"
                     required
                     disabled={uploadingFiles}
                   />
                   {closeFileExpenses && parseFloat(closeFileExpenses) < 0 && (
-                    <p className="text-xs text-red-600 mt-1">Bu alan negatif olamaz</p>
+                    <p className="text-xs text-orange-600 mt-1">Bu alan negatif olamaz</p>
                   )}
                 </div>
                 
-                <div>
-                  <Label htmlFor="close-dealer-commission" className="text-sm font-semibold mb-2">
+                <div className="sm:col-span-1">
+                  <Label htmlFor="close-dealer-commission" className="text-sm sm:text-base font-semibold mb-2">
                     Bayi Primi (₺) <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -1209,18 +1210,18 @@ export default function CustomerDetailPage() {
                     placeholder="0.00"
                     value={closeFileDealerCommission}
                     onChange={(e) => setCloseFileDealerCommission(e.target.value)}
-                    className="rounded-2xl mt-2"
+                    className="rounded-2xl mt-2 text-sm sm:text-base"
                     required
                     disabled={uploadingFiles}
                   />
                   {closeFileDealerCommission && parseFloat(closeFileDealerCommission) < 0 && (
-                    <p className="text-xs text-red-600 mt-1">Bu alan negatif olamaz</p>
+                    <p className="text-xs text-orange-600 mt-1">Bu alan negatif olamaz</p>
                   )}
                 </div>
                 
-                <div>
-                  <Label htmlFor="close-net-profit" className="text-sm font-semibold mb-2">
-                    Net Kâr (₺) - Otomatik Hesaplanır
+                <div className="sm:col-span-1">
+                  <Label htmlFor="close-net-profit" className="text-sm sm:text-base font-semibold mb-2">
+                    Net Kâr (₺) <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="close-net-profit"
@@ -1229,18 +1230,18 @@ export default function CustomerDetailPage() {
                     placeholder="0.00"
                     value={closeFileNetProfit}
                     onChange={(e) => setCloseFileNetProfit(e.target.value)}
-                    className="rounded-2xl mt-2 bg-gray-50"
-                    readOnly
+                    className="rounded-2xl mt-2 text-sm sm:text-base"
+                    required
                     disabled={uploadingFiles}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Ödeme - Harcama - Bayi Primi
+                    Önerilen: {(parseFloat(closeFilePayment || "0") - parseFloat(closeFileExpenses || "0") - parseFloat(closeFileDealerCommission || "0")).toFixed(2)} ₺
                   </p>
                 </div>
               </div>
               
               <div className="pt-4 border-t">
-                <Label htmlFor="close-expense-files" className="text-sm font-semibold mb-2">
+                <Label htmlFor="close-expense-files" className="text-sm sm:text-base font-semibold mb-2">
                   Harcama Belgeleri (Toplu Yükleme - 1-20 dosya)
                 </Label>
                 <Input
@@ -1263,20 +1264,20 @@ export default function CustomerDetailPage() {
                       }
                     }
                   }}
-                  className="rounded-2xl mt-2"
+                  className="rounded-2xl mt-2 text-sm sm:text-base"
                   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                   disabled={uploadingFiles}
                 />
                 {closeFileExpenseFiles.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    <p className="text-xs text-muted-foreground">
+                  <div className="mt-3 sm:mt-4 space-y-2">
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       {closeFileExpenseFiles.length} dosya seçildi {closeFileExpenseFiles.length > 20 ? '(Maksimum 20 dosya)' : ''}
                     </p>
-                    <div className="max-h-40 overflow-y-auto space-y-1">
+                    <div className="max-h-40 sm:max-h-48 overflow-y-auto space-y-1 sm:space-y-2">
                       {closeFileExpenseFiles.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-xs">
-                          <span className="truncate flex-1">{file.name}</span>
-                          <span className="text-muted-foreground ml-2">
+                        <div key={index} className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg text-xs sm:text-sm">
+                          <span className="truncate flex-1 mr-2">{file.name}</span>
+                          <span className="text-muted-foreground whitespace-nowrap">
                             {(file.size / 1024 / 1024).toFixed(2)} MB
                           </span>
                           {!uploadingFiles && (
@@ -1284,12 +1285,12 @@ export default function CustomerDetailPage() {
                               type="button"
                               variant="ghost"
                               size="sm"
-                              className="ml-2 h-6 w-6 p-0"
+                              className="ml-2 h-6 w-6 sm:h-7 sm:w-7 p-0"
                               onClick={() => {
                                 setCloseFileExpenseFiles(prev => prev.filter((_, i) => i !== index))
                               }}
                             >
-                              <Trash2 className="h-3 w-3" />
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
                           )}
                         </div>
@@ -1300,10 +1301,10 @@ export default function CustomerDetailPage() {
                 
                 {/* Upload Progress */}
                 {uploadingFiles && (
-                  <div className="mt-4 space-y-3 p-4 bg-blue-50 rounded-2xl border-2 border-blue-200">
+                  <div className="mt-4 sm:mt-6 space-y-3 sm:space-y-4 p-4 sm:p-6 bg-blue-50 rounded-2xl border-2 border-blue-200">
                     <div className="flex items-center gap-2 mb-2">
-                      <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
-                      <p className="text-sm font-semibold text-blue-900">Dosyalar yükleniyor...</p>
+                      <RefreshCw className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 animate-spin" />
+                      <p className="text-sm sm:text-base font-semibold text-blue-900">Dosyalar yükleniyor...</p>
                     </div>
                     {closeFileExpenseFiles.map((file, index) => {
                       const progress = uploadProgress[file.name] || 0
@@ -1312,16 +1313,16 @@ export default function CustomerDetailPage() {
                       const isUploaded = uploadedFileNames.includes(file.name)
                       
                       return (
-                        <div key={index} className="space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="truncate flex-1">{file.name}</span>
-                            <span className={`ml-2 ${isError ? 'text-red-600' : isComplete ? 'text-green-600' : 'text-blue-600'}`}>
+                        <div key={index} className="space-y-1 sm:space-y-2">
+                          <div className="flex items-center justify-between text-xs sm:text-sm">
+                            <span className="truncate flex-1 mr-2">{file.name}</span>
+                            <span className={`whitespace-nowrap ${isError ? 'text-red-600' : isComplete ? 'text-green-600' : 'text-blue-600'}`}>
                               {isError ? 'Hata' : isComplete ? 'Tamamlandı' : `${progress}%`}
                             </span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="w-full bg-gray-200 rounded-full h-2 sm:h-2.5">
                             <div
-                              className={`h-2 rounded-full transition-all duration-300 ${
+                              className={`h-2 sm:h-2.5 rounded-full transition-all duration-300 ${
                                 isError ? 'bg-red-500' : isComplete ? 'bg-green-500' : 'bg-blue-500'
                               }`}
                               style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
@@ -1334,7 +1335,7 @@ export default function CustomerDetailPage() {
                 )}
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
               <Button 
                 variant="outline" 
                 onClick={() => {
@@ -1350,15 +1351,15 @@ export default function CustomerDetailPage() {
                     setUploadedFileNames([])
                   }
                 }} 
-                className="rounded-2xl"
+                className="rounded-2xl w-full sm:w-auto text-sm sm:text-base"
                 disabled={uploadingFiles}
               >
                 İptal
               </Button>
               <Button
                 onClick={handleCloseFile}
-                className="rounded-2xl bg-red-600 hover:bg-red-700"
-                disabled={uploadingFiles || !closeFilePayment || !closeFileExpenses || !closeFileDealerCommission}
+                className="rounded-2xl bg-red-600 hover:bg-red-700 w-full sm:w-auto text-sm sm:text-base"
+                disabled={uploadingFiles || !closeFilePayment || !closeFileExpenses || !closeFileDealerCommission || !closeFileNetProfit}
               >
                 {uploadingFiles ? (
                   <>
@@ -1443,7 +1444,7 @@ export default function CustomerDetailPage() {
                     className="rounded-2xl mt-2"
                   />
                   {editFormData.tc_no && editFormData.tc_no.replace(/\D/g, '').length !== 11 && editFormData.tc_no.replace(/\D/g, '').length > 0 && (
-                    <p className={`text-xs mt-1 ${editFormData.tc_no.replace(/\D/g, '').length > 11 ? 'text-orange-600' : 'text-red-600'}`}>
+                    <p className="text-xs mt-1 text-orange-600">
                       {editFormData.tc_no.replace(/\D/g, '').length > 11 
                         ? 'TC Kimlik No 11 haneli olmalıdır. Fazla karakterler otomatik kaldırılacak.' 
                         : 'TC Kimlik No 11 haneli olmalıdır'}

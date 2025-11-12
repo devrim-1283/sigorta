@@ -5,6 +5,8 @@ import { getCurrentUser } from './auth'
 import { revalidatePath } from 'next/cache'
 import { writeFile, unlink, stat } from 'fs/promises'
 import { existsSync } from 'fs'
+import path from 'path'
+import { fileTypeFromBuffer } from 'file-type'
 import {
   ensureDocumentsDir,
   getDocumentRelativePath,
@@ -222,7 +224,7 @@ export async function uploadDocument(formData: FormData) {
       throw new Error('Dosya boyutu 10MB\'dan büyük olamaz')
     }
 
-    // Validate file type
+    // Validate file type (client-side MIME type check)
     const allowedTypes = [
       'image/jpeg',
       'image/jpg',
@@ -235,17 +237,46 @@ export async function uploadDocument(formData: FormData) {
       throw new Error('Geçersiz dosya tipi. Sadece resim ve PDF dosyaları yüklenebilir.')
     }
 
+    // Save file to memory first for content validation
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
+
+    // Validate actual file content (prevent MIME type spoofing)
+    const fileType = await fileTypeFromBuffer(buffer)
+    if (!fileType) {
+      throw new Error('Dosya tipi tespit edilemedi. Geçersiz dosya.')
+    }
+
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'application/pdf',
+    ]
+
+    if (!allowedMimeTypes.includes(fileType.mime)) {
+      throw new Error(`Geçersiz dosya içeriği. Beklenen: resim veya PDF, Tespit edilen: ${fileType.mime}`)
+    }
+
+    // Sanitize filename to prevent path traversal
+    function sanitizeFilename(filename: string): string {
+      const basename = path.basename(filename)
+      return basename
+        .replace(/[^a-zA-Z0-9._-]/g, '_')
+        .substring(0, 255)
+    }
+
     // Generate file path within local storage
     const timestamp = Date.now()
-    const ext = file.name.split('.').pop()
-    const filename = `${timestamp}-${Math.random().toString(36).substring(7)}.${ext}`
+    const originalExt = file.name.split('.').pop() || fileType.ext || 'bin'
+    const sanitizedExt = sanitizeFilename(originalExt).split('.').pop() || fileType.ext || 'bin'
+    const filename = `${timestamp}-${Math.random().toString(36).substring(7)}.${sanitizedExt}`
     ensureDocumentsDir()
     const absolutePath = getDocumentStoragePath(filename)
     const relativePath = getDocumentRelativePath(filename)
 
     // Save file to disk
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
     await writeFile(absolutePath, buffer)
 
     // Verify file was written successfully
@@ -258,17 +289,12 @@ export async function uploadDocument(formData: FormData) {
       throw new Error('Dosya boş olarak kaydedildi')
     }
 
-    console.log('[Upload] File saved successfully:', {
-      absolutePath,
-      relativePath,
-      size: fileStats.size,
-    })
 
     // Create document record in database
     const data: any = {
       customer_id: BigInt(customer_id),
       dosya_yolu: relativePath,
-      mime_type: file.type,
+      mime_type: fileType.mime, // Use detected MIME type instead of client-provided
       dosya_boyutu: BigInt(file.size),
       tip: tipFromForm || documentTypeFromForm || 'Diğer',
       document_type: documentTypeFromForm || tipFromForm || 'Standart Evrak',
@@ -278,7 +304,14 @@ export async function uploadDocument(formData: FormData) {
       updated_at: new Date(),
     }
 
-    const originalName = originalNameFromForm || file.name
+    // Sanitize original filename to prevent path traversal
+    function sanitizeFilename(filename: string): string {
+      const basename = path.basename(filename)
+      return basename
+        .replace(/[^a-zA-Z0-9._-]/g, '_')
+        .substring(0, 255)
+    }
+    const originalName = sanitizeFilename(originalNameFromForm || file.name)
     data['dosya_adı'] = originalName
 
     const document = await prisma.document.create({ 

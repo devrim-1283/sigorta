@@ -32,8 +32,6 @@ export async function getCustomers(params?: {
   try {
     await requireAuth()
 
-    console.log('[getCustomers] Starting with params:', params)
-
     const where: any = {}
 
   if (params?.search) {
@@ -74,9 +72,6 @@ export async function getCustomers(params?: {
     }),
     prisma.customer.count({ where }),
   ])
-
-    console.log('[getCustomers] Fetched customers count:', customers.length)
-    console.log('[getCustomers] First customer raw:', customers[0])
 
   // Serialize customers for Next.js (convert BigInt and Date to JSON-safe types)
   const result = {
@@ -136,17 +131,9 @@ export async function getCustomers(params?: {
     total,
   }
 
-    console.log('[getCustomers] Serialized result count:', result.customers.length)
-    console.log('[getCustomers] First serialized customer:', result.customers[0])
-    
     return result
   } catch (error: any) {
-    console.error('[getCustomers] ❌ ERROR:', error)
-    console.error('[getCustomers] ❌ Error message:', error.message)
-    console.error('[getCustomers] ❌ Error stack:', error.stack)
-    console.error('[getCustomers] ❌ Error name:', error.name)
-    
-    // Re-throw with detailed message for debugging
+    console.error('[getCustomers] Error:', error.message)
     throw new Error(`getCustomers failed: ${error.message}`)
   }
 }
@@ -331,8 +318,6 @@ export async function createCustomer(data: {
   password?: string
 }) {
   const user = await requireAuth()
-  
-  console.log('[createCustomer] Starting with data:', JSON.stringify(data, null, 2))
 
   try {
     // Normalize and validate phone number
@@ -364,11 +349,6 @@ export async function createCustomer(data: {
     // Normalize plaka (uppercase, remove spaces)
     const normalizedPlaka = data.plaka.trim().toUpperCase().replace(/\s+/g, '')
 
-    console.log('[createCustomer] Normalized values:', {
-      telefon: normalizedPhone,
-      tc_no: normalizedTC,
-      plaka: normalizedPlaka
-    })
 
     // Helper function to normalize phone for comparison
     const normalizePhoneForComparison = (phone: string | null): string | null => {
@@ -486,7 +466,6 @@ export async function createCustomer(data: {
       ? new Date(data.hasar_tarihi) 
       : data.hasar_tarihi
 
-    console.log('[createCustomer] Processed values:', { fileTypeId, hasarTarihi })
 
     if (!fileTypeId) {
       throw new Error('Dosya tipi gereklidir')
@@ -512,8 +491,6 @@ export async function createCustomer(data: {
       dosya_kilitli: data.dosya_kilitli || false,
     }
 
-    console.log('[createCustomer] Creating customer with data:', customerData)
-
     // Create customer first
     const customer = await prisma.customer.create({
       data: customerData,
@@ -522,8 +499,6 @@ export async function createCustomer(data: {
         file_type: true,
       },
     })
-
-    console.log('[createCustomer] Customer created successfully:', customer.id)
 
     // Auto-create user account for customer with role 'musteri'
     let loginCredentials = null
@@ -572,11 +547,6 @@ export async function createCustomer(data: {
             }
           })
 
-          console.log('Customer user account created:', {
-            userId: Number(newUser.id),
-            username: data.tc_no || data.telefon || data.email,
-            password: passwordToUse,
-          })
 
           loginCredentials = {
             username: data.tc_no || data.telefon || data.email,
@@ -597,11 +567,6 @@ export async function createCustomer(data: {
             }
           })
 
-          console.log('Customer user account updated:', {
-            userId: Number(existingUser.id),
-            username: data.tc_no || data.telefon || data.email,
-            password: passwordToUse,
-          })
 
           loginCredentials = {
             username: data.tc_no || data.telefon || data.email,
@@ -715,14 +680,10 @@ export async function createCustomer(data: {
       ...(loginCredentials && { loginCredentials })
     }
 
-    console.log('[createCustomer] Returning serialized result')
     
     return result
   } catch (error: any) {
-    console.error('[createCustomer] Error occurred:', error)
-    console.error('[createCustomer] Error stack:', error.stack)
-    console.error('[createCustomer] Error name:', error.name)
-    console.error('[createCustomer] Error message:', error.message)
+    console.error('[createCustomer] Error:', error.message)
     
     // Extract user-friendly error message
     let userMessage = 'Müşteri oluşturulamadı'

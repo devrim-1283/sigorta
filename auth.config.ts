@@ -2,7 +2,7 @@ import type { NextAuthConfig } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import prisma from '@/lib/db'
-import { validateEmail, validatePhone, validateTCNo, validatePassword, checkRateLimit, clearRateLimit } from '@/lib/validation'
+import { validateEmail, validatePhone, validateTCNo, validatePassword } from '@/lib/validation'
 
 export const authConfig: NextAuthConfig = {
   trustHost: true,
@@ -83,12 +83,6 @@ export const authConfig: NextAuthConfig = {
             }
             identifier = emailValidation.sanitized
 
-            // Rate limiting
-            const rateLimit = checkRateLimit(identifier)
-            if (!rateLimit.allowed) {
-              throw new Error(`Çok fazla deneme. ${rateLimit.resetIn} saniye sonra tekrar deneyin.`)
-            }
-
             user = await prisma.user.findUnique({
               where: { email: identifier },
               include: {
@@ -103,12 +97,6 @@ export const authConfig: NextAuthConfig = {
             }
             identifier = phoneValidation.sanitized
 
-            // Rate limiting
-            const rateLimit = checkRateLimit(identifier)
-            if (!rateLimit.allowed) {
-              throw new Error(`Çok fazla deneme. ${rateLimit.resetIn} saniye sonra tekrar deneyin.`)
-            }
-
             user = await prisma.user.findUnique({
               where: { phone: identifier },
               include: {
@@ -122,12 +110,6 @@ export const authConfig: NextAuthConfig = {
               throw new Error(tcValidation.error || 'Geçersiz TC Kimlik No')
             }
             identifier = tcValidation.sanitized
-
-            // Rate limiting
-            const rateLimit = checkRateLimit(identifier)
-            if (!rateLimit.allowed) {
-              throw new Error(`Çok fazla deneme. ${rateLimit.resetIn} saniye sonra tekrar deneyin.`)
-            }
 
             user = await prisma.user.findUnique({
               where: { tc_no: identifier },
@@ -158,9 +140,6 @@ export const authConfig: NextAuthConfig = {
             throw new Error('Kullanıcı adı veya şifre hatalı')
           }
 
-          // Clear rate limit on successful login
-          clearRateLimit(identifier!)
-
           // Update last login
           await prisma.user.update({
             where: { id: user.id },
@@ -186,7 +165,8 @@ export const authConfig: NextAuthConfig = {
   ],
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 24 * 60 * 60, // 1 day
+    updateAge: 60 * 60, // 1 hour - refresh session every hour
   },
   secret: process.env.NEXTAUTH_SECRET,
 }

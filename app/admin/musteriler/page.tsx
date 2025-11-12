@@ -321,9 +321,6 @@ export default function CustomersPage() {
   const currentDealerId = userRole === "bayi" && user?.dealer_id ? String(user.dealer_id) : null
   const currentCustomerId = userRole === "musteri" && user?.id ? String(user.id) : null
   
-  console.log('[Auth Debug] User role:', userRole)
-  console.log('[Auth Debug] Current dealer ID:', currentDealerId)
-  console.log('[Auth Debug] Current customer ID:', currentCustomerId)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -337,12 +334,9 @@ export default function CustomersPage() {
       setLoading(true)
       const data = await customerApi.list({ search: searchTerm, status: statusFilter })
 
-      console.log('[Müşteri Listesi] API Response:', data)
-      console.log('[Müşteri Listesi] Müşteri sayısı:', data.customers?.length || 0)
 
       // Transform API data to Customer interface
       const transformedCustomers: Customer[] = (data.customers || []).map((item: any) => {
-        console.log('[Müşteri Transform] Raw item:', item)
         
         return {
           id: String(item.id), // Convert to string
@@ -384,8 +378,6 @@ export default function CustomersPage() {
         }
       })
 
-      console.log('[Müşteri Listesi] Transformed customers:', transformedCustomers.length)
-      console.log('[Müşteri Listesi] First customer sample:', transformedCustomers[0])
       setCustomers(transformedCustomers)
       setError("")
     } catch (err: any) {
@@ -533,11 +525,6 @@ export default function CustomersPage() {
     })
   }
   
-  console.log('[Müşteri Listesi] Total customers:', customers.length)
-  console.log('[Müşteri Listesi] Filtered customers:', filteredCustomers.length)
-  console.log('[Müşteri Listesi] Search term:', searchTerm)
-  console.log('[Müşteri Listesi] Status filter:', statusFilter)
-  console.log('[Müşteri Listesi] User role:', userRole)
 
   // Check if dealer info should be shown
   const shouldShowDealerInfo = userRole === "bayi" || userRole === "superadmin"
@@ -550,7 +537,6 @@ export default function CustomersPage() {
     if (!selectedCustomer) return
 
     try {
-      console.log('Starting document upload:', { fileName: file.name, type, customerId: selectedCustomer.id })
 
       const formData = new FormData()
       formData.append('file', file)
@@ -561,7 +547,6 @@ export default function CustomersPage() {
       formData.append('is_result_document', '0')  // Default to false for regular documents
 
       const result = await documentApi.upload(formData)
-      console.log('Upload successful:', result)
 
       setShowDocUploadModal(false)
 
@@ -578,15 +563,11 @@ export default function CustomersPage() {
           }
           
           const response = await customerApi.getById(customerId)
-          console.log('Raw updated customer data:', response)
-          console.log('Documents from API:', response.documents)
 
           // Transform the customer data - ensure documents are properly mapped
           const documents = response.documents || response.evraklar || []
-          console.log('Documents to map:', documents)
           
           const mappedDocuments = mapDocuments(documents)
-          console.log('Mapped documents:', mappedDocuments)
 
           const transformedCustomer = {
             id: String(response.id),
@@ -621,7 +602,6 @@ export default function CustomersPage() {
             yüklenen_evraklar: mappedDocuments.map((d: any) => d.tip) || [],
           }
 
-          console.log('Final transformed customer:', transformedCustomer)
           setSelectedCustomer(transformedCustomer)
         } catch (error) {
           console.error('Failed to refresh customer data:', error)
@@ -667,7 +647,6 @@ export default function CustomersPage() {
   // New file document upload handler
   const handleNewFileDocumentUpload = async (file: File, docType: FileDocType) => {
     try {
-      console.log('New file document upload:', { fileName: file.name, docType })
 
       // Store the actual uploaded file for later use during customer creation
       setUploadedFiles(prev => ({
@@ -681,7 +660,6 @@ export default function CustomersPage() {
       }
 
       // Show success message (optional)
-      console.log('Document marked as uploaded for new file creation')
 
     } catch (error: any) {
       console.error('New file document upload error:', error)
@@ -935,16 +913,11 @@ export default function CustomersPage() {
           customerData.password = newFileData.password.trim()
         }
 
-        console.log('Creating customer with data:', customerData);
-
         // First create customer with basic info (no documents yet)
         result = await customerApi.create(customerData);
 
-        console.log('Customer created successfully:', result)
-
         // If customer creation successful and there are documents to upload
         if (result && result.id && newFileUploadedDocs.length > 0) {
-          console.log('Starting to upload documents for customer:', result.id)
 
           const uploadErrors: string[] = []
           const uploadedDocuments: string[] = []
@@ -969,7 +942,6 @@ export default function CustomersPage() {
               formData.append('is_result_document', '0')
 
               const uploadResult = await documentApi.upload(formData)
-              console.log(`Document ${docType} uploaded successfully:`, uploadResult)
               uploadedDocuments.push(docType)
             } catch (uploadError: any) {
               console.error(`Failed to upload document ${docType}:`, uploadError)
@@ -980,12 +952,9 @@ export default function CustomersPage() {
 
           // If any document upload failed, delete the customer and show error
           if (uploadErrors.length > 0) {
-            console.error('Some documents failed to upload. Deleting customer:', result.id)
-            
             try {
               // Delete the customer that was created
               await customerApi.delete(result.id)
-              console.log('Customer deleted due to document upload failures')
             } catch (deleteError) {
               console.error('Failed to delete customer after document upload failure:', deleteError)
             }
@@ -995,10 +964,6 @@ export default function CustomersPage() {
             throw new Error(`Evrak yükleme başarısız oldu. Müşteri kaydı oluşturulmadı.\n\nHatalar:\n${errorDetails}`)
           }
 
-          // All documents uploaded successfully
-          if (uploadedDocuments.length > 0) {
-            console.log(`All ${uploadedDocuments.length} documents uploaded successfully`)
-          }
 
           // Refresh customer data to get updated documents
           await fetchCustomers()
@@ -1683,9 +1648,9 @@ export default function CustomersPage() {
 
         {/* Error Display */}
         {error && (
-          <div className="p-4 bg-red-50 border-2 border-red-200 rounded-2xl flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-            <p className="text-sm text-red-800">{error}</p>
+          <div className="p-4 bg-orange-50 border-2 border-orange-200 rounded-2xl flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5" />
+            <p className="text-sm text-orange-800">{error}</p>
           </div>
         )}
 
@@ -2047,7 +2012,7 @@ export default function CustomersPage() {
                     className="rounded-2xl mt-2"
                   />
                   {newFileData.tc_no && newFileData.tc_no.replace(/\D/g, '').length !== 11 && newFileData.tc_no.replace(/\D/g, '').length > 0 && (
-                    <p className={`text-xs mt-1 ${newFileData.tc_no.replace(/\D/g, '').length > 11 ? 'text-orange-600' : 'text-red-600'}`}>
+                    <p className="text-xs mt-1 text-orange-600">
                       {newFileData.tc_no.replace(/\D/g, '').length > 11 
                         ? 'TC Kimlik No 11 haneli olmalıdır. Fazla karakterler otomatik kaldırılacak.' 
                         : 'TC Kimlik No 11 haneli olmalıdır'}
@@ -2443,7 +2408,7 @@ export default function CustomersPage() {
                     className="rounded-2xl mt-2"
                   />
                   {editFormData.tc_no && editFormData.tc_no.replace(/\D/g, '').length !== 11 && editFormData.tc_no.replace(/\D/g, '').length > 0 && (
-                    <p className={`text-xs mt-1 ${editFormData.tc_no.replace(/\D/g, '').length > 11 ? 'text-orange-600' : 'text-red-600'}`}>
+                    <p className="text-xs mt-1 text-orange-600">
                       {editFormData.tc_no.replace(/\D/g, '').length > 11 
                         ? 'TC Kimlik No 11 haneli olmalıdır. Fazla karakterler otomatik kaldırılacak.' 
                         : 'TC Kimlik No 11 haneli olmalıdır'}

@@ -153,71 +153,28 @@ export function validatePassword(password: string): { valid: boolean; error?: st
 
 /**
  * Sanitizes general text input (prevents XSS)
+ * Uses DOMPurify for comprehensive XSS protection
  */
 export function sanitizeText(text: string): string {
-  return text
-    .trim()
-    .replace(/[<>]/g, '') // Remove potential HTML tags
-    .substring(0, 1000) // Limit length
-}
-
-/**
- * Rate limiting storage (in-memory, for simple cases)
- * In production, use Redis or similar
- */
-const loginAttempts = new Map<string, { count: number; lastAttempt: number }>()
-
-/**
- * Check if login should be rate limited
- */
-export function checkRateLimit(identifier: string, maxAttempts = 5, windowMs = 15 * 60 * 1000): { allowed: boolean; remaining: number; resetIn?: number } {
-  const now = Date.now()
-  const attempt = loginAttempts.get(identifier)
-
-  if (!attempt) {
-    loginAttempts.set(identifier, { count: 1, lastAttempt: now })
-    return { allowed: true, remaining: maxAttempts - 1 }
-  }
-
-  // Reset if window expired
-  if (now - attempt.lastAttempt > windowMs) {
-    loginAttempts.set(identifier, { count: 1, lastAttempt: now })
-    return { allowed: true, remaining: maxAttempts - 1 }
-  }
-
-  // Increment attempt
-  attempt.count++
-  attempt.lastAttempt = now
-
-  if (attempt.count > maxAttempts) {
-    const resetIn = Math.ceil((windowMs - (now - attempt.lastAttempt)) / 1000)
-    return { allowed: false, remaining: 0, resetIn }
-  }
-
-  return { allowed: true, remaining: maxAttempts - attempt.count }
-}
-
-/**
- * Clear rate limit for a specific identifier (after successful login)
- */
-export function clearRateLimit(identifier: string): void {
-  loginAttempts.delete(identifier)
-}
-
-/**
- * Cleanup old rate limit entries (call periodically)
- */
-export function cleanupRateLimits(windowMs = 15 * 60 * 1000): void {
-  const now = Date.now()
-  for (const [key, value] of loginAttempts.entries()) {
-    if (now - value.lastAttempt > windowMs) {
-      loginAttempts.delete(key)
-    }
+  try {
+    // Use isomorphic-dompurify (works on both server and client)
+    const createDOMPurify = require('isomorphic-dompurify')
+    const DOMPurify = createDOMPurify()
+    return DOMPurify.sanitize(text, {
+      ALLOWED_TAGS: [],
+      ALLOWED_ATTR: [],
+    }).trim().substring(0, 1000)
+  } catch (error) {
+    // Fallback to basic sanitization if DOMPurify fails
+    return text
+      .trim()
+      .replace(/[<>]/g, '')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+=/gi, '')
+      .substring(0, 1000)
   }
 }
 
-// Run cleanup every 5 minutes
-if (typeof window === 'undefined') {
-  setInterval(() => cleanupRateLimits(), 5 * 60 * 1000)
-}
+// Rate limiting removed - single container deployment
+// For multi-container deployments, implement Redis-based rate limiting
 

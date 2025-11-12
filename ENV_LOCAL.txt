@@ -1,6 +1,0 @@
-DATABASE_URL="postgres://postgres:s5CtgtRRl1z10S6feIbjixpjwnBTjh2LtBNY57sf883PIcvWa912Mz3ZC7Ed4v0F@f04k88w8koc44c4wossw04w4:5432/postgres"
-NEXTAUTH_SECRET="local-dev-secret-key-12345678"
-NEXTAUTH_URL="http://localhost:3000"
-NODE_ENV="development"
-DEBUG=true
-NEXT_PUBLIC_DEBUG=true

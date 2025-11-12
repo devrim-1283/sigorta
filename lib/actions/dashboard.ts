@@ -7,8 +7,6 @@ export async function getDashboardStats() {
   try {
     await requireAuth()
 
-    console.log('[getDashboardStats] Starting...')
-
     const [
     totalCustomers,
     activeDealers,
@@ -70,9 +68,6 @@ export async function getDashboardStats() {
     },
   })
 
-    console.log('[getDashboardStats] Data fetched successfully')
-    console.log('[getDashboardStats] Recent customers count:', recentCustomers.length)
-
   const result = {
     total_customers: totalCustomers,
     total_dealers: activeDealers, // Use only active dealers (not deleted)
@@ -132,15 +127,9 @@ export async function getDashboardStats() {
     })),
   }
 
-    console.log('[getDashboardStats] Returning result')
-    
     return result
   } catch (error: any) {
-    console.error('[getDashboardStats] ❌ ERROR:', error)
-    console.error('[getDashboardStats] ❌ Error message:', error.message)
-    console.error('[getDashboardStats] ❌ Error stack:', error.stack)
-    
-    // Re-throw with detailed message
+    console.error('[getDashboardStats] Error:', error.message)
     throw new Error(`getDashboardStats failed: ${error.message}`)
   }
 }

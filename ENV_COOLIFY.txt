@@ -1,4 +1,0 @@
-DATABASE_URL="postgres://postgres:s5CtgtRRl1z10S6feIbjixpjwnBTjh2LtBNY57sf883PIcvWa912Mz3ZC7Ed4v0F@f04k88w8koc44c4wossw04w4:5432/postgres"
-NEXTAUTH_SECRET="k8fJ3nP9mL2qR5tY7wX0zA1bC4dE6gH8iJ9kM2nP5qR7t"
-NEXTAUTH_URL="https://test-sms-link.com.tr"
-NODE_ENV="production"

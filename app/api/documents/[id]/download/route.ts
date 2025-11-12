@@ -29,21 +29,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: 'Evrak bulunamadı' }, { status: 404 })
     }
 
-    console.log('[Download] Document found:', {
-      id: document.id.toString(),
-      dosya_yolu: document.dosya_yolu,
-      dosya_adı: (document as any).dosya_adı,
-    })
-
     // Resolve file path
     let filePath = resolveDocumentPath(document.dosya_yolu)
-    console.log('[Download] Resolved path:', filePath)
-    console.log('[Download] STORAGE_ROOT:', STORAGE_ROOT)
 
     // If primary path doesn't exist, try alternatives
     if (!filePath || !existsSync(filePath)) {
-      console.warn('[Download] Primary path not found, trying alternatives...')
-      console.warn('[Download] Original stored path:', document.dosya_yolu)
       
       const fileName = basename(document.dosya_yolu)
       const originalPath = document.dosya_yolu
@@ -71,18 +61,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
       let foundPath: string | null = null
       for (const altPath of alternativePaths) {
-        console.log('[Download] Trying alternative path:', altPath)
         if (existsSync(altPath)) {
-          console.log('[Download] Found file at:', altPath)
           foundPath = altPath
           break
         }
       }
 
       if (!foundPath) {
-        console.error('[Download] File not found in any location')
-        console.error('[Download] Original path:', document.dosya_yolu)
-        console.error('[Download] All tried paths:', alternativePaths)
+        console.error('[Download] File not found:', document.dosya_yolu)
         return NextResponse.json(
           { 
             error: 'Dosya bulunamadı',
@@ -101,9 +87,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     const stats = await stat(filePath)
-    if (stats.size === 0) {
-      console.warn('[Download] File exists but is empty:', filePath)
-    }
 
     // Create read stream
     const stream = createReadStream(filePath)
@@ -131,8 +114,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       },
     })
   } catch (error: any) {
-    console.error('[Download] Error:', error)
-    console.error('[Download] Error stack:', error?.stack)
+    console.error('[Download] Error:', error.message)
     return NextResponse.json(
       { 
         error: 'Dosya indirme hatası',
