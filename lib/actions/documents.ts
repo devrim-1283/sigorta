@@ -253,6 +253,8 @@ export async function uploadDocument(formData: FormData) {
     const originalNameFromForm =
       (formData.get('original_name') as string | null) ||
       (formData.get('belge_adi') as string | null)
+    const isResultDocument = formData.get('is_result_document') === '1' || formData.get('is_result_document') === 'true'
+    const resultDocumentTypeId = formData.get('result_document_type_id') as string | null
 
     if (!file || !customer_id) {
       throw new Error('File ve customer_id gerekli')
@@ -338,10 +340,19 @@ export async function uploadDocument(formData: FormData) {
       dosya_boyutu: BigInt(file.size),
       tip: tipFromForm || documentTypeFromForm || 'Diğer',
       document_type: documentTypeFromForm || tipFromForm || 'Standart Evrak',
-      durum: 'Beklemede',
+      durum: isResultDocument ? 'Onaylandı' : 'Beklemede',
+      is_result_document: isResultDocument,
       uploaded_by: BigInt(user.id),
       created_at: new Date(),
       updated_at: new Date(),
+    }
+
+    // Add result_document_type_id if provided
+    if (isResultDocument && resultDocumentTypeId) {
+      data.result_document_type_id = BigInt(resultDocumentTypeId)
+      // Auto-approve result documents
+      data.onaylayan_id = BigInt(user.id)
+      data.onay_tarihi = new Date()
     }
 
     // Sanitize original filename to prevent path traversal

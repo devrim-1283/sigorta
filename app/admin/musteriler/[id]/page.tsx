@@ -34,7 +34,8 @@ import { cn } from "@/lib/utils"
 import { type UserRole } from "@/lib/role-config"
 import { DocumentCard, type DocumentType, type DocumentStatus } from "@/components/document-card"
 import { DocumentUploadModal } from "@/components/document-upload-modal"
-import { customerApi, documentApi, dealerApi, accountingApi } from "@/lib/api-client"
+import { customerApi, documentApi, dealerApi, accountingApi, resultDocumentsApi } from "@/lib/api-client"
+import { RESULT_DOCUMENT_TYPES } from "@/lib/result-documents-config"
 import {
   AlertDialog,
   AlertDialogContent,
@@ -56,13 +57,13 @@ import {
 
 // Application status types
 type ApplicationStatus =
-  | "İnceleniyor"
-  | "Başvuru Aşamasında"
-  | "Dava Aşamasında"
-  | "Onaylandı"
-  | "Tamamlandı"
-  | "Beklemede"
-  | "Evrak Aşamasında"
+  | "EVRAK AŞAMASINDA"
+  | "BAŞVURU AŞAMASINDA"
+  | "BAŞVURU YAPILDI"
+  | "İCRA AŞAMASINDA"
+  | "TAHKİM BAŞVURUSU YAPILDI"
+  | "TAHKİM AŞAMASINDA"
+  | "KAPALI"
 
 // Customer data structure
 interface Customer {
@@ -76,6 +77,7 @@ interface Customer {
   başvuru_durumu: ApplicationStatus
   ödemeler: Payment[]
   evraklar: Document[]
+  süreç_evraklari: Document[]
   bağlı_bayi_id: string
   bağlı_bayi_adı: string
   notlar: Note[]
@@ -128,6 +130,7 @@ export default function CustomerDetailPage() {
   const [loading, setLoading] = useState(true)
   const [showDocUploadModal, setShowDocUploadModal] = useState(false)
   const [selectedDocType, setSelectedDocType] = useState<DocumentType | undefined>()
+  const [uploadingResultDoc, setUploadingResultDoc] = useState<{ [key: number]: boolean }>({})
   const [showCloseFileModal, setShowCloseFileModal] = useState(false)
   const [closeFileReason, setCloseFileReason] = useState("")
   const [closeFilePayment, setCloseFilePayment] = useState("")
@@ -150,7 +153,7 @@ export default function CustomerDetailPage() {
     email: '',
     plaka: '',
     hasar_tarihi: '',
-    başvuru_durumu: 'İnceleniyor' as ApplicationStatus,
+        başvuru_durumu: 'EVRAK AŞAMASINDA' as ApplicationStatus,
     dealer_id: 'none',
     password: '',
   })
@@ -229,7 +232,18 @@ export default function CustomerDetailPage() {
       }
 
       const documents = response.documents || response.evraklar || []
-      const mappedDocuments = mapDocuments(documents)
+      // Separate başvuru evrakları (is_result_document = false) and süreç evrakları (is_result_document = true)
+      const basvuruEvraklari = documents.filter((d: any) => !d.is_result_document)
+      const mappedBasvuruEvraklari = mapDocuments(basvuruEvraklari)
+      
+      // Fetch result documents (süreç evrakları)
+      let surecEvraklari: any[] = []
+      try {
+        const resultDocs = await resultDocumentsApi.list(id)
+        surecEvraklari = mapDocuments(resultDocs || [])
+      } catch (error) {
+        console.error('Failed to fetch result documents:', error)
+      }
 
       const transformedCustomer: Customer = {
         id: String(response.id),
@@ -239,7 +253,7 @@ export default function CustomerDetailPage() {
         email: response.email || '',
         plaka: response.plaka || '',
         hasar_tarihi: response.hasar_tarihi || response.damage_date || '',
-        başvuru_durumu: response.başvuru_durumu || 'İnceleniyor',
+        başvuru_durumu: response.başvuru_durumu || 'EVRAK AŞAMASINDA',
         ödemeler: (response.payments || response.ödemeler || []).map((p: any) => {
           // Handle BigInt for tutar/amount
           let tutarValue = 0
@@ -257,7 +271,8 @@ export default function CustomerDetailPage() {
             durum: (p.durum || 'Bekliyor') as "Ödendi" | "Bekliyor",
           }
         }),
-        evraklar: mappedDocuments,
+        evraklar: mappedBasvuruEvraklari,
+        süreç_evraklari: surecEvraklari,
         bağlı_bayi_id: String(response.dealer_id || response.bağlı_bayi_id || ''),
         bağlı_bayi_adı: response.dealer?.dealer_name || response.bağlı_bayi_adı || 'Belirtilmemiş',
         notlar: (response.notes || response.notlar || []).map((n: any) => {
@@ -294,20 +309,20 @@ export default function CustomerDetailPage() {
 
   const getStatusColor = (status: ApplicationStatus) => {
     switch (status) {
-      case "İnceleniyor":
-        return "bg-gray-100 text-gray-800 border-gray-300"
-      case "Başvuru Aşamasında":
-        return "bg-orange-100 text-orange-800 border-orange-300"
-      case "Dava Aşamasında":
-        return "bg-red-100 text-red-800 border-red-300"
-      case "Onaylandı":
-        return "bg-green-100 text-green-800 border-green-300"
-      case "Tamamlandı":
-        return "bg-blue-100 text-blue-800 border-blue-300"
-      case "Beklemede":
-        return "bg-yellow-100 text-yellow-800 border-yellow-300"
-      case "Evrak Aşamasında":
+      case "EVRAK AŞAMASINDA":
         return "bg-purple-100 text-purple-800 border-purple-300"
+      case "BAŞVURU AŞAMASINDA":
+        return "bg-orange-100 text-orange-800 border-orange-300"
+      case "BAŞVURU YAPILDI":
+        return "bg-blue-100 text-blue-800 border-blue-300"
+      case "İCRA AŞAMASINDA":
+        return "bg-red-100 text-red-800 border-red-300"
+      case "TAHKİM BAŞVURUSU YAPILDI":
+        return "bg-yellow-100 text-yellow-800 border-yellow-300"
+      case "TAHKİM AŞAMASINDA":
+        return "bg-indigo-100 text-indigo-800 border-indigo-300"
+      case "KAPALI":
+        return "bg-gray-100 text-gray-800 border-gray-300"
       default:
         return "bg-gray-100 text-gray-800 border-gray-300"
     }
@@ -380,6 +395,43 @@ export default function CustomerDetailPage() {
   const handleDeleteDocument = (doc: any) => {
     setDocumentToDelete(doc)
     setDeleteConfirmOpen(true)
+  }
+
+  const handleUploadResultDocument = async (resultDocTypeId: number, file: File) => {
+    if (!customer) return
+
+    try {
+      setUploadingResultDoc(prev => ({ ...prev, [resultDocTypeId]: true }))
+      
+      // Upload file first
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+      uploadFormData.append('tip', RESULT_DOCUMENT_TYPES.find(t => t.id === resultDocTypeId)?.name || 'Süreç Evrakı')
+      uploadFormData.append('document_type', RESULT_DOCUMENT_TYPES.find(t => t.id === resultDocTypeId)?.name || 'Süreç Evrakı')
+      uploadFormData.append('original_name', file.name)
+      uploadFormData.append('customer_id', String(customer.id))
+      uploadFormData.append('is_result_document', '1')
+      uploadFormData.append('result_document_type_id', String(resultDocTypeId))
+
+      const uploadResult = await documentApi.upload(uploadFormData)
+      
+      await fetchCustomer()
+      
+      toast({
+        title: "Başarılı",
+        description: "Süreç evrakı başarıyla yüklendi",
+      })
+    } catch (error: any) {
+      console.error('Result document upload error:', error)
+      toast({
+        title: "Uyarı",
+        description: error.message || "Süreç evrakı yüklenirken bir sorun oluştu",
+        variant: "default",
+        duration: 5000,
+      })
+    } finally {
+      setUploadingResultDoc(prev => ({ ...prev, [resultDocTypeId]: false }))
+    }
   }
 
   const confirmDeleteDocument = async () => {
@@ -619,7 +671,7 @@ export default function CustomerDetailPage() {
       email: customer.email || '',
       plaka: customer.plaka || '',
       hasar_tarihi: customer.hasar_tarihi || '',
-      başvuru_durumu: customer.başvuru_durumu || 'İnceleniyor',
+      başvuru_durumu: customer.başvuru_durumu || 'EVRAK AŞAMASINDA',
       dealer_id: customer.bağlı_bayi_id || 'none',
       password: '',
     })
@@ -659,7 +711,7 @@ export default function CustomerDetailPage() {
         email: '',
         plaka: '',
         hasar_tarihi: '',
-        başvuru_durumu: 'İnceleniyor',
+        başvuru_durumu: 'EVRAK AŞAMASINDA',
         dealer_id: 'none',
         password: '',
       })
@@ -846,22 +898,27 @@ export default function CustomerDetailPage() {
             </TabsContent>
 
             {/* Documents Tab */}
-            <TabsContent value="documents" className="space-y-4 mt-4 md:mt-6">
-              <div className="flex justify-between items-center gap-2 mb-4 flex-wrap">
-                {canCreate && (
-                  <Button
-                    className="rounded-2xl w-full sm:w-auto"
-                    style={{ backgroundColor: "#F57C00", color: "white" }}
-                    onClick={() => handleDocUploadClick()}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    Yeni Evrak Yükle
-                  </Button>
-                )}
+            <TabsContent value="documents" className="space-y-6 mt-4 md:mt-6">
+              {/* BAŞVURU EVRAKLARI Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold" style={{ color: "#0B3D91" }}>BAŞVURU EVRAKLARI</h3>
+                  {canCreate && (
+                    <Button
+                      className="rounded-2xl"
+                      style={{ backgroundColor: "#F57C00", color: "white" }}
+                      onClick={() => handleDocUploadClick()}
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      Yeni Evrak Yükle
+                    </Button>
+                  )}
+                </div>
+                
                 {customer.evraklar.length > 0 && (
                   <Button
                     variant="outline"
-                    className="rounded-2xl w-full sm:w-auto"
+                    className="rounded-2xl w-full sm:w-auto mb-4"
                     onClick={async () => {
                       try {
                         const response = await fetch(`/api/customers/${customer.id}/documents/zip`)
@@ -896,31 +953,179 @@ export default function CustomerDetailPage() {
                     Tümünü İndir (ZIP)
                   </Button>
                 )}
+
+                <div className="space-y-3">
+                  {customer.evraklar.map((doc) => (
+                    <DocumentCard
+                      key={doc.id}
+                      document={{
+                        id: doc.id,
+                        tip: doc.tip,
+                        dosya_adı: doc.dosya_adı,
+                        yüklenme_tarihi: doc.yüklenme_tarihi,
+                        durum: doc.durum,
+                      }}
+                      userRole={userRole}
+                      canUpload={canCreate}
+                      canDelete={canDelete}
+                      showDealerInfo={shouldShowDealerInfo}
+                      onView={handleViewDocument}
+                      onDownload={handleDownloadDocument}
+                      onDelete={handleDeleteDocument}
+                      onUpload={handleDocUploadClick}
+                    />
+                  ))}
+                  {customer.evraklar.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">Henüz başvuru evrakı yüklenmemiş.</p>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-3">
-                {customer.evraklar.map((doc) => (
-                  <DocumentCard
-                    key={doc.id}
-                    document={{
-                      id: doc.id,
-                      tip: doc.tip,
-                      dosya_adı: doc.dosya_adı,
-                      yüklenme_tarihi: doc.yüklenme_tarihi,
-                      durum: doc.durum,
-                    }}
-                    userRole={userRole}
-                    canUpload={canCreate}
-                    canDelete={canDelete}
-                    showDealerInfo={shouldShowDealerInfo}
-                    onView={handleViewDocument}
-                    onDownload={handleDownloadDocument}
-                    onDelete={handleDeleteDocument}
-                    onUpload={handleDocUploadClick}
-                  />
-                ))}
-                {customer.evraklar.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">Henüz evrak yüklenmemiş.</p>
+              {/* SÜREÇ EVRAKLARI Section */}
+              <div className="space-y-4 pt-6 border-t">
+                <h3 className="text-xl font-bold" style={{ color: "#0B3D91" }}>SÜREÇ EVRAKLARI</h3>
+                
+                {/* Upload areas for admin roles */}
+                {(userRole === "superadmin" || userRole === "admin" || userRole === "operasyon") && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    {RESULT_DOCUMENT_TYPES.map((docType) => {
+                      const existingDoc = customer.süreç_evraklari.find(
+                        (d) => d.tip === docType.name
+                      )
+                      const isUploading = uploadingResultDoc[docType.id]
+                      
+                      return (
+                        <Card key={docType.id} className="rounded-2xl border-2">
+                          <CardContent className="p-4">
+                            <div className="space-y-3">
+                              <div>
+                                <p className="font-semibold text-sm mb-1">{docType.name}</p>
+                                {docType.description && (
+                                  <p className="text-xs text-muted-foreground">{docType.description}</p>
+                                )}
+                              </div>
+                              
+                              {existingDoc ? (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2 text-sm text-green-600">
+                                    <FileText className="h-4 w-4" />
+                                    <span className="truncate">{existingDoc.dosya_adı}</span>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="flex-1 rounded-xl text-xs"
+                                      onClick={() => handleViewDocument(existingDoc)}
+                                    >
+                                      <Eye className="h-3 w-3 mr-1" />
+                                      Görüntüle
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="flex-1 rounded-xl text-xs"
+                                      onClick={() => handleDownloadDocument(existingDoc)}
+                                    >
+                                      <Download className="h-3 w-3 mr-1" />
+                                      İndir
+                                    </Button>
+                                  </div>
+                                  {canDelete && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="w-full rounded-xl text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      onClick={() => handleDeleteDocument(existingDoc)}
+                                    >
+                                      <Trash2 className="h-3 w-3 mr-1" />
+                                      Sil
+                                    </Button>
+                                  )}
+                                </div>
+                              ) : (
+                                <label className="block">
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0]
+                                      if (file) {
+                                        handleUploadResultDocument(docType.id, file)
+                                      }
+                                      e.target.value = '' // Reset input
+                                    }}
+                                    disabled={isUploading || customer.dosya_kilitli}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full rounded-xl text-xs"
+                                    disabled={isUploading || customer.dosya_kilitli}
+                                    onClick={() => {
+                                      const input = document.createElement('input')
+                                      input.type = 'file'
+                                      input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx'
+                                      input.onchange = (e: any) => {
+                                        const file = e.target.files?.[0]
+                                        if (file) {
+                                          handleUploadResultDocument(docType.id, file)
+                                        }
+                                      }
+                                      input.click()
+                                    }}
+                                  >
+                                    {isUploading ? (
+                                      <>
+                                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                        Yükleniyor...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Upload className="h-3 w-3 mr-1" />
+                                        Yükle
+                                      </>
+                                    )}
+                                  </Button>
+                                </label>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* Display uploaded result documents for all roles */}
+                {customer.süreç_evraklari.length > 0 && (
+                  <div className="space-y-3">
+                    {customer.süreç_evraklari.map((doc) => (
+                      <DocumentCard
+                        key={doc.id}
+                        document={{
+                          id: doc.id,
+                          tip: doc.tip,
+                          dosya_adı: doc.dosya_adı,
+                          yüklenme_tarihi: doc.yüklenme_tarihi,
+                          durum: doc.durum,
+                        }}
+                        userRole={userRole}
+                        canUpload={false}
+                        canDelete={canDelete}
+                        showDealerInfo={shouldShowDealerInfo}
+                        onView={handleViewDocument}
+                        onDownload={handleDownloadDocument}
+                        onDelete={handleDeleteDocument}
+                      />
+                    ))}
+                  </div>
+                )}
+                
+                {customer.süreç_evraklari.length === 0 && 
+                 (userRole !== "superadmin" && userRole !== "admin" && userRole !== "operasyon") && (
+                  <p className="text-center text-muted-foreground py-8">Henüz süreç evrakı yüklenmemiş.</p>
                 )}
               </div>
             </TabsContent>
@@ -945,12 +1150,13 @@ export default function CustomerDetailPage() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
-                            <SelectItem value="İnceleniyor">İnceleniyor</SelectItem>
-                            <SelectItem value="Başvuru Aşamasında">Başvuru Aşamasında</SelectItem>
-                            <SelectItem value="Dava Aşamasında">Dava Aşamasında</SelectItem>
-                            <SelectItem value="Onaylandı">Onaylandı</SelectItem>
-                            <SelectItem value="Tamamlandı">Tamamlandı</SelectItem>
-                            <SelectItem value="Beklemede">Beklemede</SelectItem>
+                            <SelectItem value="EVRAK AŞAMASINDA">EVRAK AŞAMASINDA</SelectItem>
+                            <SelectItem value="BAŞVURU AŞAMASINDA">BAŞVURU AŞAMASINDA</SelectItem>
+                            <SelectItem value="BAŞVURU YAPILDI">BAŞVURU YAPILDI</SelectItem>
+                            <SelectItem value="İCRA AŞAMASINDA">İCRA AŞAMASINDA</SelectItem>
+                            <SelectItem value="TAHKİM BAŞVURUSU YAPILDI">TAHKİM BAŞVURUSU YAPILDI</SelectItem>
+                            <SelectItem value="TAHKİM AŞAMASINDA">TAHKİM AŞAMASINDA</SelectItem>
+                            <SelectItem value="KAPALI">KAPALI</SelectItem>
                           </SelectContent>
                         </Select>
                       ) : (
@@ -1242,7 +1448,7 @@ export default function CustomerDetailPage() {
               
               <div className="pt-4 border-t">
                 <Label htmlFor="close-expense-files" className="text-sm sm:text-base font-semibold mb-2">
-                  Harcama Belgeleri (Toplu Yükleme - 1-20 dosya)
+                  Toplu Yükleme (1-20 dosya)
                 </Label>
                 <Input
                   id="close-expense-files"
@@ -1385,7 +1591,7 @@ export default function CustomerDetailPage() {
               email: '',
               plaka: '',
               hasar_tarihi: '',
-              başvuru_durumu: 'İnceleniyor',
+              başvuru_durumu: 'EVRAK AŞAMASINDA',
               dealer_id: 'none',
               password: '',
             })
@@ -1549,12 +1755,13 @@ export default function CustomerDetailPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
-                      <SelectItem value="İnceleniyor">İnceleniyor</SelectItem>
-                      <SelectItem value="Başvuru Aşamasında">Başvuru Aşamasında</SelectItem>
-                      <SelectItem value="Dava Aşamasında">Dava Aşamasında</SelectItem>
-                      <SelectItem value="Onaylandı">Onaylandı</SelectItem>
-                      <SelectItem value="Tamamlandı">Tamamlandı</SelectItem>
-                      <SelectItem value="Beklemede">Beklemede</SelectItem>
+                      <SelectItem value="EVRAK AŞAMASINDA">EVRAK AŞAMASINDA</SelectItem>
+                      <SelectItem value="BAŞVURU AŞAMASINDA">BAŞVURU AŞAMASINDA</SelectItem>
+                      <SelectItem value="BAŞVURU YAPILDI">BAŞVURU YAPILDI</SelectItem>
+                      <SelectItem value="İCRA AŞAMASINDA">İCRA AŞAMASINDA</SelectItem>
+                      <SelectItem value="TAHKİM BAŞVURUSU YAPILDI">TAHKİM BAŞVURUSU YAPILDI</SelectItem>
+                      <SelectItem value="TAHKİM AŞAMASINDA">TAHKİM AŞAMASINDA</SelectItem>
+                      <SelectItem value="KAPALI">KAPALI</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

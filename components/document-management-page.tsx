@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Filter, Upload, FileText, Users, Building2, Trash2 } from "lucide-react"
+import { Search, Filter, Download, FileText, Users, Building2, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { type UserRole, hasPermission, getModuleLabel } from "@/lib/role-config"
 import { DocumentCard, type DocumentData, type DocumentType } from "./document-card"
-import { DocumentUploadModal } from "./document-upload-modal"
 import { useDocuments } from "@/hooks/use-documents"
 import { documentApi, customerApi, dealerApi, dashboardApi } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
@@ -23,10 +22,6 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
   const [searchTerm, setSearchTerm] = useState("")
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [showUploadModal, setShowUploadModal] = useState(false)
-  const [selectedDocType, setSelectedDocType] = useState<DocumentType | undefined>()
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("")
-  const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; name: string }>>([])
   const [stats, setStats] = useState({
     totalDocuments: 0,
     totalCustomers: 0,
@@ -39,24 +34,6 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
   const canDelete = hasPermission(userRole, "document-management", "canDelete")
   const moduleLabel = getModuleLabel(userRole, "document-management")
   const shouldShowDealerInfo = userRole === "bayi" || userRole === "superadmin"
-
-  // Fetch customers for selection and statistics
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        const customers = await customerApi.getAll({ perPage: 1000 })
-        const customersList = Array.isArray(customers) ? customers : (customers?.data || [])
-        const mapped = customersList.map((customer: any) => ({
-          id: customer.id?.toString() || '',
-          name: `${customer.ad_soyad || customer.name || 'Bilinmeyen'} - ${customer.plaka || ''} (${customer.tc_no || ''})`
-        })).filter((c: any) => c.id)
-        setCustomerOptions(mapped)
-      } catch (error) {
-        console.error('Error fetching customers:', error)
-      }
-    }
-    fetchCustomers()
-  }, [])
 
   // Fetch statistics
   useEffect(() => {
@@ -209,73 +186,6 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
     }
   }
 
-  const handleUpload = async (file: File, type: DocumentType) => {
-    try {
-      if (!selectedCustomerId) {
-        toast({
-          title: "Hata",
-          description: "Lütfen bir müşteri seçin",
-          variant: "destructive",
-        })
-        return
-      }
-
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('tip', type)
-      formData.append('document_type', type)
-      formData.append('original_name', file.name)
-      formData.append('customer_id', selectedCustomerId)
-      formData.append('is_result_document', '0')
-
-      await documentApi.upload(formData)
-      
-      toast({
-        title: "Başarılı",
-        description: "Evrak başarıyla yüklendi",
-      })
-      
-      setShowUploadModal(false)
-      setSelectedCustomerId("")
-      
-      // Refresh documents list
-      if (refetch) {
-        refetch()
-      }
-      
-      // Refresh statistics after upload
-      const fetchStats = async () => {
-        try {
-          const [dashboardStats, documentStats] = await Promise.all([
-            dashboardApi.getStats(),
-            documentApi.getStats(),
-          ])
-          
-          setStats(prev => ({
-            ...prev,
-            totalDocuments: documentStats?.totalDocuments || dashboardStats?.total_documents || 0,
-            uploadedToday: documentStats?.uploadedToday || 0,
-            deletedToday: documentStats?.deletedToday || 0,
-          }))
-        } catch (error) {
-          console.error('Error refreshing statistics:', error)
-        }
-      }
-      fetchStats()
-    } catch (error: any) {
-      console.error("Error uploading document:", error)
-      toast({
-        title: "Hata",
-        description: error.message || "Evrak yüklenemedi",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleUploadClick = () => {
-    setSelectedDocType(undefined)
-    setShowUploadModal(true)
-  }
 
   return (
     <div className="space-y-6">
@@ -287,14 +197,42 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
           </h1>
           <p className="text-muted-foreground font-medium mt-2">Toplam {filteredDocuments.length} evrak gösteriliyor</p>
         </div>
-        {canCreate && (
+        {filteredDocuments.length > 0 && (
           <Button
             className="rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all px-6"
-            style={{ backgroundColor: "#F57C00", color: "white" }}
-            onClick={() => handleUploadClick()}
+            style={{ backgroundColor: "#0B3D91", color: "white" }}
+            onClick={async () => {
+              try {
+                const response = await fetch('/api/documents/download-all')
+                if (!response.ok) {
+                  throw new Error('ZIP oluşturulamadı')
+                }
+                const blob = await response.blob()
+                const url = window.URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `tum-evraklar-${new Date().toISOString().split('T')[0]}.zip`
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
+                window.URL.revokeObjectURL(url)
+                toast({
+                  title: "Başarılı",
+                  description: "Tüm evraklar ZIP olarak indirildi",
+                })
+              } catch (error: any) {
+                console.error('ZIP download error:', error)
+                toast({
+                  title: "Uyarı",
+                  description: error.message || "Evraklar indirilemedi",
+                  variant: "default",
+                  duration: 5000,
+                })
+              }
+            }}
           >
-            <Upload className="mr-2 h-5 w-5" />
-            Yeni Evrak Yükle
+            <Download className="mr-2 h-5 w-5" />
+            Toplu İndirme (ZIP)
           </Button>
         )}
       </div>
@@ -436,13 +374,12 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
               key={doc.id}
               document={doc}
               userRole={userRole}
-              canUpload={canCreate}
+              canUpload={false}
               canDelete={canDelete}
               showDealerInfo={shouldShowDealerInfo}
               onView={handleView}
               onDownload={handleDownload}
               onDelete={handleDelete}
-              onUpload={handleUploadClick}
             />
           ))}
 
@@ -462,17 +399,6 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
         </div>
       )}
 
-      {/* Upload Modal */}
-      <DocumentUploadModal
-        open={showUploadModal}
-        onOpenChange={setShowUploadModal}
-        onUpload={handleUpload}
-        preselectedType={selectedDocType}
-        customerId={selectedCustomerId}
-        customerOptions={customerOptions}
-        onCustomerChange={setSelectedCustomerId}
-        requireCustomer={true}
-      />
     </div>
   )
 }

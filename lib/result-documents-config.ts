@@ -14,51 +14,45 @@ export interface ResultDocumentType {
 export const RESULT_DOCUMENT_TYPES: ResultDocumentType[] = [
   {
     id: 1,
-    name: 'Sigortaya çekilen ihtarname',
+    name: 'SİGORTAYA ÇEKİLEN İHTAR',
     description: 'Sigorta şirketine gönderilen resmi ihtarname belgesi',
     displayOrder: 1,
   },
   {
     id: 2,
-    name: 'Tahkim başvuru dilekçesi',
+    name: 'TAHKİM BAŞVURU DİLEKÇESİ',
     description: 'Tahkim kuruluna yapılan başvuru dilekçesi',
     displayOrder: 2,
   },
   {
     id: 3,
-    name: 'Tahkim komisyonu nihai kararı',
+    name: 'TAHKİM KOMİSYONU KARARI',
     description: 'Tahkim komisyonunun verdiği nihai karar belgesi',
     displayOrder: 3,
   },
   {
     id: 4,
-    name: 'Bilirkişi raporu',
+    name: 'BİLİRKİŞİ RAPORU',
     description: 'Mahkeme tarafından atanan bilirkişinin hazırladığı rapor',
     displayOrder: 4,
   },
   {
     id: 5,
-    name: 'Sigortadan gelen ödeme dekontu',
+    name: 'SİGORTADAN GELEN ÖDEME',
     description: 'Sigorta şirketinden yapılan ödemenin dekont belgesi',
     displayOrder: 5,
   },
   {
     id: 6,
-    name: 'Sistem tarafından yapılan ödeme',
-    description: 'Sistem üzerinden müşteriye yapılan ödeme belgesi',
+    name: 'TALİMAT EVRAĞI',
+    description: 'Esnafa verilen talimat ve ödeme evrakları',
     displayOrder: 6,
   },
   {
     id: 7,
-    name: 'Esnaf talimat evrakı',
-    description: 'Esnafa verilen talimat ve ödeme evrakları',
-    displayOrder: 7,
-  },
-  {
-    id: 8,
-    name: 'İcra dilekçesi',
+    name: 'İCRA DİLEKÇESİ',
     description: 'İcra takibi için hazırlanan dilekçe',
-    displayOrder: 8,
+    displayOrder: 7,
   },
 ]
 

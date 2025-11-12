@@ -983,7 +983,7 @@ export async function closeCustomerFile(id: number, reason: string) {
     where: { id: BigInt(id) },
     data: {
       dosya_kilitli: true,
-      başvuru_durumu: 'Dosya Kapatıldı',
+      başvuru_durumu: 'KAPALI',
       dosya_kapanma_nedeni: reason,
       dosya_kapanma_tarihi: new Date(),
     },
@@ -1047,8 +1047,8 @@ export async function checkAndUpdateCustomerStatus(customerId: number) {
     throw new Error('Müşteri bulunamadı')
   }
 
-  // If status is "Evrak Aşamasında", check if all required documents are uploaded
-  if (customer.başvuru_durumu === 'Evrak Aşamasında') {
+  // If status is "EVRAK AŞAMASINDA", check if all required documents are uploaded
+  if (customer.başvuru_durumu === 'EVRAK AŞAMASINDA') {
     const requiredDocs = customer.file_type.required_documents || []
     
     if (requiredDocs.length > 0) {
@@ -1059,11 +1059,11 @@ export async function checkAndUpdateCustomerStatus(customerId: number) {
       )
 
       if (allRequiredUploaded) {
-        // Auto-transition to "Başvuru Aşamasında"
+        // Auto-transition to "BAŞVURU AŞAMASINDA"
         await prisma.customer.update({
           where: { id: BigInt(customerId) },
           data: {
-            başvuru_durumu: 'Başvuru Aşamasında',
+            başvuru_durumu: 'BAŞVURU AŞAMASINDA',
             evrak_durumu: 'Tamam'
           }
         })
@@ -1074,7 +1074,7 @@ export async function checkAndUpdateCustomerStatus(customerId: number) {
 
         return {
           statusChanged: true,
-          newStatus: 'Başvuru Aşamasında'
+          newStatus: 'BAŞVURU AŞAMASINDA'
         }
       }
     }

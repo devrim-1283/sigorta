@@ -70,13 +70,13 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://sigorta.test/ap
 
 // Application status types
 type ApplicationStatus =
-  | "İnceleniyor"
-  | "Başvuru Aşamasında"
-  | "Dava Aşamasında"
-  | "Onaylandı"
-  | "Tamamlandı"
-  | "Beklemede"
-  | "Evrak Aşamasında"
+  | "EVRAK AŞAMASINDA"
+  | "BAŞVURU AŞAMASINDA"
+  | "BAŞVURU YAPILDI"
+  | "İCRA AŞAMASINDA"
+  | "TAHKİM BAŞVURUSU YAPILDI"
+  | "TAHKİM AŞAMASINDA"
+  | "KAPALI"
 
 // Customer data structure
 interface Customer {
@@ -159,7 +159,7 @@ export default function CustomersPage() {
     email: '',
     plaka: '',
     hasar_tarihi: '',
-    başvuru_durumu: 'İnceleniyor' as ApplicationStatus,
+    başvuru_durumu: 'EVRAK AŞAMASINDA' as ApplicationStatus,
     dealer_id: 'none',
     password: '',
   })
@@ -346,7 +346,7 @@ export default function CustomersPage() {
           email: item.email || '',
           plaka: item.plaka || '',
           hasar_tarihi: item.hasar_tarihi || item.damage_date || new Date().toISOString().split('T')[0],
-          başvuru_durumu: (item.başvuru_durumu || 'İnceleniyor') as ApplicationStatus,
+          başvuru_durumu: (item.başvuru_durumu || 'EVRAK AŞAMASINDA') as ApplicationStatus,
           ödemeler: (item.payments || item.ödemeler || []).map((p: any) => ({
             id: String(p.id),
             tarih: p.date || p.tarih || new Date().toLocaleDateString('tr-TR'),
@@ -450,20 +450,20 @@ export default function CustomersPage() {
   // Get status badge color
   const getStatusColor = (status: ApplicationStatus) => {
     switch (status) {
-      case "İnceleniyor":
-        return "bg-gray-100 text-gray-800 border-gray-300"
-      case "Başvuru Aşamasında":
-        return "bg-orange-100 text-orange-800 border-orange-300"
-      case "Dava Aşamasında":
-        return "bg-red-100 text-red-800 border-red-300"
-      case "Onaylandı":
-        return "bg-green-100 text-green-800 border-green-300"
-      case "Tamamlandı":
-        return "bg-blue-100 text-blue-800 border-blue-300"
-      case "Beklemede":
-        return "bg-yellow-100 text-yellow-800 border-yellow-300"
-      case "Evrak Aşamasında":
+      case "EVRAK AŞAMASINDA":
         return "bg-purple-100 text-purple-800 border-purple-300"
+      case "BAŞVURU AŞAMASINDA":
+        return "bg-orange-100 text-orange-800 border-orange-300"
+      case "BAŞVURU YAPILDI":
+        return "bg-blue-100 text-blue-800 border-blue-300"
+      case "İCRA AŞAMASINDA":
+        return "bg-red-100 text-red-800 border-red-300"
+      case "TAHKİM BAŞVURUSU YAPILDI":
+        return "bg-yellow-100 text-yellow-800 border-yellow-300"
+      case "TAHKİM AŞAMASINDA":
+        return "bg-indigo-100 text-indigo-800 border-indigo-300"
+      case "KAPALI":
+        return "bg-gray-100 text-gray-800 border-gray-300"
       default:
         return "bg-gray-100 text-gray-800 border-gray-300"
     }
@@ -577,7 +577,7 @@ export default function CustomersPage() {
             email: response.email || '',
             plaka: response.plaka || '',
             hasar_tarihi: response.hasar_tarihi || response.damage_date || '',
-            başvuru_durumu: response.başvuru_durumu || 'İnceleniyor',
+            başvuru_durumu: response.başvuru_durumu || 'EVRAK AŞAMASINDA',
             ödemeler: (response.payments || response.ödemeler || []).map((p: any) => ({
               id: String(p.id),
               tarih: p.tarih || p.date || new Date().toLocaleDateString('tr-TR'),
@@ -769,7 +769,7 @@ export default function CustomersPage() {
                 email: response.email || '',
                 plaka: response.plaka || '',
                 hasar_tarihi: response.hasar_tarihi || response.damage_date || '',
-                başvuru_durumu: response.başvuru_durumu || 'İnceleniyor',
+                başvuru_durumu: response.başvuru_durumu || 'EVRAK AŞAMASINDA',
                 ödemeler: response.ödemeler || [],
                 evraklar: mapDocuments(response.evraklar || response.documents || []),
                 bağlı_bayi_id: response.bağlı_bayi_id || '',
@@ -896,13 +896,13 @@ export default function CustomersPage() {
       }
 
       const fileTypeConfig = newFileData.dosya_tipi ? getFileTypeConfig(Number(newFileData.dosya_tipi)) : null
-      let initialStatus: ApplicationStatus = "İnceleniyor"
+      let initialStatus: ApplicationStatus = "EVRAK AŞAMASINDA"
 
       if (fileTypeConfig) {
         const allRequiredUploaded = fileTypeConfig.requiredDocuments.every((doc) => 
           newFileUploadedDocs.some(uploaded => uploaded === doc.name)
         )
-        initialStatus = allRequiredUploaded ? "Başvuru Aşamasında" : "Evrak Aşamasında"
+        initialStatus = allRequiredUploaded ? "BAŞVURU AŞAMASINDA" : "EVRAK AŞAMASINDA"
       }
 
   
@@ -1441,7 +1441,7 @@ export default function CustomersPage() {
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2">
                 Başvuru Durumu
-                {customer.dosya_kilitli && customer.başvuru_durumu === "Tamamlandı" && (
+                {customer.dosya_kilitli && customer.başvuru_durumu === "KAPALI" && (
                   <Badge className="bg-green-100 text-green-800 border-green-300 rounded-xl flex items-center gap-1">
                     <CheckCircle2 className="h-4 w-4" />
                     Tamamlandı
@@ -1649,13 +1649,13 @@ export default function CustomersPage() {
                   </SelectTrigger>
                   <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto">
                     <SelectItem value="all">Tüm Durumlar</SelectItem>
-                    <SelectItem value="İnceleniyor">İnceleniyor</SelectItem>
-                    <SelectItem value="Başvuru Aşamasında">Başvuru Aşamasında</SelectItem>
-                    <SelectItem value="Dava Aşamasında">Dava Aşamasında</SelectItem>
-                    <SelectItem value="Onaylandı">Onaylandı</SelectItem>
-                    <SelectItem value="Tamamlandı">Tamamlandı</SelectItem>
-                    <SelectItem value="Beklemede">Beklemede</SelectItem>
-                    <SelectItem value="Evrak Aşamasında">Evrak Aşamasında</SelectItem>
+                    <SelectItem value="EVRAK AŞAMASINDA">EVRAK AŞAMASINDA</SelectItem>
+                    <SelectItem value="BAŞVURU AŞAMASINDA">BAŞVURU AŞAMASINDA</SelectItem>
+                    <SelectItem value="BAŞVURU YAPILDI">BAŞVURU YAPILDI</SelectItem>
+                    <SelectItem value="İCRA AŞAMASINDA">İCRA AŞAMASINDA</SelectItem>
+                    <SelectItem value="TAHKİM BAŞVURUSU YAPILDI">TAHKİM BAŞVURUSU YAPILDI</SelectItem>
+                    <SelectItem value="TAHKİM AŞAMASINDA">TAHKİM AŞAMASINDA</SelectItem>
+                    <SelectItem value="KAPALI">KAPALI</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -2296,8 +2296,8 @@ export default function CustomersPage() {
                         <p className="text-sm font-semibold text-blue-900 mb-2">Dosya Durumu Önizlemesi:</p>
                         <p className="text-sm text-blue-800">
                           {fileTypeConfig.requiredDocuments.every((doc) => newFileUploadedDocs.includes(doc.name))
-                            ? "✅ Tüm zorunlu evraklar tamamlandı → Dosya durumu: Başvuru Aşamasında"
-                            : "⚠️ Eksik zorunlu belge var → Dosya durumu: Evrak Aşamasında"}
+                            ? "✅ Tüm zorunlu evraklar tamamlandı → Dosya durumu: BAŞVURU AŞAMASINDA"
+                            : "⚠️ Eksik zorunlu belge var → Dosya durumu: EVRAK AŞAMASINDA"}
                         </p>
                       </div>
                     </div>
@@ -2619,13 +2619,13 @@ export default function CustomersPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[100]">
-                    <SelectItem value="İnceleniyor">İnceleniyor</SelectItem>
-                    <SelectItem value="Başvuru Aşamasında">Başvuru Aşamasında</SelectItem>
-                    <SelectItem value="Dava Aşamasında">Dava Aşamasında</SelectItem>
-                    <SelectItem value="Onaylandı">Onaylandı</SelectItem>
-                    <SelectItem value="Tamamlandı">Tamamlandı</SelectItem>
-                    <SelectItem value="Beklemede">Beklemede</SelectItem>
-                    <SelectItem value="Evrak Aşamasında">Evrak Aşamasında</SelectItem>
+                    <SelectItem value="EVRAK AŞAMASINDA">EVRAK AŞAMASINDA</SelectItem>
+                    <SelectItem value="BAŞVURU AŞAMASINDA">BAŞVURU AŞAMASINDA</SelectItem>
+                    <SelectItem value="BAŞVURU YAPILDI">BAŞVURU YAPILDI</SelectItem>
+                    <SelectItem value="İCRA AŞAMASINDA">İCRA AŞAMASINDA</SelectItem>
+                    <SelectItem value="TAHKİM BAŞVURUSU YAPILDI">TAHKİM BAŞVURUSU YAPILDI</SelectItem>
+                    <SelectItem value="TAHKİM AŞAMASINDA">TAHKİM AŞAMASINDA</SelectItem>
+                    <SelectItem value="KAPALI">KAPALI</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
