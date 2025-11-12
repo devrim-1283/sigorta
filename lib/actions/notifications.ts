@@ -99,3 +99,78 @@ export async function deleteNotification(id: number) {
   return { success: true }
 }
 
+/**
+ * Create a notification for specific users based on their roles
+ */
+export async function createNotification(data: {
+  title: string
+  message: string
+  type?: 'info' | 'success' | 'warning' | 'error'
+  link?: string
+  userIds?: number[] // Specific user IDs to notify
+  roles?: string[] // Roles to notify (all users with these roles)
+  excludeUserId?: number // User ID to exclude (e.g., the one who triggered the action)
+}) {
+  try {
+    const type = data.type || 'info'
+    
+    // Get user IDs to notify
+    let userIds: number[] = []
+    
+    if (data.userIds && data.userIds.length > 0) {
+      // Use specific user IDs
+      userIds = data.userIds.filter(id => id !== data.excludeUserId)
+    } else if (data.roles && data.roles.length > 0) {
+      // Get all users with specified roles
+      const roleRecords = await prisma.role.findMany({
+        where: {
+          name: {
+            in: data.roles,
+          },
+        },
+        select: { id: true },
+      })
+      
+      if (roleRecords.length > 0) {
+        const roleIds = roleRecords.map(r => r.id)
+        const users = await prisma.user.findMany({
+          where: {
+            role_id: {
+              in: roleIds,
+            },
+            is_active: true,
+            ...(data.excludeUserId ? { id: { not: BigInt(data.excludeUserId) } } : {}),
+          },
+          select: { id: true },
+        })
+        userIds = users.map(u => Number(u.id))
+      }
+    }
+    
+    // Create notifications for all target users
+    if (userIds.length > 0) {
+      await prisma.notification.createMany({
+        data: userIds.map(userId => ({
+          user_id: BigInt(userId),
+          title: data.title,
+          message: data.message,
+          type,
+          link: data.link || null,
+          is_read: false,
+          created_at: new Date(),
+          updated_at: new Date(),
+        })),
+      })
+      
+      revalidatePath('/admin/bildirimler')
+      revalidatePath('/admin/dashboard')
+    }
+    
+    return { success: true, notifiedUsers: userIds.length }
+  } catch (error: any) {
+    console.error('Create notification error:', error)
+    // Don't throw - notifications are not critical
+    return { success: false, error: error.message }
+  }
+}
+

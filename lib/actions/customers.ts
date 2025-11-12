@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { validatePhone, validateTCNo } from '@/lib/validation'
+import { createNotification } from './notifications'
 
 /**
  * Generate a secure random password
@@ -436,25 +437,41 @@ export async function createCustomer(data: {
 
     if (existingCustomer) {
       const conflicts: string[] = []
+      const conflictDetails: string[] = []
       // Compare normalized values
       const existingTC = existingCustomer.tc_no?.replace(/\D/g, '') || ''
       const existingPlaka = existingCustomer.plaka?.trim().toUpperCase().replace(/\s+/g, '') || ''
       const normalizedExistingPhone = normalizePhoneForComparison(existingCustomer.telefon)
       
       if (existingTC === normalizedTC) {
-        conflicts.push('TC No')
+        conflicts.push('TC Kimlik No')
+        conflictDetails.push(`TC Kimlik No: ${existingCustomer.tc_no}`)
       }
       if (normalizedExistingPhone === normalizedPhone) {
-        conflicts.push('Telefon')
+        conflicts.push('Telefon Numarası')
+        conflictDetails.push(`Telefon: ${existingCustomer.telefon}`)
       }
       if (existingPlaka === normalizedPlaka) {
         conflicts.push('Plaka')
+        conflictDetails.push(`Plaka: ${existingCustomer.plaka}`)
       }
 
-      const conflictFields = conflicts.join(', ')
-      const errorMessage = conflicts.length > 0
-        ? `Bu ${conflictFields} ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.`
-        : 'Bu bilgiler ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.'
+      // Build detailed error message
+      let errorMessage = ''
+      if (conflicts.length === 1) {
+        errorMessage = `Bu ${conflicts[0]} (${conflictDetails[0]}) ile kayıtlı bir müşteri zaten mevcut. `
+      } else if (conflicts.length > 1) {
+        errorMessage = `Bu ${conflicts.join(', ')} ile kayıtlı bir müşteri zaten mevcut. `
+        errorMessage += `Çakışan bilgiler: ${conflictDetails.join(', ')}. `
+      } else {
+        errorMessage = 'Bu bilgiler ile kayıtlı bir müşteri zaten mevcut. '
+      }
+      
+      // Add existing customer info
+      if (existingCustomer.ad_soyad) {
+        errorMessage += `Mevcut kayıt: ${existingCustomer.ad_soyad}. `
+      }
+      errorMessage += 'Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.'
       
       // Create a proper error object that will be caught by the client
       const error = new Error(errorMessage)
@@ -601,6 +618,67 @@ export async function createCustomer(data: {
     revalidatePath('/dashboard/customers')
     revalidatePath('/admin/musteriler')
 
+    // Send notifications
+    try {
+      const customerUserId = customer.dealer_id ? Number(customer.dealer_id) : null
+      const notificationRoles = ['superadmin', 'birincil-admin', 'evrak-birimi']
+      
+      // Notify admins and evrak birimi
+      await createNotification({
+        title: 'Yeni Müşteri Eklendi',
+        message: `${customer.ad_soyad} adlı yeni müşteri sisteme eklendi.`,
+        type: 'success',
+        link: `/admin/musteriler/${Number(customer.id)}`,
+        roles: notificationRoles,
+        excludeUserId: user.id,
+      })
+      
+      // Notify dealer if customer has a dealer
+      if (customer.dealer_id) {
+        const dealerUser = await prisma.user.findFirst({
+          where: {
+            dealer_id: customer.dealer_id,
+            is_active: true,
+          },
+          select: { id: true },
+        })
+        
+        if (dealerUser) {
+          await createNotification({
+            title: 'Yeni Müşteri Atandı',
+            message: `${customer.ad_soyad} adlı müşteri size atandı.`,
+            type: 'info',
+            link: `/admin/musteriler/${Number(customer.id)}`,
+            userIds: [Number(dealerUser.id)],
+          })
+        }
+      }
+      
+      // Notify customer if user account was created
+      if (loginCredentials) {
+        const customerUser = await prisma.user.findFirst({
+          where: {
+            tc_no: normalizedTC,
+            is_active: true,
+          },
+          select: { id: true },
+        })
+        
+        if (customerUser) {
+          await createNotification({
+            title: 'Hesabınız Oluşturuldu',
+            message: `Merhaba ${customer.ad_soyad}, hesabınız oluşturuldu. Başvurunuzu takip edebilirsiniz.`,
+            type: 'success',
+            link: `/admin/musteriler`,
+            userIds: [Number(customerUser.id)],
+          })
+        }
+      }
+    } catch (notifError) {
+      console.error('Notification error (non-critical):', notifError)
+      // Don't fail customer creation if notification fails
+    }
+
     // Serialize the customer object for Next.js (convert BigInt and Date to JSON-safe types)
     const result = {
       id: Number(customer.id),
@@ -706,10 +784,10 @@ export async function updateCustomer(id: number, data: Partial<{
   dosya_kilitli: boolean
   password?: string
 }>) {
-  await requireAuth()
+  const currentUser = await requireAuth()
 
   return await prisma.$transaction(async (tx) => {
-    // Get customer first to get normalized values
+    // Get customer first to get normalized values and old status
     const existingCustomer = await tx.customer.findUnique({
       where: { id: BigInt(id) },
       select: {
@@ -717,6 +795,8 @@ export async function updateCustomer(id: number, data: Partial<{
         telefon: true,
         email: true,
         ad_soyad: true,
+        başvuru_durumu: true,
+        dealer_id: true,
       },
     })
 
@@ -829,6 +909,66 @@ export async function updateCustomer(id: number, data: Partial<{
     revalidatePath('/dashboard/customers')
     revalidatePath(`/dashboard/customers/${id}`)
     revalidatePath('/admin/musteriler')
+
+    // Send notification if status changed (outside transaction)
+    const oldStatus = existingCustomer?.başvuru_durumu
+    const oldDealerId = existingCustomer?.dealer_id
+    
+    try {
+      if (oldStatus && data.başvuru_durumu && data.başvuru_durumu !== oldStatus) {
+        // Notify admins
+        await createNotification({
+          title: 'Müşteri Durumu Değişti',
+          message: `${existingCustomer.ad_soyad} adlı müşterinin durumu "${oldStatus}" → "${data.başvuru_durumu}" olarak güncellendi.`,
+          type: 'info',
+          link: `/admin/musteriler/${id}`,
+          roles: ['superadmin', 'birincil-admin', 'evrak-birimi'],
+          excludeUserId: currentUser.id,
+        })
+        
+        // Notify dealer if customer has a dealer
+        if (oldDealerId) {
+          const dealerUser = await prisma.user.findFirst({
+            where: {
+              dealer_id: oldDealerId,
+              is_active: true,
+            },
+            select: { id: true },
+          })
+          
+          if (dealerUser) {
+            await createNotification({
+              title: 'Müşteri Durumu Güncellendi',
+              message: `${existingCustomer.ad_soyad} adlı müşterinizin durumu "${data.başvuru_durumu}" olarak güncellendi.`,
+              type: 'info',
+              link: `/admin/musteriler/${id}`,
+              userIds: [Number(dealerUser.id)],
+            })
+          }
+        }
+        
+        // Notify customer
+        const customerUser = await prisma.user.findFirst({
+          where: {
+            tc_no: normalizedTC,
+            is_active: true,
+          },
+          select: { id: true },
+        })
+        
+        if (customerUser) {
+          await createNotification({
+            title: 'Başvuru Durumunuz Güncellendi',
+            message: `Başvuru durumunuz "${data.başvuru_durumu}" olarak güncellendi.`,
+            type: 'info',
+            link: `/admin/musteriler`,
+            userIds: [Number(customerUser.id)],
+          })
+        }
+      }
+    } catch (notifError) {
+      console.error('Notification error (non-critical):', notifError)
+    }
 
     return {
       ...customer,

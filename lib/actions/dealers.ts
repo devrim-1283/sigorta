@@ -2,6 +2,8 @@
 
 import bcrypt from 'bcryptjs'
 import { PrismaClient, Prisma } from '@prisma/client'
+import { createNotification } from './notifications'
+import { requireAuth } from './auth'
 
 async function getDealerRoleId(tx: Prisma.TransactionClient): Promise<bigint> {
   const role = await tx.role.findFirst({
@@ -117,11 +119,48 @@ export async function createDealer(data: {
             { email: trimmedEmail },
           ],
         },
-        select: { id: true, dealer_name: true },
+        select: { 
+          id: true, 
+          dealer_name: true,
+          phone: true,
+          email: true,
+          tax_number: true,
+        },
       })
 
       if (existingDealer) {
-        throw new Error('Bu telefon, vergi numarası veya e-posta ile kayıtlı bir bayi zaten var')
+        const conflicts: string[] = []
+        const conflictDetails: string[] = []
+        
+        if (existingDealer.phone === data.phone) {
+          conflicts.push('Telefon Numarası')
+          conflictDetails.push(`Telefon: ${existingDealer.phone}`)
+        }
+        if (existingDealer.email === trimmedEmail) {
+          conflicts.push('E-posta')
+          conflictDetails.push(`E-posta: ${existingDealer.email}`)
+        }
+        if (data.tax_number && existingDealer.tax_number === data.tax_number) {
+          conflicts.push('Vergi Numarası')
+          conflictDetails.push(`Vergi No: ${existingDealer.tax_number}`)
+        }
+
+        let errorMessage = ''
+        if (conflicts.length === 1) {
+          errorMessage = `Bu ${conflicts[0]} (${conflictDetails[0]}) ile kayıtlı bir bayi zaten mevcut. `
+        } else if (conflicts.length > 1) {
+          errorMessage = `Bu ${conflicts.join(', ')} ile kayıtlı bir bayi zaten mevcut. `
+          errorMessage += `Çakışan bilgiler: ${conflictDetails.join(', ')}. `
+        } else {
+          errorMessage = 'Bu bilgiler ile kayıtlı bir bayi zaten mevcut. '
+        }
+        
+        if (existingDealer.dealer_name) {
+          errorMessage += `Mevcut kayıt: ${existingDealer.dealer_name}. `
+        }
+        errorMessage += 'Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.'
+        
+        throw new Error(errorMessage)
       }
 
       // Check if email or phone is already used by another user
@@ -132,11 +171,43 @@ export async function createDealer(data: {
             { phone: data.phone },
           ],
         },
-        select: { id: true },
+        select: { 
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+        },
       })
 
       if (existingUserWithEmail) {
-        throw new Error('Bu e-posta veya telefon numarası başka bir kullanıcı tarafından kullanılıyor')
+        const conflicts: string[] = []
+        const conflictDetails: string[] = []
+        
+        if (existingUserWithEmail.email === trimmedEmail) {
+          conflicts.push('E-posta')
+          conflictDetails.push(`E-posta: ${existingUserWithEmail.email}`)
+        }
+        if (existingUserWithEmail.phone === data.phone) {
+          conflicts.push('Telefon Numarası')
+          conflictDetails.push(`Telefon: ${existingUserWithEmail.phone}`)
+        }
+
+        let errorMessage = ''
+        if (conflicts.length === 1) {
+          errorMessage = `Bu ${conflicts[0]} (${conflictDetails[0]}) başka bir kullanıcı tarafından kullanılıyor. `
+        } else if (conflicts.length > 1) {
+          errorMessage = `Bu ${conflicts.join(', ')} başka bir kullanıcı tarafından kullanılıyor. `
+          errorMessage += `Çakışan bilgiler: ${conflictDetails.join(', ')}. `
+        } else {
+          errorMessage = 'Bu bilgiler başka bir kullanıcı tarafından kullanılıyor. '
+        }
+        
+        if (existingUserWithEmail.name) {
+          errorMessage += `Mevcut kullanıcı: ${existingUserWithEmail.name}. `
+        }
+        errorMessage += 'Lütfen farklı bir e-posta veya telefon numarası girin.'
+        
+        throw new Error(errorMessage)
       }
 
       // Create dealer
@@ -175,6 +246,42 @@ export async function createDealer(data: {
 
       revalidatePath('/dashboard/dealers')
       revalidatePath('/admin/bayiler')
+
+      // Send notifications
+      try {
+        const currentUser = await requireAuth()
+        
+        // Notify admins
+        await createNotification({
+          title: 'Yeni Bayi Eklendi',
+          message: `${dealer.dealer_name} adlı yeni bayi sisteme eklendi.`,
+          type: 'success',
+          link: `/admin/bayiler`,
+          roles: ['superadmin', 'birincil-admin'],
+          excludeUserId: currentUser.id,
+        })
+        
+        // Notify the dealer user account that was created
+        const dealerUser = await tx.user.findFirst({
+          where: {
+            dealer_id: dealer.id,
+            is_active: true,
+          },
+          select: { id: true },
+        })
+        
+        if (dealerUser) {
+          await createNotification({
+            title: 'Hesabınız Oluşturuldu',
+            message: `Merhaba ${dealer.dealer_name}, bayi hesabınız oluşturuldu. Sisteme giriş yapabilirsiniz.`,
+            type: 'success',
+            link: `/admin/dashboard`,
+            userIds: [Number(dealerUser.id)],
+          })
+        }
+      } catch (notifError) {
+        console.error('Notification error (non-critical):', notifError)
+      }
 
       return {
         ...dealer,

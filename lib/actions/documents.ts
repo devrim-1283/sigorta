@@ -11,6 +11,7 @@ import {
   getDocumentStoragePath,
   resolveDocumentPath,
 } from '@/lib/storage'
+import { createNotification } from './notifications'
 
 type DocumentRecord = Awaited<ReturnType<typeof prisma.document.findFirst>>
 
@@ -280,11 +281,81 @@ export async function uploadDocument(formData: FormData) {
     const originalName = originalNameFromForm || file.name
     data['dosya_adı'] = originalName
 
-    const document = await prisma.document.create({ data })
+    const document = await prisma.document.create({ 
+      data,
+      include: {
+        customer: {
+          include: {
+            dealer: true,
+          },
+        },
+      },
+    })
 
     revalidatePath('/admin/musteriler')
     revalidatePath('/dashboard/documents')
     revalidatePath('/dashboard/customers')
+
+    // Send notifications
+    try {
+      const customer = document.customer
+      const docType = tipFromForm || documentTypeFromForm || 'Evrak'
+      
+      // Notify admins and evrak birimi
+      await createNotification({
+        title: 'Yeni Evrak Yüklendi',
+        message: `${customer.ad_soyad} adlı müşteri için "${docType}" evrakı yüklendi.`,
+        type: 'info',
+        link: `/admin/musteriler/${customer_id}`,
+        roles: ['superadmin', 'birincil-admin', 'evrak-birimi'],
+        excludeUserId: user.id,
+      })
+      
+      // Notify dealer if customer has a dealer
+      if (customer.dealer_id) {
+        const dealerUser = await prisma.user.findFirst({
+          where: {
+            dealer_id: customer.dealer_id,
+            is_active: true,
+          },
+          select: { id: true },
+        })
+        
+        if (dealerUser) {
+          await createNotification({
+            title: 'Müşteriniz İçin Evrak Yüklendi',
+            message: `${customer.ad_soyad} adlı müşteriniz için "${docType}" evrakı yüklendi.`,
+            type: 'info',
+            link: `/admin/musteriler/${customer_id}`,
+            userIds: [Number(dealerUser.id)],
+          })
+        }
+      }
+      
+      // Notify customer
+      const customerUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { tc_no: customer.tc_no },
+            { phone: customer.telefon },
+          ],
+          is_active: true,
+        },
+        select: { id: true },
+      })
+      
+      if (customerUser) {
+        await createNotification({
+          title: 'Evrakınız Yüklendi',
+          message: `"${docType}" evrakınız sisteme yüklendi ve inceleniyor.`,
+          type: 'success',
+          link: `/admin/musteriler`,
+          userIds: [Number(customerUser.id)],
+        })
+      }
+    } catch (notifError) {
+      console.error('Notification error (non-critical):', notifError)
+    }
 
     return serializeDocument(document)
   } catch (error: any) {
