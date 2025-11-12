@@ -166,7 +166,7 @@ export async function getCustomer(id: number) {
       },
       payments: {
         include: {
-          recorder: true,
+          creator: true,
         },
       },
       notes: {
@@ -285,11 +285,11 @@ export async function getCustomer(id: number) {
           açıklama: (payment as any).açıklama || payment.description || null,
           created_at: payment.created_at ? payment.created_at.toISOString() : null,
           updated_at: payment.updated_at ? payment.updated_at.toISOString() : null,
-          recorder: payment.recorder
+          recorder: payment.creator
             ? {
-                id: typeof payment.recorder.id === 'bigint' ? Number(payment.recorder.id) : Number(payment.recorder.id),
-                name: payment.recorder.name || null,
-                email: payment.recorder.email || null,
+                id: typeof payment.creator.id === 'bigint' ? Number(payment.creator.id) : Number(payment.creator.id),
+                name: payment.creator.name || null,
+                email: payment.creator.email || null,
               }
             : null,
         }
@@ -619,7 +619,6 @@ export async function createCustomer(data: {
       dosya_kilitli: customer.dosya_kilitli,
       dosya_kapanma_nedeni: customer.dosya_kapanma_nedeni,
       dosya_kapanma_tarihi: customer.dosya_kapanma_tarihi?.toISOString() || null,
-      notlar: customer.notlar,
       created_at: customer.created_at ? customer.created_at.toISOString() : null,
       updated_at: customer.updated_at ? customer.updated_at.toISOString() : null,
       file_type: customer.file_type ? {
@@ -705,7 +704,6 @@ export async function updateCustomer(id: number, data: Partial<{
   başvuru_durumu: string
   evrak_durumu: string
   dosya_kilitli: boolean
-  notlar: string
   password?: string
 }>) {
   await requireAuth()
