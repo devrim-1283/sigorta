@@ -53,7 +53,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname()
   const userRole: UserRole = (user?.role?.name as UserRole) || "superadmin"
   const isCustomerRole = userRole === 'musteri'
-  const [sidebarOpen, setSidebarOpen] = useState(!isCustomerRole) // For customer, always open
+  const [sidebarOpen, setSidebarOpen] = useState(true) // Always start open
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
   const [stats, setStats] = useState<any>(null)
@@ -119,6 +119,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => {
     if (typeof window === "undefined") return
+    if (isCustomerRole) return // Don't close sidebar for customer role
 
     const handleResize = () => {
       if (window.innerWidth < 768) {
@@ -129,7 +130,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     handleResize()
     window.addEventListener("resize", handleResize)
     return () => window.removeEventListener("resize", handleResize)
-  }, [])
+  }, [isCustomerRole])
 
   if (isLoading) {
     return (
@@ -180,7 +181,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
+                onClick={() => {
+                  if (!isCustomerRole) {
+                    setSidebarOpen(!sidebarOpen)
+                  }
+                }}
                 className="text-white hover:bg-white/10 flex-shrink-0"
               >
                 <Menu className="h-5 w-5" />
@@ -222,7 +227,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       variant="ghost"
                       onClick={() => toggleSubmenu(item.id)}
                       className={cn(
-                        "w-full rounded-2xl text-left font-medium text-white/90 hover:bg-white/10 hover:text-white transition-all duration-200 group h-auto flex items-center",
+                        "w-full rounded-2xl text-left font-medium text-white/90 hover:bg-white/10 hover:text-white transition-all duration-200 group",
                         (isCustomerRole || sidebarOpen) ? "justify-start px-4 py-2.5" : "justify-center px-2 py-2.5"
                       )}
                     >
@@ -233,7 +238,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         <div className="flex-shrink-0 transition-transform group-hover:scale-110">{renderIcon(item.icon)}</div>
                         {(isCustomerRole || sidebarOpen) && (
                           <>
-                            <span className="flex-1 text-sm font-semibold truncate min-w-0 leading-normal">{item.label}</span>
+                            <span className="flex-1 text-sm font-semibold truncate min-w-0">{item.label}</span>
                             {item.badge && (
                               <span className="ml-auto rounded-full font-semibold px-2 py-0.5 text-xs bg-white/20 text-white flex-shrink-0">
                                 {item.badge}
@@ -252,7 +257,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       <Button
                         variant="ghost"
                         className={cn(
-                          "w-full rounded-2xl text-left font-medium text-white/90 hover:bg-white/10 hover:text-white transition-all duration-200 group h-auto flex items-center",
+                          "w-full rounded-2xl text-left font-medium text-white/90 hover:bg-white/10 hover:text-white transition-all duration-200 group",
                           (isCustomerRole || sidebarOpen) ? "justify-start px-4 py-2.5" : "justify-center px-2 py-2.5",
                           pathname === item.route && "bg-white/20 text-white"
                         )}
@@ -264,7 +269,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                           <div className="flex-shrink-0 transition-transform group-hover:scale-110">{renderIcon(item.icon)}</div>
                           {(isCustomerRole || sidebarOpen) && (
                             <>
-                              <span className="flex-1 text-sm font-semibold truncate min-w-0 leading-normal">{item.label}</span>
+                              <span className="flex-1 text-sm font-semibold truncate min-w-0">{item.label}</span>
                               {item.badge && (
                                 <span className="ml-auto rounded-full font-semibold px-2 py-0.5 text-xs bg-white/20 text-white flex-shrink-0">
                                   {item.badge}
