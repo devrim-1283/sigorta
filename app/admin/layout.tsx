@@ -164,8 +164,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         style={{ backgroundColor: themeColor }}
       >
         <div className="flex h-full flex-col">
-          {/* Header - Logo removed, just menu toggle */}
-          <div className="flex items-center justify-end p-4 border-b border-white/10">
+          {/* Header - Logo removed, title and menu toggle */}
+          <div className="flex items-center justify-between p-4 border-b border-white/10">
+            {sidebarOpen && (
+              <div>
+                <h2 className="font-semibold text-white">Sigorta</h2>
+                <p className="text-xs text-white/70">Yönetim Sistemi</p>
+              </div>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -352,12 +358,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       >
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between p-4 border-b border-white/10">
-            <div className="flex items-center gap-3">
-              <img src="/oksijen-logo.png" alt="Logo" className="h-8 w-auto" />
-              <div>
-                <h2 className="font-semibold text-white">Sigorta</h2>
-                <p className="text-xs text-white/70">Yönetim Sistemi</p>
-              </div>
+            <div>
+              <h2 className="font-semibold text-white">Sigorta</h2>
+              <p className="text-xs text-white/70">Yönetim Sistemi</p>
             </div>
             <Button
               variant="ghost"

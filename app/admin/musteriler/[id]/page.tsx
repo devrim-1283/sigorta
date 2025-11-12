@@ -146,7 +146,12 @@ export default function CustomerDetailPage() {
 
     try {
       setLoading(true)
-      const response = await customerApi.getById(customerId)
+      // Ensure customerId is a number if needed
+      const id = typeof customerId === 'string' ? parseInt(customerId, 10) : customerId
+      if (isNaN(Number(id))) {
+        throw new Error('Geçersiz müşteri ID')
+      }
+      const response = await customerApi.getById(id)
       
       const mapDocuments = (docs: any[] = []) => {
         if (!Array.isArray(docs)) return []
@@ -190,22 +195,36 @@ export default function CustomerDetailPage() {
         plaka: response.plaka || '',
         hasar_tarihi: response.hasar_tarihi || response.damage_date || '',
         başvuru_durumu: response.başvuru_durumu || 'İnceleniyor',
-        ödemeler: (response.payments || response.ödemeler || []).map((p: any) => ({
-          id: String(p.id),
-          tarih: p.tarih || p.date || new Date().toLocaleDateString('tr-TR'),
-          tutar: p.tutar ? `₺${Number(p.tutar).toLocaleString('tr-TR')}` : (p.amount ? `₺${Number(p.amount).toLocaleString('tr-TR')}` : '₺0'),
-          açıklama: p.açıklama || p.description || '',
-          durum: (p.durum || 'Bekliyor') as "Ödendi" | "Bekliyor",
-        })),
+        ödemeler: (response.payments || response.ödemeler || []).map((p: any) => {
+          // Handle BigInt for tutar/amount
+          let tutarValue = 0
+          if (p.tutar) {
+            tutarValue = typeof p.tutar === 'bigint' ? Number(p.tutar) : Number(p.tutar)
+          } else if (p.amount) {
+            tutarValue = typeof p.amount === 'bigint' ? Number(p.amount) : Number(p.amount)
+          }
+          
+          return {
+            id: String(p.id),
+            tarih: p.tarih || p.date || new Date().toLocaleDateString('tr-TR'),
+            tutar: `₺${tutarValue.toLocaleString('tr-TR')}`,
+            açıklama: p.açıklama || p.description || '',
+            durum: (p.durum || 'Bekliyor') as "Ödendi" | "Bekliyor",
+          }
+        }),
         evraklar: mappedDocuments,
         bağlı_bayi_id: String(response.dealer_id || response.bağlı_bayi_id || ''),
         bağlı_bayi_adı: response.dealer?.dealer_name || response.bağlı_bayi_adı || 'Belirtilmemiş',
-        notlar: (response.notes || response.notlar || []).map((n: any) => ({
-          id: String(n.id),
-          yazar: n.author?.name || n.user?.name || 'Sistem',
-          tarih: n.created_at || new Date().toLocaleDateString('tr-TR'),
-          içerik: n.content || n.içerik || n.note || '',
-        })).filter((note: any) => Boolean(note.içerik?.trim())),
+        notlar: (response.notes || response.notlar || []).map((n: any) => {
+          // Handle both 'içerik' and 'content' fields
+          const content = n.içerik || n.content || n.note || ''
+          return {
+            id: String(n.id),
+            yazar: n.author?.name || n.user?.name || n.yazar || 'Sistem',
+            tarih: n.created_at || n.tarih || new Date().toLocaleDateString('tr-TR'),
+            içerik: content,
+          }
+        }).filter((note: any) => Boolean(note.içerik?.trim())),
         son_güncelleme: response.updated_at || response.son_güncelleme || new Date().toLocaleDateString('tr-TR'),
         evrak_durumu: response.evrak_durumu || 'Eksik',
         eksik_evraklar: response.eksik_evraklar || [],
@@ -262,7 +281,8 @@ export default function CustomerDetailPage() {
       formData.append('tip', type)
       formData.append('document_type', type)
       formData.append('original_name', file.name)
-      formData.append('customer_id', customer.id.toString())
+      // customer.id is already a string, but ensure it's converted properly
+      formData.append('customer_id', String(customer.id))
       formData.append('is_result_document', '0')
 
       await documentApi.upload(formData)
