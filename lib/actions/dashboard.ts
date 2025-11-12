@@ -64,10 +64,44 @@ export async function getDashboardStats() {
     where: { 
       OR: [
         { başvuru_durumu: 'Tamamlandı' },
-        { başvuru_durumu: 'Dosya Kapatıldı' }
+        { başvuru_durumu: 'DOSYA KAPATILDI' }
       ]
     },
   })
+
+  // Get file type distribution
+  const fileTypeDistribution = await prisma.customer.groupBy({
+    by: ['file_type_id'],
+    _count: {
+      id: true,
+    },
+  })
+
+  // Get file type names
+  const fileTypes = await prisma.fileType.findMany({
+    select: {
+      id: true,
+      name: true,
+    },
+  })
+
+  // Calculate total customers for percentage calculation
+  const totalCustomersForDistribution = fileTypeDistribution.reduce((sum, item) => sum + item._count.id, 0)
+
+  // Map file type distribution with names and percentages
+  const fileTypeStats = fileTypeDistribution.map(item => {
+    const fileType = fileTypes.find(ft => Number(ft.id) === Number(item.file_type_id))
+    const count = item._count.id
+    const percentage = totalCustomersForDistribution > 0 
+      ? Math.round((count / totalCustomersForDistribution) * 100) 
+      : 0
+    
+    return {
+      type: fileType?.name || 'Bilinmeyen',
+      count: count,
+      percentage: percentage,
+    }
+  }).sort((a, b) => b.count - a.count) // Sort by count descending
 
   const result = {
     total_customers: totalCustomers,
@@ -126,6 +160,7 @@ export async function getDashboardStats() {
         name: d.uploader.name,
       } : null,
     })),
+    file_type_distribution: fileTypeStats,
   }
 
     return result

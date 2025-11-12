@@ -102,12 +102,10 @@ export function ReportsPage({ userRole = "superadmin" }: ReportsPageProps) {
     },
   ]
 
-  const fileTypeStats = [
-    { type: "Değer Kaybı", count: 45, percentage: 35 },
-    { type: "Parça ve İşçilik Farkı", count: 38, percentage: 30 },
-    { type: "Araç Mahrumiyeti", count: 28, percentage: 22 },
-    { type: "Pert Farkı", count: 17, percentage: 13 },
-  ]
+  // Get file type distribution from API
+  const fileTypeStats = loading || !stats?.file_type_distribution 
+    ? [] 
+    : stats.file_type_distribution
 
   return (
     <div className="space-y-6">
@@ -220,28 +218,41 @@ export function ReportsPage({ userRole = "superadmin" }: ReportsPageProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {fileTypeStats.map((item, index) => (
-              <div key={index} className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{item.type}</span>
-                  <span className="text-muted-foreground">
-                    {item.count} dosya ({item.percentage}%)
-                  </span>
-                </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${item.percentage}%`,
-                      backgroundColor:
-                        index === 0 ? "#0B3D91" : index === 1 ? "#F57C00" : index === 2 ? "#10b981" : "#8b5cf6",
-                    }}
-                  />
-                </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-6 h-6 border-2 border-[#0B3D91] border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm text-slate-600">Yükleniyor...</p>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : fileTypeStats.length === 0 ? (
+            <div className="text-center py-8 text-slate-500">
+              Henüz dosya tipi verisi bulunmuyor.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {fileTypeStats.map((item, index) => (
+                <div key={index} className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{item.type}</span>
+                    <span className="text-muted-foreground">
+                      {item.count} dosya ({item.percentage}%)
+                    </span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${item.percentage}%`,
+                        backgroundColor:
+                          index === 0 ? "#0B3D91" : index === 1 ? "#F57C00" : index === 2 ? "#10b981" : "#8b5cf6",
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

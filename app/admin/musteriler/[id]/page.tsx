@@ -624,24 +624,9 @@ export default function CustomerDetailPage() {
         })
       }
       
-      // 4. Net kâr (income if positive, expense if negative)
-      if (netProfit > 0) {
-        await accountingApi.create({
-          type: 'income',
-          category: 'Net Kâr',
-          description: `${customer.ad_soyad} - Dosya Kapatma Net Kârı (Sigortadan Yatan Tutarın %20'si - Harcamalar)`,
-          amount: netProfit,
-          transaction_date: today,
-        })
-      } else if (netProfit < 0) {
-        await accountingApi.create({
-          type: 'expense',
-          category: 'Net Zarar',
-          description: `${customer.ad_soyad} - Dosya Kapatma Net Zararı`,
-          amount: Math.abs(netProfit),
-          transaction_date: today,
-        })
-      }
+      // Not: Net kâr ayrıca kaydedilmiyor çünkü zaten otomatik hesaplanıyor:
+      // Net Kâr = Sigortadan Yatan Tutar - Müşteri Hakedişi - Harcamalar
+      // Muhasebe istatistiklerinde otomatik olarak görünecek
       
       setShowCloseFileModal(false)
       setCloseFileReason("")
