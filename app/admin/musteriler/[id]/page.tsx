@@ -135,6 +135,9 @@ export default function CustomerDetailPage() {
   const [closeFileDealerCommission, setCloseFileDealerCommission] = useState("")
   const [closeFileNetProfit, setCloseFileNetProfit] = useState("")
   const [closeFileExpenseFiles, setCloseFileExpenseFiles] = useState<File[]>([])
+  const [uploadingFiles, setUploadingFiles] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
+  const [uploadedFileNames, setUploadedFileNames] = useState<string[]>([])
   
   // Calculate net profit when payment, expenses, or dealer commission changes
   useEffect(() => {
@@ -463,48 +466,120 @@ export default function CustomerDetailPage() {
   const handleCloseFile = async () => {
     if (!customer) return
 
+    // Validation: Check if required fields are filled
+    if (!closeFilePayment || parseFloat(closeFilePayment) <= 0) {
+      toast({
+        title: "Uyarı",
+        description: "Müşteriye yatacak ödeme alanı zorunludur ve 0'dan büyük olmalıdır.",
+        variant: "default",
+        duration: 5000,
+      })
+      return
+    }
+
+    if (!closeFileExpenses || parseFloat(closeFileExpenses) < 0) {
+      toast({
+        title: "Uyarı",
+        description: "Yapılan harcamalar alanı zorunludur.",
+        variant: "default",
+        duration: 5000,
+      })
+      return
+    }
+
+    if (!closeFileDealerCommission || parseFloat(closeFileDealerCommission) < 0) {
+      toast({
+        title: "Uyarı",
+        description: "Bayi primi alanı zorunludur.",
+        variant: "default",
+        duration: 5000,
+      })
+      return
+    }
+
     try {
+      setUploadingFiles(true)
+      setUploadProgress({})
+      setUploadedFileNames([])
+
+      // Upload expense files if any
+      const uploadedDocumentIds: number[] = []
+      if (closeFileExpenseFiles.length > 0) {
+        for (let i = 0; i < closeFileExpenseFiles.length; i++) {
+          const file = closeFileExpenseFiles[i]
+          const fileName = file.name
+          
+          try {
+            setUploadProgress(prev => ({ ...prev, [fileName]: 0 }))
+            
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('tip', 'Harcama Belgesi')
+            formData.append('document_type', 'Harcama Belgesi')
+            formData.append('original_name', fileName)
+            formData.append('customer_id', customer.id)
+            formData.append('is_result_document', '0')
+
+            // Simulate upload progress
+            const progressInterval = setInterval(() => {
+              setUploadProgress(prev => {
+                const current = prev[fileName] || 0
+                if (current < 90) {
+                  return { ...prev, [fileName]: current + 10 }
+                }
+                return prev
+              })
+            }, 200)
+
+            const uploadResult = await documentApi.upload(formData)
+            
+            clearInterval(progressInterval)
+            setUploadProgress(prev => ({ ...prev, [fileName]: 100 }))
+            
+            if (uploadResult?.id) {
+              uploadedDocumentIds.push(uploadResult.id)
+              setUploadedFileNames(prev => [...prev, fileName])
+            }
+          } catch (uploadError: any) {
+            console.error(`Failed to upload file ${fileName}:`, uploadError)
+            setUploadProgress(prev => ({ ...prev, [fileName]: -1 })) // -1 indicates error
+            throw new Error(`${fileName} yüklenemedi: ${uploadError?.message || 'Bilinmeyen hata'}`)
+          }
+        }
+      }
+
       // Close the customer file
       await customerApi.closeFile(customer.id, closeFileReason)
       
-      // Create accounting transactions if values are provided
+      // Create accounting transactions
       const today = new Date()
       
       // Müşteriye yatacak ödeme (income)
-      if (closeFilePayment && parseFloat(closeFilePayment) > 0) {
-        await accountingApi.create({
-          type: 'income',
-          category: 'Müşteri Ödemesi',
-          description: `${customer.ad_soyad} - Dosya Kapatma Ödemesi`,
-          amount: parseFloat(closeFilePayment),
-          transaction_date: today,
-        })
-      }
+      await accountingApi.create({
+        type: 'income',
+        category: 'Müşteri Ödemesi',
+        description: `${customer.ad_soyad} - Dosya Kapatma Ödemesi`,
+        amount: parseFloat(closeFilePayment),
+        transaction_date: today,
+      })
       
       // Yapılan harcamalar (expense)
-      if (closeFileExpenses && parseFloat(closeFileExpenses) > 0) {
-        await accountingApi.create({
-          type: 'expense',
-          category: 'Harcama',
-          description: `${customer.ad_soyad} - Dosya Kapatma Harcamaları`,
-          amount: parseFloat(closeFileExpenses),
-          transaction_date: today,
-        })
-      }
+      await accountingApi.create({
+        type: 'expense',
+        category: 'Harcama',
+        description: `${customer.ad_soyad} - Dosya Kapatma Harcamaları`,
+        amount: parseFloat(closeFileExpenses),
+        transaction_date: today,
+      })
       
       // Bayi primi (expense)
-      if (closeFileDealerCommission && parseFloat(closeFileDealerCommission) > 0) {
-        await accountingApi.create({
-          type: 'expense',
-          category: 'Bayi Primi',
-          description: `${customer.ad_soyad} - Bayi Primi`,
-          amount: parseFloat(closeFileDealerCommission),
-          transaction_date: today,
-        })
-      }
-      
-      // Net kâr (calculated automatically by accounting system)
-      // No need to create a separate transaction for net profit
+      await accountingApi.create({
+        type: 'expense',
+        category: 'Bayi Primi',
+        description: `${customer.ad_soyad} - Bayi Primi`,
+        amount: parseFloat(closeFileDealerCommission),
+        transaction_date: today,
+      })
       
       setShowCloseFileModal(false)
       setCloseFileReason("")
@@ -513,13 +588,18 @@ export default function CustomerDetailPage() {
       setCloseFileDealerCommission("")
       setCloseFileNetProfit("")
       setCloseFileExpenseFiles([])
+      setUploadingFiles(false)
+      setUploadProgress({})
+      setUploadedFileNames([])
+      
       await fetchCustomer()
       toast({
         title: "Başarılı",
-        description: "Dosya kapatıldı ve muhasebe kayıtları oluşturuldu",
+        description: `Dosya kapatıldı, muhasebe kayıtları oluşturuldu${uploadedDocumentIds.length > 0 ? ` ve ${uploadedDocumentIds.length} dosya yüklendi` : ''}.`,
       })
     } catch (error: any) {
       console.error('Close file error:', error)
+      setUploadingFiles(false)
       toast({
         title: "Uyarı",
         description: error.message || "Dosya kapatılamadı",
@@ -1077,47 +1157,65 @@ export default function CustomerDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
                 <div>
                   <Label htmlFor="close-payment" className="text-sm font-semibold mb-2">
-                    Müşteriye Yatacak Ödeme (₺)
+                    Müşteriye Yatacak Ödeme (₺) <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="close-payment"
                     type="number"
                     step="0.01"
+                    min="0.01"
                     placeholder="0.00"
                     value={closeFilePayment}
                     onChange={(e) => setCloseFilePayment(e.target.value)}
                     className="rounded-2xl mt-2"
+                    required
+                    disabled={uploadingFiles}
                   />
+                  {closeFilePayment && parseFloat(closeFilePayment) <= 0 && (
+                    <p className="text-xs text-red-600 mt-1">Bu alan 0'dan büyük olmalıdır</p>
+                  )}
                 </div>
                 
                 <div>
                   <Label htmlFor="close-expenses" className="text-sm font-semibold mb-2">
-                    Yapılan Harcamalar (₺)
+                    Yapılan Harcamalar (₺) <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="close-expenses"
                     type="number"
                     step="0.01"
+                    min="0"
                     placeholder="0.00"
                     value={closeFileExpenses}
                     onChange={(e) => setCloseFileExpenses(e.target.value)}
                     className="rounded-2xl mt-2"
+                    required
+                    disabled={uploadingFiles}
                   />
+                  {closeFileExpenses && parseFloat(closeFileExpenses) < 0 && (
+                    <p className="text-xs text-red-600 mt-1">Bu alan negatif olamaz</p>
+                  )}
                 </div>
                 
                 <div>
                   <Label htmlFor="close-dealer-commission" className="text-sm font-semibold mb-2">
-                    Bayi Primi (₺)
+                    Bayi Primi (₺) <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="close-dealer-commission"
                     type="number"
                     step="0.01"
+                    min="0"
                     placeholder="0.00"
                     value={closeFileDealerCommission}
                     onChange={(e) => setCloseFileDealerCommission(e.target.value)}
                     className="rounded-2xl mt-2"
+                    required
+                    disabled={uploadingFiles}
                   />
+                  {closeFileDealerCommission && parseFloat(closeFileDealerCommission) < 0 && (
+                    <p className="text-xs text-red-600 mt-1">Bu alan negatif olamaz</p>
+                  )}
                 </div>
                 
                 <div>
@@ -1133,6 +1231,7 @@ export default function CustomerDetailPage() {
                     onChange={(e) => setCloseFileNetProfit(e.target.value)}
                     className="rounded-2xl mt-2 bg-gray-50"
                     readOnly
+                    disabled={uploadingFiles}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     Ödeme - Harcama - Bayi Primi
@@ -1142,7 +1241,7 @@ export default function CustomerDetailPage() {
               
               <div className="pt-4 border-t">
                 <Label htmlFor="close-expense-files" className="text-sm font-semibold mb-2">
-                  Harcama Belgeleri (Toplu Yükleme)
+                  Harcama Belgeleri (Toplu Yükleme - 1-20 dosya)
                 </Label>
                 <Input
                   id="close-expense-files"
@@ -1150,28 +1249,125 @@ export default function CustomerDetailPage() {
                   multiple
                   onChange={(e) => {
                     if (e.target.files) {
-                      setCloseFileExpenseFiles(Array.from(e.target.files))
+                      const files = Array.from(e.target.files)
+                      if (files.length > 20) {
+                        toast({
+                          title: "Uyarı",
+                          description: "Maksimum 20 dosya yükleyebilirsiniz. İlk 20 dosya seçildi.",
+                          variant: "default",
+                          duration: 4000,
+                        })
+                        setCloseFileExpenseFiles(files.slice(0, 20))
+                      } else {
+                        setCloseFileExpenseFiles(files)
+                      }
                     }
                   }}
                   className="rounded-2xl mt-2"
                   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  disabled={uploadingFiles}
                 />
                 {closeFileExpenseFiles.length > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {closeFileExpenseFiles.length} dosya seçildi
-                  </p>
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      {closeFileExpenseFiles.length} dosya seçildi {closeFileExpenseFiles.length > 20 ? '(Maksimum 20 dosya)' : ''}
+                    </p>
+                    <div className="max-h-40 overflow-y-auto space-y-1">
+                      {closeFileExpenseFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-xs">
+                          <span className="truncate flex-1">{file.name}</span>
+                          <span className="text-muted-foreground ml-2">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </span>
+                          {!uploadingFiles && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="ml-2 h-6 w-6 p-0"
+                              onClick={() => {
+                                setCloseFileExpenseFiles(prev => prev.filter((_, i) => i !== index))
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Upload Progress */}
+                {uploadingFiles && (
+                  <div className="mt-4 space-y-3 p-4 bg-blue-50 rounded-2xl border-2 border-blue-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
+                      <p className="text-sm font-semibold text-blue-900">Dosyalar yükleniyor...</p>
+                    </div>
+                    {closeFileExpenseFiles.map((file, index) => {
+                      const progress = uploadProgress[file.name] || 0
+                      const isError = progress === -1
+                      const isComplete = progress === 100
+                      const isUploaded = uploadedFileNames.includes(file.name)
+                      
+                      return (
+                        <div key={index} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="truncate flex-1">{file.name}</span>
+                            <span className={`ml-2 ${isError ? 'text-red-600' : isComplete ? 'text-green-600' : 'text-blue-600'}`}>
+                              {isError ? 'Hata' : isComplete ? 'Tamamlandı' : `${progress}%`}
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                isError ? 'bg-red-500' : isComplete ? 'bg-green-500' : 'bg-blue-500'
+                              }`}
+                              style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 )}
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCloseFileModal(false)} className="rounded-2xl">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  if (!uploadingFiles) {
+                    setShowCloseFileModal(false)
+                    setCloseFileReason("")
+                    setCloseFilePayment("")
+                    setCloseFileExpenses("")
+                    setCloseFileDealerCommission("")
+                    setCloseFileNetProfit("")
+                    setCloseFileExpenseFiles([])
+                    setUploadProgress({})
+                    setUploadedFileNames([])
+                  }
+                }} 
+                className="rounded-2xl"
+                disabled={uploadingFiles}
+              >
                 İptal
               </Button>
               <Button
                 onClick={handleCloseFile}
                 className="rounded-2xl bg-red-600 hover:bg-red-700"
+                disabled={uploadingFiles || !closeFilePayment || !closeFileExpenses || !closeFileDealerCommission}
               >
-                Dosyayı Kapat
+                {uploadingFiles ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Yükleniyor...
+                  </>
+                ) : (
+                  'Dosyayı Kapat'
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>

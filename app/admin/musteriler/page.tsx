@@ -946,11 +946,19 @@ export default function CustomersPage() {
         if (result && result.id && newFileUploadedDocs.length > 0) {
           console.log('Starting to upload documents for customer:', result.id)
 
+          const uploadErrors: string[] = []
+          const uploadedDocuments: string[] = []
+
           // Upload each document separately
           for (const docType of newFileUploadedDocs) {
             try {
               // Use the actual uploaded file if available
-              const fileToUpload = uploadedFiles[docType] || new File(['mock content'], `${docType}.pdf`, { type: 'application/pdf' })
+              const fileToUpload = uploadedFiles[docType]
+              
+              if (!fileToUpload) {
+                uploadErrors.push(`${docType}: Dosya bulunamadı`)
+                continue
+              }
 
               const formData = new FormData()
               formData.append('file', fileToUpload)
@@ -962,10 +970,34 @@ export default function CustomersPage() {
 
               const uploadResult = await documentApi.upload(formData)
               console.log(`Document ${docType} uploaded successfully:`, uploadResult)
-            } catch (uploadError) {
+              uploadedDocuments.push(docType)
+            } catch (uploadError: any) {
               console.error(`Failed to upload document ${docType}:`, uploadError)
-              // Continue with other documents even if one fails
+              const errorMessage = uploadError?.message || uploadError?.error || 'Bilinmeyen hata'
+              uploadErrors.push(`${docType}: ${errorMessage}`)
             }
+          }
+
+          // If any document upload failed, delete the customer and show error
+          if (uploadErrors.length > 0) {
+            console.error('Some documents failed to upload. Deleting customer:', result.id)
+            
+            try {
+              // Delete the customer that was created
+              await customerApi.delete(result.id)
+              console.log('Customer deleted due to document upload failures')
+            } catch (deleteError) {
+              console.error('Failed to delete customer after document upload failure:', deleteError)
+            }
+
+            // Show error message with details
+            const errorDetails = uploadErrors.join('\n')
+            throw new Error(`Evrak yükleme başarısız oldu. Müşteri kaydı oluşturulmadı.\n\nHatalar:\n${errorDetails}`)
+          }
+
+          // All documents uploaded successfully
+          if (uploadedDocuments.length > 0) {
+            console.log(`All ${uploadedDocuments.length} documents uploaded successfully`)
           }
 
           // Refresh customer data to get updated documents
