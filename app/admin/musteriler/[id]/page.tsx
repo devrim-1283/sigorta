@@ -1061,12 +1061,34 @@ export default function CustomerDetailPage() {
                     placeholder="12345678901"
                     value={editFormData.tc_no}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 11)
-                      setEditFormData({ ...editFormData, tc_no: value })
+                      // Only allow digits
+                      const digitsOnly = e.target.value.replace(/\D/g, '')
+                      
+                      // If more than 11 digits, show warning but allow typing
+                      if (digitsOnly.length > 11) {
+                        // Auto-trim to 11 digits
+                        const trimmed = digitsOnly.slice(0, 11)
+                        setEditFormData({ ...editFormData, tc_no: trimmed })
+                        toast({
+                          title: 'Uyarı',
+                          description: 'TC Kimlik No 11 haneli olmalıdır. Fazla karakterler kaldırıldı.',
+                          variant: 'default',
+                          duration: 3000,
+                        })
+                      } else {
+                        setEditFormData({ ...editFormData, tc_no: digitsOnly })
+                      }
                     }}
-                    maxLength={11}
+                    maxLength={15}
                     className="rounded-2xl mt-2"
                   />
+                  {editFormData.tc_no && editFormData.tc_no.replace(/\D/g, '').length !== 11 && editFormData.tc_no.replace(/\D/g, '').length > 0 && (
+                    <p className={`text-xs mt-1 ${editFormData.tc_no.replace(/\D/g, '').length > 11 ? 'text-orange-600' : 'text-red-600'}`}>
+                      {editFormData.tc_no.replace(/\D/g, '').length > 11 
+                        ? 'TC Kimlik No 11 haneli olmalıdır. Fazla karakterler otomatik kaldırılacak.' 
+                        : 'TC Kimlik No 11 haneli olmalıdır'}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="edit_telefon" className="text-sm font-semibold mb-2">

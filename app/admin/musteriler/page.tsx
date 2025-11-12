@@ -836,19 +836,36 @@ export default function CustomersPage() {
     try {
       // Client-side validation before API call
       const tcNoDigits = newFileData.tc_no.replace(/\D/g, '')
+      
+      // If more than 11 digits, auto-trim to 11
       if (tcNoDigits.length > 11) {
+        const trimmed = tcNoDigits.slice(0, 11)
+        setNewFileData({ ...newFileData, tc_no: trimmed })
+        toast({
+          title: 'Uyarı',
+          description: 'TC Kimlik No 11 haneli olmalıdır. Fazla karakterler kaldırıldı.',
+          variant: 'default',
+          duration: 3000,
+        })
+        // Continue with trimmed value instead of returning
+      }
+      
+      // Final check with trimmed value
+      const finalTcNo = tcNoDigits.length > 11 ? tcNoDigits.slice(0, 11) : tcNoDigits
+      
+      if (finalTcNo.length < 11 && finalTcNo.length > 0) {
         toast({
           title: 'Geçersiz TC Kimlik No',
-          description: 'TC Kimlik No 11 haneli olmalıdır. Lütfen kontrol edin.',
+          description: 'TC Kimlik No 11 haneli olmalıdır. Lütfen eksik haneleri tamamlayın.',
           variant: 'destructive',
         })
         return
       }
-
-      if (tcNoDigits.length < 11 && tcNoDigits.length > 0) {
+      
+      if (finalTcNo.length === 0) {
         toast({
-          title: 'Geçersiz TC Kimlik No',
-          description: 'TC Kimlik No 11 haneli olmalıdır. Lütfen eksik haneleri tamamlayın.',
+          title: 'TC Kimlik No Gerekli',
+          description: 'TC Kimlik No boş bırakılamaz.',
           variant: 'destructive',
         })
         return
@@ -1927,15 +1944,33 @@ export default function CustomersPage() {
                     placeholder="12345678901"
                     value={newFileData.tc_no}
                     onChange={(e) => {
-                      // Only allow digits and limit to 11 characters
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 11)
-                      setNewFileData({ ...newFileData, tc_no: value })
+                      // Only allow digits
+                      const digitsOnly = e.target.value.replace(/\D/g, '')
+                      
+                      // If more than 11 digits, show warning but allow typing
+                      if (digitsOnly.length > 11) {
+                        // Auto-trim to 11 digits
+                        const trimmed = digitsOnly.slice(0, 11)
+                        setNewFileData({ ...newFileData, tc_no: trimmed })
+                        toast({
+                          title: 'Uyarı',
+                          description: 'TC Kimlik No 11 haneli olmalıdır. Fazla karakterler kaldırıldı.',
+                          variant: 'default',
+                          duration: 3000,
+                        })
+                      } else {
+                        setNewFileData({ ...newFileData, tc_no: digitsOnly })
+                      }
                     }}
-                    maxLength={11}
+                    maxLength={15}
                     className="rounded-2xl mt-2"
                   />
-                  {newFileData.tc_no && newFileData.tc_no.replace(/\D/g, '').length > 11 && (
-                    <p className="text-xs text-red-600 mt-1">TC Kimlik No 11 haneli olmalıdır</p>
+                  {newFileData.tc_no && newFileData.tc_no.replace(/\D/g, '').length !== 11 && newFileData.tc_no.replace(/\D/g, '').length > 0 && (
+                    <p className={`text-xs mt-1 ${newFileData.tc_no.replace(/\D/g, '').length > 11 ? 'text-orange-600' : 'text-red-600'}`}>
+                      {newFileData.tc_no.replace(/\D/g, '').length > 11 
+                        ? 'TC Kimlik No 11 haneli olmalıdır. Fazla karakterler otomatik kaldırılacak.' 
+                        : 'TC Kimlik No 11 haneli olmalıdır'}
+                    </p>
                   )}
                 </div>
                 <div>
@@ -2257,14 +2292,45 @@ export default function CustomersPage() {
                 </div>
                 <div>
                   <Label htmlFor="edit_tc_no" className="text-sm font-semibold mb-2">
-                    TC Kimlik No *
+                    TC Kimlik No * {editFormData.tc_no && (
+                      <span className="text-xs text-gray-500 ml-2">
+                        ({editFormData.tc_no.replace(/\D/g, '').length}/11)
+                      </span>
+                    )}
                   </Label>
                   <Input
                     id="edit_tc_no"
+                    placeholder="12345678901"
                     value={editFormData.tc_no}
-                    onChange={(e) => setEditFormData({ ...editFormData, tc_no: e.target.value })}
+                    onChange={(e) => {
+                      // Only allow digits
+                      const digitsOnly = e.target.value.replace(/\D/g, '')
+                      
+                      // If more than 11 digits, show warning but allow typing
+                      if (digitsOnly.length > 11) {
+                        // Auto-trim to 11 digits
+                        const trimmed = digitsOnly.slice(0, 11)
+                        setEditFormData({ ...editFormData, tc_no: trimmed })
+                        toast({
+                          title: 'Uyarı',
+                          description: 'TC Kimlik No 11 haneli olmalıdır. Fazla karakterler kaldırıldı.',
+                          variant: 'default',
+                          duration: 3000,
+                        })
+                      } else {
+                        setEditFormData({ ...editFormData, tc_no: digitsOnly })
+                      }
+                    }}
+                    maxLength={15}
                     className="rounded-2xl mt-2"
                   />
+                  {editFormData.tc_no && editFormData.tc_no.replace(/\D/g, '').length !== 11 && editFormData.tc_no.replace(/\D/g, '').length > 0 && (
+                    <p className={`text-xs mt-1 ${editFormData.tc_no.replace(/\D/g, '').length > 11 ? 'text-orange-600' : 'text-red-600'}`}>
+                      {editFormData.tc_no.replace(/\D/g, '').length > 11 
+                        ? 'TC Kimlik No 11 haneli olmalıdır. Fazla karakterler otomatik kaldırılacak.' 
+                        : 'TC Kimlik No 11 haneli olmalıdır'}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="edit_telefon" className="text-sm font-semibold mb-2">
