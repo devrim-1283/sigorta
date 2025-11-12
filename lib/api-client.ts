@@ -93,8 +93,8 @@ export const customerApi = {
     return await customerActions.deleteCustomer(typeof id === 'string' ? parseInt(id) : id)
   },
 
-  closeFile: async (id: number | string, reason?: string) => {
-    return await customerActions.closeCustomerFile(typeof id === 'string' ? parseInt(id) : id, reason || '')
+  closeFile: async (id: number | string, reason?: string, sigortadanYatanTutar?: number, musteriHakedisi?: number) => {
+    return await customerActions.closeCustomerFile(typeof id === 'string' ? parseInt(id) : id, reason || '', sigortadanYatanTutar, musteriHakedisi)
   },
 
   addNote: async (id: number | string, content: string) => {

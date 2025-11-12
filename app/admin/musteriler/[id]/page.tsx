@@ -87,6 +87,8 @@ interface Customer {
   dosya_kilitli?: boolean
   dosya_tipi?: string
   notes?: Note[]
+  sigortadan_yatan_tutar?: number | string
+  musteri_hakedisi?: number | string
 }
 
 interface Payment {
@@ -133,10 +135,8 @@ export default function CustomerDetailPage() {
   const [uploadingResultDoc, setUploadingResultDoc] = useState<{ [key: number]: boolean }>({})
   const [showCloseFileModal, setShowCloseFileModal] = useState(false)
   const [closeFileReason, setCloseFileReason] = useState("")
-  const [closeFilePayment, setCloseFilePayment] = useState("")
+  const [closeFileInsuranceAmount, setCloseFileInsuranceAmount] = useState("")
   const [closeFileExpenses, setCloseFileExpenses] = useState("")
-  const [closeFileDealerCommission, setCloseFileDealerCommission] = useState("")
-  const [closeFileNetProfit, setCloseFileNetProfit] = useState("")
   const [closeFileExpenseFiles, setCloseFileExpenseFiles] = useState<File[]>([])
   const [uploadingFiles, setUploadingFiles] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
@@ -254,6 +254,8 @@ export default function CustomerDetailPage() {
         plaka: response.plaka || '',
         hasar_tarihi: response.hasar_tarihi || response.damage_date || '',
         başvuru_durumu: response.başvuru_durumu || 'EVRAK AŞAMASINDA',
+        sigortadan_yatan_tutar: response.sigortadan_yatan_tutar ? Number(response.sigortadan_yatan_tutar) : undefined,
+        musteri_hakedisi: response.musteri_hakedisi ? Number(response.musteri_hakedisi) : undefined,
         ödemeler: (response.payments || response.ödemeler || []).map((p: any) => {
           // Handle BigInt for tutar/amount
           let tutarValue = 0
@@ -510,10 +512,10 @@ export default function CustomerDetailPage() {
     if (!customer) return
 
     // Validation: Check if required fields are filled
-    if (!closeFilePayment || parseFloat(closeFilePayment) <= 0) {
+    if (!closeFileInsuranceAmount || parseFloat(closeFileInsuranceAmount) <= 0) {
       toast({
         title: "Uyarı",
-        description: "Müşteriye yatacak ödeme alanı zorunludur ve 0'dan büyük olmalıdır.",
+        description: "Sigortadan yatan tutar alanı zorunludur ve 0'dan büyük olmalıdır.",
         variant: "default",
         duration: 5000,
       })
@@ -530,25 +532,11 @@ export default function CustomerDetailPage() {
       return
     }
 
-    if (!closeFileDealerCommission || parseFloat(closeFileDealerCommission) < 0) {
-      toast({
-        title: "Uyarı",
-        description: "Bayi primi alanı zorunludur.",
-        variant: "default",
-        duration: 5000,
-      })
-      return
-    }
-
-    if (!closeFileNetProfit || closeFileNetProfit.trim() === "") {
-      toast({
-        title: "Uyarı",
-        description: "Net kâr alanı zorunludur.",
-        variant: "default",
-        duration: 5000,
-      })
-      return
-    }
+    // Calculate values
+    const insuranceAmount = parseFloat(closeFileInsuranceAmount)
+    const expenses = parseFloat(closeFileExpenses)
+    const customerAmount = insuranceAmount * 0.8 // %80
+    const netProfit = (insuranceAmount * 0.2) - expenses // %20 - harcamalar
 
     try {
       setUploadingFiles(true)
@@ -601,45 +589,44 @@ export default function CustomerDetailPage() {
         }
       }
 
-      // Close the customer file
-      await customerApi.closeFile(customer.id, closeFileReason)
+      // Close the customer file with calculated values
+      await customerApi.closeFile(customer.id, closeFileReason, insuranceAmount, customerAmount)
       
       // Create accounting transactions
       const today = new Date()
-      
-      // Müşteriye yatacak ödeme (income)
-      await accountingApi.create({
-        type: 'income',
-        category: 'Müşteri Ödemesi',
-        description: `${customer.ad_soyad} - Dosya Kapatma Ödemesi`,
-        amount: parseFloat(closeFilePayment),
-        transaction_date: today,
-      })
       
       // Yapılan harcamalar (expense)
       await accountingApi.create({
         type: 'expense',
         category: 'Harcama',
         description: `${customer.ad_soyad} - Dosya Kapatma Harcamaları`,
-        amount: parseFloat(closeFileExpenses),
+        amount: expenses,
         transaction_date: today,
       })
       
-      // Bayi primi (expense)
-      await accountingApi.create({
-        type: 'expense',
-        category: 'Bayi Primi',
-        description: `${customer.ad_soyad} - Bayi Primi`,
-        amount: parseFloat(closeFileDealerCommission),
-        transaction_date: today,
-      })
+      // Net kâr (income if positive, expense if negative)
+      if (netProfit > 0) {
+        await accountingApi.create({
+          type: 'income',
+          category: 'Net Kâr',
+          description: `${customer.ad_soyad} - Dosya Kapatma Net Kârı`,
+          amount: netProfit,
+          transaction_date: today,
+        })
+      } else if (netProfit < 0) {
+        await accountingApi.create({
+          type: 'expense',
+          category: 'Net Zarar',
+          description: `${customer.ad_soyad} - Dosya Kapatma Net Zararı`,
+          amount: Math.abs(netProfit),
+          transaction_date: today,
+        })
+      }
       
       setShowCloseFileModal(false)
       setCloseFileReason("")
-      setCloseFilePayment("")
+      setCloseFileInsuranceAmount("")
       setCloseFileExpenses("")
-      setCloseFileDealerCommission("")
-      setCloseFileNetProfit("")
       setCloseFileExpenseFiles([])
       setUploadingFiles(false)
       setUploadProgress({})
@@ -1196,6 +1183,35 @@ export default function CustomerDetailPage() {
                       </div>
                     )}
 
+                    {/* Financial Information - Only show if file is closed */}
+                    {customer.dosya_kilitli && (customer.sigortadan_yatan_tutar || customer.musteri_hakedisi) && (
+                      <div className="pt-4 border-t space-y-4">
+                        <h3 className="text-lg font-bold" style={{ color: "#0B3D91" }}>Mali Bilgiler</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {customer.sigortadan_yatan_tutar && (
+                            <div className="bg-blue-50 p-4 rounded-2xl border-2 border-blue-200">
+                              <Label className="text-sm font-semibold text-blue-900 mb-2 block">
+                                SİGORTADAN YATAN TUTAR
+                              </Label>
+                              <p className="text-2xl font-bold text-blue-700">
+                                {Number(customer.sigortadan_yatan_tutar).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
+                              </p>
+                            </div>
+                          )}
+                          {customer.musteri_hakedisi && (
+                            <div className="bg-green-50 p-4 rounded-2xl border-2 border-green-200">
+                              <Label className="text-sm font-semibold text-green-900 mb-2 block">
+                                MÜŞTERİ HAKEDİŞİ
+                              </Label>
+                              <p className="text-2xl font-bold text-green-700">
+                                {Number(customer.musteri_hakedisi).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div>
                       <p className="text-sm text-muted-foreground mb-2">Durum Değişikliği Notu Ekle</p>
                       <Textarea
@@ -1361,88 +1377,70 @@ export default function CustomerDetailPage() {
                 />
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pt-4 border-t">
-                <div className="sm:col-span-1">
-                  <Label htmlFor="close-payment" className="text-sm sm:text-base font-semibold mb-2">
-                    Müşteriye Yatacak Ödeme (₺) <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="close-payment"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    placeholder="0.00"
-                    value={closeFilePayment}
-                    onChange={(e) => setCloseFilePayment(e.target.value)}
-                    className="rounded-2xl mt-2 text-sm sm:text-base"
-                    required
-                    disabled={uploadingFiles}
-                  />
-                  {closeFilePayment && parseFloat(closeFilePayment) <= 0 && (
-                    <p className="text-xs text-orange-600 mt-1">Bu alan 0'dan büyük olmalıdır</p>
-                  )}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                  <div>
+                    <Label htmlFor="close-insurance-amount" className="text-sm sm:text-base font-semibold mb-2">
+                      SİGORTADAN YATAN TUTAR (₺) <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="close-insurance-amount"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      placeholder="0.00"
+                      value={closeFileInsuranceAmount}
+                      onChange={(e) => setCloseFileInsuranceAmount(e.target.value)}
+                      className="rounded-2xl mt-2 text-sm sm:text-base"
+                      required
+                      disabled={uploadingFiles}
+                    />
+                    {closeFileInsuranceAmount && parseFloat(closeFileInsuranceAmount) <= 0 && (
+                      <p className="text-xs text-orange-600 mt-1">Bu alan 0'dan büyük olmalıdır</p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="close-expenses" className="text-sm sm:text-base font-semibold mb-2">
+                      YAPILAN HARCAMALAR (₺) <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="close-expenses"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={closeFileExpenses}
+                      onChange={(e) => setCloseFileExpenses(e.target.value)}
+                      className="rounded-2xl mt-2 text-sm sm:text-base"
+                      required
+                      disabled={uploadingFiles}
+                    />
+                    {closeFileExpenses && parseFloat(closeFileExpenses) < 0 && (
+                      <p className="text-xs text-orange-600 mt-1">Bu alan negatif olamaz</p>
+                    )}
+                  </div>
                 </div>
-                
-                <div className="sm:col-span-1">
-                  <Label htmlFor="close-expenses" className="text-sm sm:text-base font-semibold mb-2">
-                    Yapılan Harcamalar (₺) <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="close-expenses"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={closeFileExpenses}
-                    onChange={(e) => setCloseFileExpenses(e.target.value)}
-                    className="rounded-2xl mt-2 text-sm sm:text-base"
-                    required
-                    disabled={uploadingFiles}
-                  />
-                  {closeFileExpenses && parseFloat(closeFileExpenses) < 0 && (
-                    <p className="text-xs text-orange-600 mt-1">Bu alan negatif olamaz</p>
-                  )}
-                </div>
-                
-                <div className="sm:col-span-1">
-                  <Label htmlFor="close-dealer-commission" className="text-sm sm:text-base font-semibold mb-2">
-                    Bayi Primi (₺) <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="close-dealer-commission"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={closeFileDealerCommission}
-                    onChange={(e) => setCloseFileDealerCommission(e.target.value)}
-                    className="rounded-2xl mt-2 text-sm sm:text-base"
-                    required
-                    disabled={uploadingFiles}
-                  />
-                  {closeFileDealerCommission && parseFloat(closeFileDealerCommission) < 0 && (
-                    <p className="text-xs text-orange-600 mt-1">Bu alan negatif olamaz</p>
-                  )}
-                </div>
-                
-                <div className="sm:col-span-1">
-                  <Label htmlFor="close-net-profit" className="text-sm sm:text-base font-semibold mb-2">
-                    Net Kâr (₺) <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="close-net-profit"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={closeFileNetProfit}
-                    onChange={(e) => setCloseFileNetProfit(e.target.value)}
-                    className="rounded-2xl mt-2 text-sm sm:text-base"
-                    required
-                    disabled={uploadingFiles}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Önerilen: {(parseFloat(closeFilePayment || "0") - parseFloat(closeFileExpenses || "0") - parseFloat(closeFileDealerCommission || "0")).toFixed(2)} ₺
-                  </p>
+
+                {/* Calculated Values */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-4 border-t">
+                  <div className="bg-blue-50 p-4 rounded-2xl border-2 border-blue-200">
+                    <Label className="text-sm sm:text-base font-semibold text-blue-900 mb-2 block">
+                      MÜŞTERİYE YATAN TUTAR (SİGORTADAN YATAN TUTARIN %80'İ)
+                    </Label>
+                    <p className="text-xl sm:text-2xl font-bold text-blue-700">
+                      {(parseFloat(closeFileInsuranceAmount || "0") * 0.8).toFixed(2)} ₺
+                    </p>
+                  </div>
+                  
+                  <div className="bg-green-50 p-4 rounded-2xl border-2 border-green-200">
+                    <Label className="text-sm sm:text-base font-semibold text-green-900 mb-2 block">
+                      NET KÂR (SİGORTADAN YATAN TUTARIN %20'Sİ - YAPILAN HARCAMALAR)
+                    </Label>
+                    <p className={`text-xl sm:text-2xl font-bold ${((parseFloat(closeFileInsuranceAmount || "0") * 0.2) - parseFloat(closeFileExpenses || "0")) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      {((parseFloat(closeFileInsuranceAmount || "0") * 0.2) - parseFloat(closeFileExpenses || "0")).toFixed(2)} ₺
+                    </p>
+                  </div>
                 </div>
               </div>
               
@@ -1548,10 +1546,8 @@ export default function CustomerDetailPage() {
                   if (!uploadingFiles) {
                     setShowCloseFileModal(false)
                     setCloseFileReason("")
-                    setCloseFilePayment("")
+                    setCloseFileInsuranceAmount("")
                     setCloseFileExpenses("")
-                    setCloseFileDealerCommission("")
-                    setCloseFileNetProfit("")
                     setCloseFileExpenseFiles([])
                     setUploadProgress({})
                     setUploadedFileNames([])
@@ -1565,7 +1561,7 @@ export default function CustomerDetailPage() {
               <Button
                 onClick={handleCloseFile}
                 className="rounded-2xl bg-red-600 hover:bg-red-700 w-full sm:w-auto text-sm sm:text-base"
-                disabled={uploadingFiles || !closeFilePayment || !closeFileExpenses || !closeFileDealerCommission || !closeFileNetProfit}
+                disabled={uploadingFiles || !closeFileInsuranceAmount || !closeFileExpenses || parseFloat(closeFileInsuranceAmount || "0") <= 0 || parseFloat(closeFileExpenses || "0") < 0}
               >
                 {uploadingFiles ? (
                   <>

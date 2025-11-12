@@ -185,6 +185,8 @@ export async function getCustomer(id: number) {
     dosya_kilitli: customer.dosya_kilitli,
     dosya_kapanma_nedeni: customer.dosya_kapanma_nedeni,
     dosya_kapanma_tarihi: customer.dosya_kapanma_tarihi ? customer.dosya_kapanma_tarihi.toISOString() : null,
+    sigortadan_yatan_tutar: customer.sigortadan_yatan_tutar ? Number(customer.sigortadan_yatan_tutar) : null,
+    musteri_hakedisi: customer.musteri_hakedisi ? Number(customer.musteri_hakedisi) : null,
     created_at: customer.created_at ? customer.created_at.toISOString() : null,
     updated_at: customer.updated_at ? customer.updated_at.toISOString() : null,
     dealer: customer.dealer
@@ -976,17 +978,27 @@ export async function deleteCustomer(id: number) {
   return { success: true }
 }
 
-export async function closeCustomerFile(id: number, reason: string) {
+export async function closeCustomerFile(id: number, reason: string, sigortadanYatanTutar?: number, musteriHakedisi?: number) {
   await requireAuth()
+
+  const updateData: any = {
+    dosya_kilitli: true,
+    başvuru_durumu: 'KAPALI',
+    dosya_kapanma_nedeni: reason,
+    dosya_kapanma_tarihi: new Date(),
+  }
+
+  if (sigortadanYatanTutar !== undefined) {
+    updateData.sigortadan_yatan_tutar = sigortadanYatanTutar
+  }
+
+  if (musteriHakedisi !== undefined) {
+    updateData.musteri_hakedisi = musteriHakedisi
+  }
 
   const customer = await prisma.customer.update({
     where: { id: BigInt(id) },
-    data: {
-      dosya_kilitli: true,
-      başvuru_durumu: 'KAPALI',
-      dosya_kapanma_nedeni: reason,
-      dosya_kapanma_tarihi: new Date(),
-    },
+    data: updateData,
   })
 
   revalidatePath('/dashboard/customers')
