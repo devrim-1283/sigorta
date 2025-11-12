@@ -728,7 +728,7 @@ export async function createCustomer(data: {
     let userMessage = 'Müşteri oluşturulamadı'
     
     // If it's already a validation error with a user-friendly message, use it
-    if (error.isValidationError && error.message) {
+    if ((error as any).isValidationError && error.message) {
       userMessage = error.message
     }
     // Handle Prisma unique constraint errors
@@ -738,18 +738,18 @@ export async function createCustomer(data: {
         : error.meta?.target || 'bilgiler'
       
       if (target.includes('tc_no')) {
-        userMessage = 'Bu TC No ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.'
+        userMessage = 'Bu TC Kimlik Numarası ile kayıtlı bir müşteri zaten mevcut. Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.'
       } else if (target.includes('telefon')) {
-        userMessage = 'Bu telefon numarası ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.'
+        userMessage = 'Bu telefon numarası ile kayıtlı bir müşteri zaten mevcut. Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.'
       } else if (target.includes('plaka')) {
-        userMessage = 'Bu plaka ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.'
+        userMessage = 'Bu plaka ile kayıtlı bir müşteri zaten mevcut. Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.'
       } else {
-        userMessage = `Bu ${target} ile kayıtlı bir müşteri zaten var. Lütfen mevcut kaydı güncelleyin.`
+        userMessage = `Bu ${target} ile kayıtlı bir müşteri zaten mevcut. Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.`
       }
     }
     // Handle Prisma foreign key errors
     else if (error.code === 'P2003') {
-      userMessage = 'Seçilen dosya tipi veya bayi bulunamadı'
+      userMessage = 'Seçilen dosya tipi veya bayi bulunamadı. Lütfen bilgileri kontrol edin.'
     }
     // Use error message if available and meaningful
     else if (error.message && !error.message.includes('Server Components render')) {
@@ -761,11 +761,17 @@ export async function createCustomer(data: {
     }
     
     // Create error with user-friendly message that will be shown in production
-    const customError = new Error(userMessage)
+    // Ensure the error message is properly serializable
+    const customError: any = new Error(userMessage)
     // Mark as validation error so it's handled properly on client
-    ;(customError as any).isValidationError = true
-    // Add digest for Next.js error tracking (optional)
-    ;(customError as any).digest = error.digest || `customer-create-${Date.now()}`
+    customError.isValidationError = true
+    // Preserve message explicitly
+    customError.message = userMessage
+    // Add digest for Next.js error tracking
+    customError.digest = (error as any).digest || `customer-create-${Date.now()}`
+    // Ensure error name is set
+    Object.defineProperty(customError, 'name', { value: 'ValidationError', enumerable: true, configurable: true })
+    
     throw customError
   }
 }

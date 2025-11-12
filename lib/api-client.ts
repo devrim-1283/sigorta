@@ -101,7 +101,16 @@ export const customerApi = {
       console.error('[customerApi.create] Error type:', typeof error)
       console.error('[customerApi.create] Error message:', error?.message)
       console.error('[customerApi.create] Error digest:', error?.digest)
-      throw error
+      
+      // Ensure error message is preserved and properly formatted
+      // Create a new error with the message to avoid Next.js serialization issues
+      const errorMessage = error?.message || 'Müşteri oluşturulurken bir hata oluştu'
+      const customError: any = new Error(errorMessage)
+      customError.isValidationError = (error as any)?.isValidationError || false
+      customError.digest = (error as any)?.digest
+      customError.message = errorMessage
+      
+      throw customError
     }
   },
 

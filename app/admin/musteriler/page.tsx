@@ -932,12 +932,9 @@ export default function CustomersPage() {
 
       } catch (error: any) {
         console.error('[handleCreateNewFile] API Error:', error)
-        console.error('[handleCreateNewFile] Error type:', typeof error)
-        console.error('[handleCreateNewFile] Error keys:', Object.keys(error))
-        console.error('[handleCreateNewFile] Error message:', error?.message)
-        console.error('[handleCreateNewFile] Error stack:', error?.stack)
         
         let errorMessage = 'Bilinmeyen hata oluştu'
+        let toastTitle = 'Hata'
         
         // Extract error message from various error formats
         if (error?.message) {
@@ -952,10 +949,18 @@ export default function CustomersPage() {
         
         // Remove "Server Components render" prefix if present
         if (errorMessage.includes('Server Components render')) {
-          // Try to extract the actual error message
-          const match = errorMessage.match(/Error: (.+)/)
-          if (match && match[1]) {
-            errorMessage = match[1]
+          // Try to extract the actual error message from digest or other sources
+          if (error?.digest) {
+            // Try to get meaningful message from error object
+            const errorString = JSON.stringify(error)
+            const match = errorString.match(/"message":"([^"]+)"/)
+            if (match && match[1]) {
+              errorMessage = match[1]
+            } else {
+              errorMessage = 'Müşteri oluşturulurken bir hata oluştu. Lütfen bilgileri kontrol edin.'
+            }
+          } else {
+            errorMessage = 'Müşteri oluşturulurken bir hata oluştu. Lütfen bilgileri kontrol edin.'
           }
         }
         
@@ -967,33 +972,45 @@ export default function CustomersPage() {
           normalized.includes('unique') ||
           normalized.includes('benzersiz') ||
           normalized.includes('mevcut kaydı') ||
-          normalized.includes('duplicate')
+          normalized.includes('mevcut') ||
+          normalized.includes('duplicate') ||
+          normalized.includes('çakışan')
         
         const isTCError = 
-          normalized.includes('tc') ||
-          normalized.includes('kimlik') ||
+          normalized.includes('tc kimlik') ||
+          normalized.includes('tc no') ||
           normalized.includes('11 haneli')
         
         const isPhoneError = 
-          normalized.includes('telefon') ||
-          normalized.includes('phone')
+          normalized.includes('telefon numarası') ||
+          normalized.includes('telefon:')
         
-        // Determine toast title based on error type
-        let toastTitle = 'Hata'
+        // Determine toast title and improve message
         if (isAlreadyExists) {
           toastTitle = 'Müşteri Zaten Kayıtlı'
+          // If message already contains details, use it as is
+          if (!errorMessage.includes('Mevcut kayıt:') && !errorMessage.includes('Çakışan bilgiler:')) {
+            // Try to make message more user-friendly
+            if (normalized.includes('tc')) {
+              errorMessage = 'Bu TC Kimlik Numarası ile kayıtlı bir müşteri zaten mevcut. Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.'
+            } else if (normalized.includes('telefon')) {
+              errorMessage = 'Bu telefon numarası ile kayıtlı bir müşteri zaten mevcut. Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.'
+            } else {
+              errorMessage = 'Bu bilgiler ile kayıtlı bir müşteri zaten mevcut. Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.'
+            }
+          }
         } else if (isTCError) {
           toastTitle = 'TC Kimlik No Hatası'
         } else if (isPhoneError) {
           toastTitle = 'Telefon Numarası Hatası'
         }
         
-        // Show toast notification
+        // Show toast notification with improved message
         toast({
           title: toastTitle,
           description: errorMessage,
           variant: 'destructive',
-          duration: 5000, // Show for 5 seconds
+          duration: 6000, // Show for 6 seconds for better readability
         })
         
         setError("") // Clear error state
