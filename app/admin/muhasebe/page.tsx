@@ -142,9 +142,10 @@ export default function AccountingPage() {
     } catch (error: any) {
       console.error('Failed to fetch accounting data:', error)
       toast({
-        title: 'Hata',
+        title: 'Uyarı',
         description: error?.message || 'Muhasebe verileri yüklenemedi',
-        variant: 'destructive',
+        variant: 'default',
+        duration: 5000,
       })
     } finally {
       setLoading(false)
@@ -155,9 +156,10 @@ export default function AccountingPage() {
     try {
       if (!formData.type || !formData.amount || !formData.transaction_date) {
         toast({
-          title: 'Hata',
+          title: 'Uyarı',
           description: 'Lütfen tüm zorunlu alanları doldurun',
-          variant: 'destructive',
+          variant: 'default',
+          duration: 4000,
         })
         return
       }
@@ -191,9 +193,10 @@ export default function AccountingPage() {
     } catch (error: any) {
       console.error('Failed to create transaction:', error)
       toast({
-        title: 'Hata',
+        title: 'Uyarı',
         description: error?.message || 'İşlem eklenemedi',
-        variant: 'destructive',
+        variant: 'default',
+        duration: 5000,
       })
     }
   }
@@ -283,9 +286,10 @@ export default function AccountingPage() {
     } catch (error: any) {
       console.error('Failed to download report:', error)
       toast({
-        title: 'Hata',
+        title: 'Uyarı',
         description: error?.message || 'Rapor indirilemedi',
-        variant: 'destructive',
+        variant: 'default',
+        duration: 5000,
       })
     } finally {
       setIsDownloadingReport(false)
@@ -350,9 +354,10 @@ export default function AccountingPage() {
     try {
       if (!formData.type || !formData.amount || !formData.transaction_date) {
         toast({
-          title: 'Hata',
+          title: 'Uyarı',
           description: 'Lütfen tüm zorunlu alanları doldurun',
-          variant: 'destructive',
+          variant: 'default',
+          duration: 4000,
         })
         return
       }
@@ -387,9 +392,10 @@ export default function AccountingPage() {
     } catch (error: any) {
       console.error('Failed to update transaction:', error)
       toast({
-        title: 'Hata',
+        title: 'Uyarı',
         description: error?.message || 'İşlem güncellenemedi',
-        variant: 'destructive',
+        variant: 'default',
+        duration: 5000,
       })
     }
   }
@@ -412,9 +418,10 @@ export default function AccountingPage() {
     } catch (error: any) {
       console.error('Failed to delete transaction:', error)
       toast({
-        title: 'Hata',
+        title: 'Uyarı',
         description: error?.message || 'İşlem silinemedi',
-        variant: 'destructive',
+        variant: 'default',
+        duration: 5000,
       })
     }
   }

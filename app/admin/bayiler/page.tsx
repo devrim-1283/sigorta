@@ -268,9 +268,10 @@ export default function DealersPage() {
   const handleCopyPassword = async () => {
     if (!formData.password) {
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: "Kopyalanacak şifre yok",
-        variant: "destructive",
+        variant: "default",
+        duration: 3000,
       })
       return
     }
@@ -288,9 +289,10 @@ export default function DealersPage() {
     } catch (error) {
       console.error("Password copy failed:", error)
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: "Şifre kopyalanamadı",
-        variant: "destructive",
+        variant: "default",
+        duration: 4000,
       })
     }
   }

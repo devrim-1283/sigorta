@@ -272,9 +272,10 @@ export default function CustomerDetailPage() {
     } catch (error: any) {
       console.error('Failed to fetch customer:', error)
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: error.message || "Müşteri bilgileri yüklenemedi",
-        variant: "destructive",
+        variant: "default",
+        duration: 5000,
       })
       router.push("/admin/musteriler")
     } finally {
@@ -332,9 +333,10 @@ export default function CustomerDetailPage() {
     } catch (error: any) {
       console.error('Document upload error:', error)
       toast({
-        title: "Hata",
-        description: error.message || "Evrak yüklenirken bir hata oluştu",
-        variant: "destructive",
+        title: "Uyarı",
+        description: error.message || "Evrak yüklenirken bir sorun oluştu",
+        variant: "default",
+        duration: 5000,
       })
     }
   }
@@ -358,9 +360,10 @@ export default function CustomerDetailPage() {
     } catch (error: any) {
       console.error('Download error:', error)
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: "Dosya indirilemedi",
-        variant: "destructive",
+        variant: "default",
+        duration: 5000,
       })
     }
   }
@@ -391,9 +394,10 @@ export default function CustomerDetailPage() {
     } catch (error: any) {
       console.error('Delete error:', error)
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: error.message || "Evrak silinemedi",
-        variant: "destructive",
+        variant: "default",
+        duration: 5000,
       })
     }
   }
@@ -411,9 +415,10 @@ export default function CustomerDetailPage() {
     } catch (error: any) {
       console.error('Status update error:', error)
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: error.message || "Durum güncellenemedi",
-        variant: "destructive",
+        variant: "default",
+        duration: 5000,
       })
     }
   }
@@ -432,9 +437,10 @@ export default function CustomerDetailPage() {
     } catch (error: any) {
       console.error('Add note error:', error)
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: error.message || "Not eklenemedi",
-        variant: "destructive",
+        variant: "default",
+        duration: 5000,
       })
     }
   }
@@ -454,9 +460,10 @@ export default function CustomerDetailPage() {
     } catch (error: any) {
       console.error('Close file error:', error)
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: error.message || "Dosya kapatılamadı",
-        variant: "destructive",
+        variant: "default",
+        duration: 5000,
       })
     }
   }
@@ -519,9 +526,10 @@ export default function CustomerDetailPage() {
     } catch (err: any) {
       console.error('Edit customer error:', err)
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: err.message || 'Müşteri güncellenemedi',
-        variant: "destructive",
+        variant: "default",
+        duration: 5000,
       })
     }
   }
@@ -1092,15 +1100,52 @@ export default function CustomerDetailPage() {
                 </div>
                 <div>
                   <Label htmlFor="edit_telefon" className="text-sm font-semibold mb-2">
-                    Telefon *
+                    Telefon * {editFormData.telefon && (
+                      <span className="text-xs text-gray-500 ml-2">
+                        ({editFormData.telefon.replace(/\D/g, '').length} rakam)
+                      </span>
+                    )}
                   </Label>
                   <Input
                     id="edit_telefon"
-                    placeholder="+90 532 123 4567"
+                    placeholder="+90 532 123 4567 veya 0532 123 4567"
                     value={editFormData.telefon}
-                    onChange={(e) => setEditFormData({ ...editFormData, telefon: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      const digitsOnly = value.replace(/\D/g, '')
+                      
+                      // Telefon numarası maksimum 12 rakam olabilir (90 + 10 haneli numara)
+                      // Ama kullanıcı daha fazla girerse uyarı ver ve düzelt
+                      if (digitsOnly.length > 12) {
+                        // İlk 12 rakamı al
+                        const trimmed = value.replace(/\D/g, '').slice(0, 12)
+                        // Formatı korumaya çalış (eğer +90 ile başlıyorsa)
+                        let formatted = trimmed
+                        if (value.includes('+') && trimmed.length >= 2) {
+                          formatted = '+' + trimmed
+                        } else if (trimmed.length > 0) {
+                          formatted = trimmed
+                        }
+                        
+                        setEditFormData({ ...editFormData, telefon: formatted })
+                        toast({
+                          title: 'Uyarı',
+                          description: 'Telefon numarası en fazla 12 rakam olabilir. Fazla karakterler kaldırıldı.',
+                          variant: 'default',
+                          duration: 3000,
+                        })
+                      } else {
+                        setEditFormData({ ...editFormData, telefon: value })
+                      }
+                    }}
+                    maxLength={20}
                     className="rounded-2xl mt-2"
                   />
+                  {editFormData.telefon && editFormData.telefon.replace(/\D/g, '').length > 12 && (
+                    <p className="text-xs text-orange-600 mt-1">
+                      Telefon numarası en fazla 12 rakam olabilir. Fazla karakterler otomatik kaldırılacak.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="edit_email" className="text-sm font-semibold mb-2">

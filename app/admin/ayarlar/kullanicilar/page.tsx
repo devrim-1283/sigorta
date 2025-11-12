@@ -140,9 +140,10 @@ export default function UserManagementPage() {
     } catch (error: any) {
       console.error('Failed to fetch users:', error)
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: error.message || "Kullanıcılar yüklenemedi",
-        variant: "destructive",
+        variant: "default",
+        duration: 5000,
       })
     } finally {
       setLoading(false)
@@ -275,9 +276,10 @@ export default function UserManagementPage() {
     try {
       if (!formData.name || !formData.password || !formData.role_id) {
         toast({
-          title: "Hata",
+          title: "Uyarı",
           description: "Lütfen tüm zorunlu alanları doldurun",
-          variant: "destructive",
+          variant: "default",
+          duration: 4000,
         })
         return
       }
@@ -286,9 +288,10 @@ export default function UserManagementPage() {
       const selectedRole = roles.find(r => String(r.id) === formData.role_id)
       if (selectedRole && (selectedRole.name === 'musteri' || selectedRole.name === 'customer')) {
         toast({
-          title: "Hata",
+          title: "Uyarı",
           description: "Müşteri rolü ile kullanıcı eklenemez. Müşteriler müşteri yönetimi sayfasından eklenmelidir.",
-          variant: "destructive",
+          variant: "default",
+          duration: 5000,
         })
         return
       }
@@ -314,9 +317,10 @@ export default function UserManagementPage() {
     } catch (error: any) {
       console.error('Failed to create user:', error)
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: error.message || "Kullanıcı oluşturulamadı",
-        variant: "destructive",
+        variant: "default",
+        duration: 5000,
       })
     }
   }
@@ -353,9 +357,10 @@ export default function UserManagementPage() {
     } catch (error: any) {
       console.error('Failed to update user:', error)
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: error.message || "Kullanıcı güncellenemedi",
-        variant: "destructive",
+        variant: "default",
+        duration: 5000,
       })
     }
   }
@@ -366,9 +371,10 @@ export default function UserManagementPage() {
     try {
       if (myProfileData.newPassword && myProfileData.newPassword !== myProfileData.confirmPassword) {
         toast({
-          title: "Hata",
+          title: "Uyarı",
           description: "Yeni şifreler eşleşmiyor",
-          variant: "destructive",
+          variant: "default",
+          duration: 4000,
         })
         return
       }
@@ -397,9 +403,10 @@ export default function UserManagementPage() {
     } catch (error: any) {
       console.error('Failed to update profile:', error)
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: error.message || "Profil güncellenemedi",
-        variant: "destructive",
+        variant: "default",
+        duration: 5000,
       })
     }
   }
@@ -427,9 +434,10 @@ export default function UserManagementPage() {
     } catch (error: any) {
       console.error('Failed to delete user:', error)
       toast({
-        title: "Hata",
+        title: "Uyarı",
         description: error.message || "Kullanıcı silinemedi",
-        variant: "destructive",
+        variant: "default",
+        duration: 5000,
       })
     }
   }
