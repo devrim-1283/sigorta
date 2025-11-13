@@ -89,6 +89,28 @@ export async function createUser(data: {
     revalidatePath('/dashboard/users')
     revalidatePath('/admin/ayarlar/kullanicilar')
 
+    // Log user creation
+    try {
+      const { createAuditLog } = await import('./audit-logs')
+      const roleInfo = await prisma.role.findUnique({ where: { id: BigInt(data.role_id) } })
+      await createAuditLog({
+        action: 'CREATE',
+        entityType: 'USER',
+        entityId: user.id.toString(),
+        entityName: user.name,
+        description: `Yeni kullanıcı oluşturuldu: ${user.name} (${roleInfo?.name || 'Rol bilinmiyor'})`,
+        newValues: {
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role_id: user.role_id.toString(),
+          dealer_id: user.dealer_id?.toString(),
+        },
+      })
+    } catch (logError) {
+      console.error('[User] Failed to log creation:', logError)
+    }
+
     return {
       ...user,
       id: Number(user.id),
@@ -155,6 +177,39 @@ export async function updateUser(id: number, data: Partial<{
 
   revalidatePath('/dashboard/users')
 
+  // Log user update
+  try {
+    const { createAuditLog } = await import('./audit-logs')
+    const changedFields: string[] = []
+    
+    if (data.name) changedFields.push('Ad Soyad')
+    if (data.email) changedFields.push('Email')
+    if (data.phone) changedFields.push('Telefon')
+    if (data.password) changedFields.push('Şifre')
+    if (data.role_id) changedFields.push('Rol')
+    if (data.dealer_id !== undefined) changedFields.push('Bayi')
+    
+    if (changedFields.length > 0) {
+      await createAuditLog({
+        action: 'UPDATE',
+        entityType: 'USER',
+        entityId: id.toString(),
+        entityName: user.name,
+        description: `Kullanıcı güncellendi: ${user.name}. Değiştirilen alanlar: ${changedFields.join(', ')}`,
+        newValues: {
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          role_id: data.role_id,
+          dealer_id: data.dealer_id,
+          password_changed: !!data.password,
+        },
+      })
+    }
+  } catch (logError) {
+    console.error('[User] Failed to log update:', logError)
+  }
+
   return {
     ...user,
     id: Number(user.id),
@@ -167,9 +222,44 @@ export async function updateUser(id: number, data: Partial<{
 export async function deleteUser(id: number) {
   await requireRole(['superadmin'])
 
+  // Get user details before deleting
+  const user = await prisma.user.findUnique({
+    where: { id: BigInt(id) },
+    select: {
+      name: true,
+      email: true,
+      phone: true,
+      role: {
+        select: { name: true },
+      },
+    },
+  })
+
   await prisma.user.delete({
     where: { id: BigInt(id) },
   })
+
+  // Log user deletion
+  if (user) {
+    try {
+      const { createAuditLog } = await import('./audit-logs')
+      await createAuditLog({
+        action: 'DELETE',
+        entityType: 'USER',
+        entityId: id.toString(),
+        entityName: user.name,
+        description: `Kullanıcı silindi: ${user.name} (${user.role.name})`,
+        oldValues: {
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role.name,
+        },
+      })
+    } catch (logError) {
+      console.error('[User] Failed to log deletion:', logError)
+    }
+  }
 
   revalidatePath('/dashboard/users')
 

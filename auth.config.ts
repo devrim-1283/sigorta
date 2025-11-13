@@ -130,6 +130,19 @@ export const authConfig: NextAuthConfig = {
           }
 
           if (!user) {
+            // Log failed login attempt
+            try {
+              const { createAuditLog } = await import('@/lib/actions/audit-logs')
+              await createAuditLog({
+                action: 'LOGIN_FAILED',
+                entityType: 'AUTH',
+                description: `Başarısız giriş denemesi: ${email}`,
+                userName: email,
+                userRole: 'unknown',
+              })
+            } catch (logError) {
+              console.error('[Auth] Failed to log failed login:', logError)
+            }
             throw new Error('Kullanıcı adı veya şifre hatalı')
           }
 
@@ -144,6 +157,22 @@ export const authConfig: NextAuthConfig = {
           )
 
           if (!isPasswordValid) {
+            // Log failed login attempt (wrong password)
+            try {
+              const { createAuditLog } = await import('@/lib/actions/audit-logs')
+              await createAuditLog({
+                action: 'LOGIN_FAILED',
+                entityType: 'AUTH',
+                entityId: user.id.toString(),
+                entityName: user.name,
+                description: `Başarısız giriş denemesi (yanlış şifre): ${user.name} (${email})`,
+                userId: Number(user.id),
+                userName: user.name,
+                userRole: user.role.name,
+              })
+            } catch (logError) {
+              console.error('[Auth] Failed to log failed login:', logError)
+            }
             throw new Error('Kullanıcı adı veya şifre hatalı')
           }
 
@@ -152,6 +181,23 @@ export const authConfig: NextAuthConfig = {
             where: { id: user.id },
             data: { last_login_at: new Date() },
           })
+
+          // Log successful login
+          try {
+            const { createAuditLog } = await import('@/lib/actions/audit-logs')
+            await createAuditLog({
+              action: 'LOGIN',
+              entityType: 'AUTH',
+              entityId: user.id.toString(),
+              entityName: user.name,
+              description: `${user.name} (${user.role.name}) sisteme giriş yaptı`,
+              userId: Number(user.id),
+              userName: user.name,
+              userRole: user.role.name,
+            })
+          } catch (logError) {
+            console.error('[Auth] Failed to log login:', logError)
+          }
 
           return {
             id: user.id.toString(),

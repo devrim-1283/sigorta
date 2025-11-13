@@ -107,7 +107,7 @@ export async function createDealer(data: {
 
   try {
     return await prisma.$transaction(async (tx) => {
-      const trimmedEmail = data.email.trim().toLowerCase()
+      const trimmedEmail = data.email?.trim().toLowerCase() || null
 
       // Check for duplicate dealer phone or tax number before creation
       const existingDealer = await tx.dealer.findFirst({
@@ -226,7 +226,7 @@ export async function createDealer(data: {
       })
 
       // Always create user account for dealer login (email and password are required)
-      const hashedPassword = await bcrypt.hash(data.password.trim(), 12)
+      const hashedPassword = await bcrypt.hash((data.password || '').trim(), 12)
       const dealerRoleId = await getDealerRoleId(tx)
       
       await tx.user.create({
@@ -257,7 +257,7 @@ export async function createDealer(data: {
           type: 'success',
           link: `/admin/bayiler`,
           roles: ['superadmin', 'birincil-admin'],
-          excludeUserId: currentUser.id,
+          excludeUserId: Number(currentUser.id),
         })
         
         // Notify the dealer user account that was created
@@ -280,6 +280,27 @@ export async function createDealer(data: {
         }
       } catch (notifError) {
         console.error('Notification error (non-critical):', notifError)
+      }
+
+      // Log dealer creation
+      try {
+        const { createAuditLog } = await import('./audit-logs')
+        await createAuditLog({
+          action: 'CREATE',
+          entityType: 'DEALER',
+          entityId: dealer.id.toString(),
+          entityName: dealer.dealer_name,
+          description: `Yeni bayi oluşturuldu: ${dealer.dealer_name}${dealer.contact_person ? ` (İrtibat: ${dealer.contact_person})` : ''}`,
+          newValues: {
+            dealer_name: dealer.dealer_name,
+            contact_person: dealer.contact_person,
+            phone: dealer.phone,
+            email: dealer.email,
+            city: dealer.city,
+          },
+        })
+      } catch (logError) {
+        console.error('[Dealer] Failed to log creation:', logError)
       }
 
       return {
@@ -315,6 +336,24 @@ export async function updateDealer(id: number, data: Partial<{
   const { password, ...dealerData } = data
 
   const dealer = await prisma.$transaction(async (tx) => {
+    // Get existing dealer for audit log comparison
+    const existing = await tx.dealer.findUnique({
+      where: { id: BigInt(id) },
+      select: {
+        dealer_name: true,
+        contact_person: true,
+        phone: true,
+        email: true,
+        city: true,
+        address: true,
+        tax_number: true,
+      },
+    })
+
+    if (!existing) {
+      throw new Error('Bayi bulunamadı')
+    }
+
     // Normalize email if provided
     let normalizedEmail: string | null = null
     if (data.email !== undefined) {
@@ -337,7 +376,7 @@ export async function updateDealer(id: number, data: Partial<{
         }
       }
       // Update dealerData with normalized email
-      dealerData.email = normalizedEmail
+      dealerData.email = normalizedEmail || undefined
     }
 
     // Normalize phone if provided
@@ -362,7 +401,7 @@ export async function updateDealer(id: number, data: Partial<{
         }
       }
       // Update dealerData with normalized phone
-      dealerData.phone = normalizedPhone
+      dealerData.phone = normalizedPhone || undefined
     }
 
     // Update dealer (without password field)
@@ -458,26 +497,62 @@ export async function updateDealer(id: number, data: Partial<{
 
       // Only update if there's something to update
       if (Object.keys(userUpdateData).length > 1) { // More than just updated_at
-        console.log(`[updateDealer] Updating user for dealer ${id}:`, {
-          userId: existingUser.id.toString(),
-          updates: {
-            email: userUpdateData.email !== undefined ? userUpdateData.email : 'not changed',
-            phone: userUpdateData.phone !== undefined ? userUpdateData.phone : 'not changed',
-            name: userUpdateData.name !== undefined ? userUpdateData.name : 'not changed',
-            password: userUpdateData.password ? '***updated***' : 'not changed',
-          }
-        })
-        
         await tx.user.update({
           where: { id: existingUser.id },
           data: userUpdateData,
         })
-        
-        console.log(`[updateDealer] User updated successfully for dealer ${id}`)
       }
     } else {
       // If no user exists, log warning
       console.warn(`[updateDealer] No user found for dealer ${id}, user update skipped`)
+    }
+
+    // Log dealer update
+    try {
+      const { createAuditLog } = await import('./audit-logs')
+      const changedFields: string[] = []
+      const oldValues: any = {}
+      const newValues: any = {}
+      
+      if (data.dealer_name && data.dealer_name !== existing.dealer_name) {
+        changedFields.push('Bayi Adı')
+        oldValues.dealer_name = existing.dealer_name
+        newValues.dealer_name = data.dealer_name
+      }
+      if (data.contact_person !== undefined && data.contact_person !== existing.contact_person) {
+        changedFields.push('İrtibat Kişisi')
+        oldValues.contact_person = existing.contact_person
+        newValues.contact_person = data.contact_person
+      }
+      if (data.phone && data.phone !== existing.phone) {
+        changedFields.push('Telefon')
+        oldValues.phone = existing.phone
+        newValues.phone = data.phone
+      }
+      if (data.email !== undefined && data.email !== existing.email) {
+        changedFields.push('Email')
+        oldValues.email = existing.email
+        newValues.email = data.email
+      }
+      if (data.city !== undefined && data.city !== existing.city) {
+        changedFields.push('Şehir')
+        oldValues.city = existing.city
+        newValues.city = data.city
+      }
+      
+      if (changedFields.length > 0) {
+        await createAuditLog({
+          action: 'UPDATE',
+          entityType: 'DEALER',
+          entityId: id.toString(),
+          entityName: updated.dealer_name,
+          description: `Bayi güncellendi: ${updated.dealer_name}. Değiştirilen alanlar: ${changedFields.join(', ')}`,
+          oldValues,
+          newValues,
+        })
+      }
+    } catch (logError) {
+      console.error('[Dealer] Failed to log update:', logError)
     }
 
     return updated
@@ -495,10 +570,43 @@ export async function updateDealer(id: number, data: Partial<{
 export async function deleteDealer(id: number) {
   await requireAuth()
 
+  // Get dealer details before deleting
+  const dealer = await prisma.dealer.findUnique({
+    where: { id: BigInt(id) },
+    select: {
+      dealer_name: true,
+      contact_person: true,
+      phone: true,
+      email: true,
+    },
+  })
+
   // Hard delete (deleted_at column doesn't exist yet)
   await prisma.dealer.delete({
     where: { id: BigInt(id) },
   })
+
+  // Log dealer deletion
+  if (dealer) {
+    try {
+      const { createAuditLog } = await import('./audit-logs')
+      await createAuditLog({
+        action: 'DELETE',
+        entityType: 'DEALER',
+        entityId: id.toString(),
+        entityName: dealer.dealer_name,
+        description: `Bayi silindi: ${dealer.dealer_name}${dealer.contact_person ? ` (İrtibat: ${dealer.contact_person})` : ''}`,
+        oldValues: {
+          dealer_name: dealer.dealer_name,
+          contact_person: dealer.contact_person,
+          phone: dealer.phone,
+          email: dealer.email,
+        },
+      })
+    } catch (logError) {
+      console.error('[Dealer] Failed to log deletion:', logError)
+    }
+  }
 
   revalidatePath('/dashboard/dealers')
   revalidatePath('/admin/bayiler')

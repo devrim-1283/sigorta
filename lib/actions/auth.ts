@@ -86,6 +86,23 @@ export async function authenticate(
 }
 
 export async function logoutUser() {
+  // Log logout before signing out
+  try {
+    const user = await getCurrentUser()
+    if (user) {
+      const { createAuditLog } = await import('@/lib/actions/audit-logs')
+      await createAuditLog({
+        action: 'LOGOUT',
+        entityType: 'AUTH',
+        entityId: user.id.toString(),
+        entityName: user.name,
+        description: `${user.name} (${user.role.name}) sistemden çıkış yaptı`,
+      })
+    }
+  } catch (error) {
+    console.error('[Auth] Failed to log logout:', error)
+  }
+  
   await signOut({ redirect: false })
   redirect('/')
 }

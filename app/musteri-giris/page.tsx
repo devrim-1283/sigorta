@@ -44,7 +44,6 @@ export default function CustomerLoginPage() {
           return
         }
         credentials.email = email.trim()
-        console.log('[Müşteri Giriş] E-posta ile deneniyor:', credentials.email)
       } else if (loginType === 'tc_no') {
         if (!tcNo.trim()) {
           setError('TC Kimlik No gerekli')
@@ -52,7 +51,6 @@ export default function CustomerLoginPage() {
           return
         }
         credentials.tc_no = tcNo.trim().replace(/\D/g, '')
-        console.log('[Müşteri Giriş] TC No ile deneniyor:', credentials.tc_no)
       } else if (loginType === 'phone') {
         if (!phone.trim()) {
           setError('Telefon numarası gerekli')
@@ -60,7 +58,6 @@ export default function CustomerLoginPage() {
           return
         }
         credentials.phone = phone.trim()
-        console.log('[Müşteri Giriş] Telefon ile deneniyor:', credentials.phone)
       }
 
       await login(credentials)
@@ -68,11 +65,9 @@ export default function CustomerLoginPage() {
       // Wait a moment for session to update
       await new Promise(resolve => setTimeout(resolve, 500))
       
-      console.log('[Müşteri Giriş] Başarılı')
       // Müşteri giriş yaptığında müşteri paneline yönlendir
       router.push("/musteri/panel")
     } catch (err: any) {
-      console.error('[Müşteri Giriş] Hata:', err)
       setError(err.message || "Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.")
     } finally {
       setIsLoading(false)

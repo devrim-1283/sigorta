@@ -134,16 +134,6 @@ export default function AdminLoginPage() {
                 )}
               </Button>
             </form>
-
-            {/* Demo Credentials */}
-            <div className="mt-6 p-4 rounded-xl bg-slate-50">
-              <p className="text-sm font-medium text-slate-700 mb-2">Demo Hesaplar:</p>
-              <div className="space-y-1 text-xs text-slate-600">
-                <p><strong>Superadmin:</strong> admin@sigorta.com / password</p>
-                <p><strong>Birincil Admin:</strong> birincil@sigorta.com / password</p>
-                <p><strong>İkincil Admin:</strong> ikincil@sigorta.com / password</p>
-              </div>
-            </div>
           </CardContent>
         </Card>
 

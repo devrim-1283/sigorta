@@ -47,11 +47,9 @@ export async function getCustomers(params?: {
       if (user?.dealer_id) {
         // Show only customers assigned to this dealer (dealer_id must not be null and must match)
       where.dealer_id = BigInt(user.dealer_id)
-        console.log('[getCustomers] Bayi filter applied, dealer_id:', user.dealer_id)
       } else {
         // If bayi user has no dealer_id, show no customers
         where.dealer_id = BigInt(-1) // This will return no results since no customer has dealer_id = -1
-        console.log('[getCustomers] Bayi user has no dealer_id, showing no customers')
       }
     }
 
@@ -428,14 +426,6 @@ export async function getCustomerByUserInfo() {
     throw new Error('Müşteri bilgileri bulunamadı. TC Kimlik No, telefon veya e-posta adresi gereklidir.')
   }
 
-  // Log search criteria for debugging
-  console.log('[getCustomerByUserInfo] Searching customer with:', {
-    tc_no: user.tc_no,
-    phone: user.phone,
-    email: user.email,
-    where,
-  })
-
   const customer = await prisma.customer.findFirst({
     where,
     include: {
@@ -496,7 +486,7 @@ export async function getCustomerByUserInfo() {
         }
       }
     } catch (searchError) {
-      console.error('[getCustomerByUserInfo] Alternative search error:', searchError)
+      // Failed to find customer with alternative criteria
     }
     
     // Build detailed error message
@@ -513,14 +503,6 @@ export async function getCustomerByUserInfo() {
       errorMsg += `Lütfen bilgilerinizi kontrol edin veya yönetici ile iletişime geçin.\n`
       errorMsg += `Müşteri kaydınız henüz oluşturulmamış olabilir.`
     }
-    
-    console.error('[getCustomerByUserInfo] Customer not found:', {
-      userId: user.id,
-      userName: user.name,
-      user: { tc_no: user.tc_no, phone: user.phone, email: user.email },
-      where,
-      alternativeCustomer,
-    })
     
     throw new Error(errorMsg)
   }
@@ -696,10 +678,6 @@ export async function createCustomer(data: {
     } catch (error: any) {
       // Return user-friendly error message with more context
       const errorMsg = error.message || 'Telefon numarası formatı geçersiz.'
-      console.error('[createCustomer] Phone validation error:', {
-        input: phoneInput,
-        error: errorMsg
-      })
       throw new Error(errorMsg)
     }
 
@@ -1003,6 +981,30 @@ export async function createCustomer(data: {
 
     revalidatePath('/dashboard/customers')
     revalidatePath('/admin/musteriler')
+
+    // Log customer creation
+    try {
+      const { createAuditLog } = await import('./audit-logs')
+      await createAuditLog({
+        action: 'CREATE',
+        entityType: 'CUSTOMER',
+        entityId: customer.id.toString(),
+        entityName: customer.ad_soyad,
+        description: `Yeni müşteri oluşturuldu: ${customer.ad_soyad} (TC: ${customer.tc_no}, Plaka: ${customer.plaka})`,
+        newValues: {
+          ad_soyad: customer.ad_soyad,
+          tc_no: customer.tc_no,
+          telefon: customer.telefon,
+          email: customer.email,
+          plaka: customer.plaka,
+          hasar_tarihi: customer.hasar_tarihi,
+          file_type_id: customer.file_type_id.toString(),
+          dealer_id: customer.dealer_id ? customer.dealer_id.toString() : null,
+        },
+      })
+    } catch (logError) {
+      console.error('[Customer] Failed to log creation:', logError)
+    }
 
     // Send notifications
     try {
@@ -1408,6 +1410,59 @@ export async function updateCustomer(id: number, data: Partial<{
       console.error('Notification error (non-critical):', notifError)
     }
 
+    // Log customer update
+    try {
+      const { createAuditLog } = await import('./audit-logs')
+      const changedFields: string[] = []
+      const oldValues: any = {}
+      const newValues: any = {}
+      
+      if (data.ad_soyad && data.ad_soyad !== existingCustomer.ad_soyad) {
+        changedFields.push('Ad Soyad')
+        oldValues.ad_soyad = existingCustomer.ad_soyad
+        newValues.ad_soyad = data.ad_soyad
+      }
+      if (data.telefon && data.telefon !== existingCustomer.telefon) {
+        changedFields.push('Telefon')
+        oldValues.telefon = existingCustomer.telefon
+        newValues.telefon = data.telefon
+      }
+      if (data.email !== undefined && data.email !== existingCustomer.email) {
+        changedFields.push('Email')
+        oldValues.email = existingCustomer.email
+        newValues.email = data.email
+      }
+      if (data.plaka && data.plaka !== existingCustomer.plaka) {
+        changedFields.push('Plaka')
+        oldValues.plaka = existingCustomer.plaka
+        newValues.plaka = data.plaka
+      }
+      if (data.başvuru_durumu && data.başvuru_durumu !== existingCustomer.başvuru_durumu) {
+        changedFields.push('Başvuru Durumu')
+        oldValues.başvuru_durumu = existingCustomer.başvuru_durumu
+        newValues.başvuru_durumu = data.başvuru_durumu
+      }
+      if (data.dealer_id !== undefined && data.dealer_id !== (existingCustomer.dealer_id ? Number(existingCustomer.dealer_id) : null)) {
+        changedFields.push('Bayi')
+        oldValues.dealer_id = existingCustomer.dealer_id
+        newValues.dealer_id = data.dealer_id
+      }
+      
+      if (changedFields.length > 0) {
+        await createAuditLog({
+          action: 'UPDATE',
+          entityType: 'CUSTOMER',
+          entityId: id.toString(),
+          entityName: customer.ad_soyad,
+          description: `Müşteri güncellendi: ${customer.ad_soyad}. Değiştirilen alanlar: ${changedFields.join(', ')}`,
+          oldValues,
+          newValues,
+        })
+      }
+    } catch (logError) {
+      console.error('[Customer] Failed to log update:', logError)
+    }
+
   return {
     ...customer,
     id: Number(customer.id),
@@ -1425,9 +1480,42 @@ export async function updateCustomer(id: number, data: Partial<{
 export async function deleteCustomer(id: number) {
   await requireAuth()
 
+  // Get customer details before deleting
+  const customer = await prisma.customer.findUnique({
+    where: { id: BigInt(id) },
+    select: {
+      ad_soyad: true,
+      tc_no: true,
+      telefon: true,
+      plaka: true,
+    },
+  })
+
   await prisma.customer.delete({
     where: { id: BigInt(id) },
   })
+
+  // Log customer deletion
+  if (customer) {
+    try {
+      const { createAuditLog } = await import('./audit-logs')
+      await createAuditLog({
+        action: 'DELETE',
+        entityType: 'CUSTOMER',
+        entityId: id.toString(),
+        entityName: customer.ad_soyad,
+        description: `Müşteri silindi: ${customer.ad_soyad} (TC: ${customer.tc_no}, Plaka: ${customer.plaka})`,
+        oldValues: {
+          ad_soyad: customer.ad_soyad,
+          tc_no: customer.tc_no,
+          telefon: customer.telefon,
+          plaka: customer.plaka,
+        },
+      })
+    } catch (logError) {
+      console.error('[Customer] Failed to log deletion:', logError)
+    }
+  }
 
   revalidatePath('/dashboard/customers')
 

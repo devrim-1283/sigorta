@@ -99,6 +99,15 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         route: "/admin/bildirimler",
       },
       {
+        id: "audit-logs",
+        label: "Sistem Logları",
+        icon: "Activity",
+        route: "/admin/loglar",
+        permissions: {
+          canViewAll: true,
+        },
+      },
+      {
         id: "settings",
         label: "Genel Ayarlar",
         icon: "Settings",
