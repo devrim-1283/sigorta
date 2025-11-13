@@ -60,6 +60,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { type UserRole, hasPermission, getModuleLabel } from "@/lib/role-config"
+import { canCreateCustomer } from "@/lib/permissions"
 import { FILE_TYPES, getFileTypeConfig, type FileType, type DocumentType as FileDocType } from "@/lib/file-types-config"
 import { DocumentCard, type DocumentType, type DocumentStatus } from "@/components/document-card"
 import { DocumentUploadModal } from "@/components/document-upload-modal"
@@ -311,7 +312,7 @@ export default function CustomersPage() {
   )
 
   // Permissions
-  const canCreate = hasPermission(userRole, "customer-management", "canCreate")
+  const canCreate = canCreateCustomer(userRole)
   const canEdit = hasPermission(userRole, "customer-management", "canEdit")
   const canDelete = hasPermission(userRole, "customer-management", "canDelete")
   const moduleLabel = getModuleLabel(userRole, "customer-management")

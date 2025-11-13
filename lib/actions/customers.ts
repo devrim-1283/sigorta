@@ -40,6 +40,11 @@ export async function getCustomers(params?: {
       where.tc_no = user.tc_no
     }
 
+    // For dealer (bayi) role, filter by their dealer_id
+    if (user?.role?.name === 'bayi' && user?.dealer_id) {
+      where.dealer_id = BigInt(user.dealer_id)
+    }
+
   if (params?.search) {
     where.OR = [
       { ad_soyad: { contains: params.search, mode: 'insensitive' } },
@@ -193,6 +198,7 @@ export async function getCustomer(id: number) {
     dosya_kapanma_tarihi: customer.dosya_kapanma_tarihi ? customer.dosya_kapanma_tarihi.toISOString() : null,
     sigortadan_yatan_tutar: customer.sigortadan_yatan_tutar ? Number(customer.sigortadan_yatan_tutar) : null,
     musteri_hakedisi: customer.musteri_hakedisi ? Number(customer.musteri_hakedisi) : null,
+    bayi_odeme_tutari: customer.bayi_odeme_tutari ? Number(customer.bayi_odeme_tutari) : null,
     created_at: customer.created_at ? customer.created_at.toISOString() : null,
     updated_at: customer.updated_at ? customer.updated_at.toISOString() : null,
     dealer: customer.dealer
@@ -776,6 +782,7 @@ export async function updateCustomer(id: number, data: Partial<{
   evrak_durumu: string
   dosya_kilitli: boolean
   password?: string
+  bayi_odeme_tutari?: number
 }>) {
   const currentUser = await requireAuth()
 
@@ -821,6 +828,9 @@ export async function updateCustomer(id: number, data: Partial<{
       typeof data.hasar_tarihi === 'string'
         ? new Date(data.hasar_tarihi)
         : data.hasar_tarihi
+  }
+  if (data.bayi_odeme_tutari !== undefined) {
+    updateData.bayi_odeme_tutari = data.bayi_odeme_tutari
   }
 
     // Update normalized values

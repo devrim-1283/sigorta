@@ -32,6 +32,17 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { type UserRole } from "@/lib/role-config"
+import {
+  canViewDealerInfo,
+  canViewDealerPayment,
+  canViewDealerCode,
+  canEditCustomer,
+  canUploadApplicationDocuments,
+  canUploadResultDocuments,
+  canCloseFile,
+  canUpdateCustomerStatus,
+  canManageDealerPayment,
+} from "@/lib/permissions"
 import { DocumentCard, type DocumentType, type DocumentStatus } from "@/components/document-card"
 import { DocumentUploadModal } from "@/components/document-upload-modal"
 import { customerApi, documentApi, dealerApi, accountingApi, resultDocumentsApi } from "@/lib/api-client"
@@ -89,6 +100,7 @@ interface Customer {
   notes?: Note[]
   sigortadan_yatan_tutar?: number | string
   musteri_hakedisi?: number | string
+  bayi_odeme_tutari?: number | string
 }
 
 interface Payment {
@@ -256,6 +268,7 @@ export default function CustomerDetailPage() {
         başvuru_durumu: response.başvuru_durumu || 'EVRAK AŞAMASINDA',
         sigortadan_yatan_tutar: response.sigortadan_yatan_tutar ? Number(response.sigortadan_yatan_tutar) : undefined,
         musteri_hakedisi: response.musteri_hakedisi ? Number(response.musteri_hakedisi) : undefined,
+        bayi_odeme_tutari: response.bayi_odeme_tutari ? Number(response.bayi_odeme_tutari) : undefined,
         ödemeler: (response.payments || response.ödemeler || []).map((p: any) => {
           // Handle BigInt for tutar/amount
           let tutarValue = 0
@@ -330,10 +343,17 @@ export default function CustomerDetailPage() {
     }
   }
 
-  const shouldShowDealerInfo = userRole === "bayi" || userRole === "superadmin"
-  const canUpdateStatus = userRole === "superadmin" || userRole === "operasyon" || userRole === "admin"
-  const canCreate = userRole === "superadmin" || userRole === "operasyon" || userRole === "admin" || userRole === "evrak-birimi"
-  const canDelete = userRole === "superadmin" || userRole === "operasyon" || userRole === "admin"
+  // Use permission helpers
+  const shouldShowDealerInfo = canViewDealerInfo(userRole)
+  const shouldShowDealerCode = canViewDealerCode(userRole)
+  const shouldShowDealerPayment = canViewDealerPayment(userRole)
+  const canUpdateStatus = canUpdateCustomerStatus(userRole)
+  const canCreate = canUploadApplicationDocuments(userRole)
+  const canDelete = userRole === "superadmin" || userRole === "operasyon" || userRole === "admin" || userRole === "birincil-admin"
+  const canUploadResultDocs = canUploadResultDocuments(userRole)
+  const canCloseFilePermission = canCloseFile(userRole)
+  const canEdit = canEditCustomer(userRole)
+  const canManageDealerPaymentPermission = canManageDealerPayment(userRole)
 
   const handleDocumentUpload = async (file: File, type: DocumentType) => {
     if (!customer) return
@@ -799,8 +819,6 @@ export default function CustomerDetailPage() {
     )
   }
 
-  const canEdit = userRole === "superadmin" || userRole === "operasyon" || userRole === "admin"
-
   return (
     <main className="flex-1 overflow-auto bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
@@ -891,6 +909,57 @@ export default function CustomerDetailPage() {
                     <div className="pt-4 border-t">
                       <p className="text-sm text-muted-foreground">Bağlı Bayi</p>
                       <p className="font-semibold">{customer.bağlı_bayi_adı}</p>
+                    </div>
+                  )}
+                  {shouldShowDealerCode && !shouldShowDealerInfo && customer.bağlı_bayi_id && (
+                    <div className="pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">Bayi Kodu</p>
+                      <p className="font-semibold">{customer.bağlı_bayi_id}</p>
+                    </div>
+                  )}
+                  {shouldShowDealerPayment && customer.bayi_odeme_tutari && (
+                    <div className="pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">Bayi Ödemesi</p>
+                      <p className="font-semibold text-lg">
+                        {Number(customer.bayi_odeme_tutari).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
+                      </p>
+                    </div>
+                  )}
+                  {canManageDealerPaymentPermission && (
+                    <div className="pt-4 border-t space-y-4">
+                      <div>
+                        <Label htmlFor="bayi_odeme_tutari" className="text-sm font-semibold mb-2">
+                          Bayi Ödeme Tutarı (₺)
+                        </Label>
+                        <Input
+                          id="bayi_odeme_tutari"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          value={customer.bayi_odeme_tutari || ''}
+                          onChange={async (e) => {
+                            const value = parseFloat(e.target.value) || 0
+                            try {
+                              await customerApi.update(customer.id, { bayi_odeme_tutari: value })
+                              await fetchCustomer()
+                              toast({
+                                title: "Başarılı",
+                                description: "Bayi ödeme tutarı güncellendi",
+                              })
+                            } catch (error: any) {
+                              toast({
+                                title: "Uyarı",
+                                description: error.message || "Bayi ödeme tutarı güncellenemedi",
+                                variant: "default",
+                                duration: 5000,
+                              })
+                            }
+                          }}
+                          className="rounded-2xl mt-2"
+                          disabled={customer.dosya_kilitli}
+                        />
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -985,8 +1054,8 @@ export default function CustomerDetailPage() {
               <div className="space-y-4 pt-6 border-t">
                 <h3 className="text-xl font-bold" style={{ color: "#0B3D91" }}>SÜREÇ EVRAKLARI</h3>
                 
-                {/* Upload areas for admin roles */}
-                {(userRole === "superadmin" || userRole === "admin" || userRole === "operasyon") && (
+                {/* Upload areas for roles with permission */}
+                {canUploadResultDocs && (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                     {RESULT_DOCUMENT_TYPES.map((docType) => {
                       const existingDoc = customer.süreç_evraklari.find(
@@ -1123,8 +1192,7 @@ export default function CustomerDetailPage() {
                   </div>
                 )}
                 
-                {customer.süreç_evraklari.length === 0 && 
-                 (userRole !== "superadmin" && userRole !== "admin" && userRole !== "operasyon") && (
+                {customer.süreç_evraklari.length === 0 && !canUploadResultDocs && (
                   <p className="text-center text-muted-foreground py-8">Henüz süreç evrakı yüklenmemiş.</p>
                 )}
               </div>
@@ -1171,7 +1239,7 @@ export default function CustomerDetailPage() {
                       )}
                     </div>
 
-                    {!customer.dosya_kilitli && (userRole === "admin" || userRole === "superadmin") && (
+                    {!customer.dosya_kilitli && canCloseFilePermission && (
                       <div className="pt-4 border-t">
                         <Button
                           variant="outline"
@@ -1287,15 +1355,16 @@ export default function CustomerDetailPage() {
                   </CardContent>
                 </Card>
 
-                {/* Payments Section */}
-                <Card className="rounded-2xl">
-                  <CardContent className="p-4 md:p-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <DollarSign className="h-5 w-5" />
-                      Ödemeler
-                    </h3>
-                    <div className="space-y-3">
-                      {customer.ödemeler.map((payment) => (
+                {/* Payments Section - Hidden for musteri role */}
+                {userRole !== "musteri" && (
+                  <Card className="rounded-2xl">
+                    <CardContent className="p-4 md:p-6">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <DollarSign className="h-5 w-5" />
+                        Ödemeler
+                      </h3>
+                      <div className="space-y-3">
+                        {customer.ödemeler.map((payment) => (
                         <div key={payment.id} className="p-4 bg-slate-50 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                           <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-xl bg-green-100 flex items-center justify-center">

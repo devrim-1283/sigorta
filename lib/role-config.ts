@@ -1,7 +1,7 @@
 // Role-based menu configuration
 // Each role sees different menu labels and has different data access
 
-export type UserRole = "superadmin" | "birincil-admin" | "ikincil-admin" | "evrak-birimi" | "bayi" | "musteri"
+export type UserRole = "superadmin" | "birincil-admin" | "ikincil-admin" | "evrak-birimi" | "bayi" | "musteri" | "operasyon" | "admin"
 
 export interface MenuItem {
   id: string // Internal module ID
@@ -246,24 +246,13 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
       },
       {
         id: "customer-management",
-        label: "Dosya Yönetimi",
-        icon: "FolderOpen",
+        label: "Müşteri Yönetimi",
+        icon: "Users",
         route: "/admin/musteriler",
         badge: "156",
         permissions: {
           canCreate: true,
           canEdit: false,
-          canViewAll: true,
-        },
-      },
-      {
-        id: "dealer-management",
-        label: "Bayi Yönetimi",
-        icon: "Building2",
-        route: "/admin/bayiler",
-        permissions: {
-          canCreate: true,
-          canEdit: true,
           canViewAll: true,
         },
       },

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import type { UserRole } from "@/lib/role-config"
+import { canCreateDealer } from "@/lib/permissions"
 
 import { dealerApi } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
@@ -590,13 +591,14 @@ export default function DealersPage() {
                     <option value="pending">Beklemede</option>
                   </select>
                 </div>
-                <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-                  <DialogTrigger asChild>
-                    <Button className="rounded-2xl" style={{ backgroundColor: "#F57C00", color: "white" }}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Yeni Bayi
-                    </Button>
-                  </DialogTrigger>
+                {canCreateDealer(userRole) && (
+                  <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+                    <DialogTrigger asChild>
+                      <Button className="rounded-2xl" style={{ backgroundColor: "#F57C00", color: "white" }}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Yeni Bayi
+                      </Button>
+                    </DialogTrigger>
                 <DialogContent className="rounded-3xl max-w-2xl w-[95vw]">
                     <DialogHeader>
                       <DialogTitle>Yeni Bayi Ekle</DialogTitle>
@@ -784,7 +786,8 @@ export default function DealersPage() {
                       </div>
                     </form>
                   </DialogContent>
-                </Dialog>
+                  </Dialog>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -937,15 +940,19 @@ export default function DealersPage() {
                 <CardContent className="p-10 text-center">
                   <Building2 className="h-12 w-12 mx-auto text-slate-300 mb-4" />
                   <h3 className="text-xl font-semibold text-slate-700 mb-2">Bayi bulunamadı</h3>
-                  <p className="text-sm text-slate-500 mb-6">Yeni bir bayi eklemek için "Yeni Bayi" butonunu kullanın.</p>
-                  <Button
-                    onClick={() => setShowAddModal(true)}
-                    className="rounded-2xl"
-                    style={{ backgroundColor: "#F57C00", color: "white" }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Bayi Ekle
-                  </Button>
+                  {canCreateDealer(userRole) && (
+                    <>
+                      <p className="text-sm text-slate-500 mb-6">Yeni bir bayi eklemek için "Yeni Bayi" butonunu kullanın.</p>
+                      <Button
+                        onClick={() => setShowAddModal(true)}
+                        className="rounded-2xl"
+                        style={{ backgroundColor: "#F57C00", color: "white" }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Bayi Ekle
+                      </Button>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             )}
