@@ -150,17 +150,19 @@ export default function DealersPage() {
 
   const filteredDealers = useMemo(() => {
     return dealers.filter((dealer) => {
-      const matchesSearch =
-        !search ||
-        dealer.dealer_name?.toLowerCase().includes(search.toLowerCase()) ||
-        dealer.contact_person?.toLowerCase?.().includes(search.toLowerCase()) ||
-        dealer.city?.toLowerCase?.().includes(search.toLowerCase()) ||
-        dealer.tax_number?.toLowerCase?.().includes(search.toLowerCase())
+      // For birincil-admin, search by ID only
+      const matchesSearch = !search || 
+        (userRole === 'birincil-admin' 
+          ? dealer.id.toString().includes(search)
+          : (dealer.dealer_name?.toLowerCase().includes(search.toLowerCase()) ||
+             dealer.contact_person?.toLowerCase?.().includes(search.toLowerCase()) ||
+             dealer.city?.toLowerCase?.().includes(search.toLowerCase()) ||
+             dealer.tax_number?.toLowerCase?.().includes(search.toLowerCase())))
 
       const matchesStatus = !status || dealer.status === status
       return matchesSearch && matchesStatus
     })
-  }, [dealers, search, status])
+  }, [dealers, search, status, userRole])
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -861,23 +863,29 @@ export default function DealersPage() {
                       <div>
                         <div className="flex items-center gap-2 mb-2">
                           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#0B3D91] text-white font-semibold">
-                            {dealer.dealer_name?.substring(0, 2).toUpperCase() || "BY"}
+                            {userRole === 'birincil-admin' ? dealer.id.toString() : (dealer.dealer_name?.substring(0, 2).toUpperCase() || "BY")}
                           </div>
                           <div>
-                            <h2 className="text-xl font-semibold text-slate-800">{dealer.dealer_name}</h2>
-                            {dealer.contact_person && (
+                            <h2 className="text-xl font-semibold text-slate-800">
+                              {userRole === 'birincil-admin' ? `Bayi ID: ${dealer.id}` : dealer.dealer_name}
+                            </h2>
+                            {userRole !== 'birincil-admin' && dealer.contact_person && (
                               <p className="text-sm text-slate-500">Yetkili: {dealer.contact_person}</p>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-500">
-                          <MapPin className="h-4 w-4 text-[#F57C00]" />
-                          <span>{dealer.city || "Belirtilmemiş"}</span>
-                        </div>
-                        {dealer.tax_number && (
-                          <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
-                            <span>Vergi No: {dealer.tax_number}</span>
-                          </div>
+                        {userRole !== 'birincil-admin' && (
+                          <>
+                            <div className="flex items-center gap-2 text-sm text-slate-500">
+                              <MapPin className="h-4 w-4 text-[#F57C00]" />
+                              <span>{dealer.city || "Belirtilmemiş"}</span>
+                            </div>
+                            {dealer.tax_number && (
+                              <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
+                                <span>Vergi No: {dealer.tax_number}</span>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                       <Badge
@@ -894,19 +902,23 @@ export default function DealersPage() {
                     </div>
 
                     <div className="space-y-3 text-sm text-slate-600">
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-[#0B3D91]" />
-                        <span>{dealer.phone || "-"}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-[#0B3D91]" />
-                        <span>{dealer.email || "-"}</span>
-                      </div>
-                      {dealer.address && (
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4 text-[#0B3D91]" />
-                          <span>{dealer.address}</span>
-                        </div>
+                      {userRole !== 'birincil-admin' && (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <Phone className="h-4 w-4 text-[#0B3D91]" />
+                            <span>{dealer.phone || "-"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-[#0B3D91]" />
+                            <span>{dealer.email || "-"}</span>
+                          </div>
+                          {dealer.address && (
+                            <div className="flex items-center gap-2">
+                              <Building2 className="h-4 w-4 text-[#0B3D91]" />
+                              <span>{dealer.address}</span>
+                            </div>
+                          )}
+                        </>
                       )}
                       <div className="flex items-center gap-2">
                         <Star className="h-4 w-4 text-[#0B3D91]" />
@@ -914,24 +926,26 @@ export default function DealersPage() {
                       </div>
                     </div>
 
-                    <div className="flex gap-3 mt-6">
-                      <Button
-                        variant="outline"
-                        className="rounded-xl flex-1"
-                        onClick={() => openEditModal(dealer)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Düzenle
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="rounded-xl text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
-                        onClick={() => handleDeleteDealer(dealer)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Sil
-                      </Button>
-                    </div>
+                    {userRole !== 'birincil-admin' && (
+                      <div className="flex gap-3 mt-6">
+                        <Button
+                          variant="outline"
+                          className="rounded-xl flex-1"
+                          onClick={() => openEditModal(dealer)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Düzenle
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="rounded-xl text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
+                          onClick={() => handleDeleteDealer(dealer)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Sil
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))
