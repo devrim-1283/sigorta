@@ -211,6 +211,12 @@ export default function CustomerDetailPage() {
       if (isNaN(Number(id))) {
         throw new Error('Geçersiz müşteri ID')
       }
+      
+      // Validate customerApi.getById exists
+      if (!customerApi.getById || typeof customerApi.getById !== 'function') {
+        throw new Error('customerApi.getById fonksiyonu bulunamadı')
+      }
+      
       const response = await customerApi.getById(id)
       
       const mapDocuments = (docs: any[] = []) => {
@@ -251,10 +257,15 @@ export default function CustomerDetailPage() {
       // Fetch result documents (süreç evrakları)
       let surecEvraklari: any[] = []
       try {
-        const resultDocs = await resultDocumentsApi.list(id)
-        surecEvraklari = mapDocuments(resultDocs || [])
+        // Ensure id is a number for resultDocumentsApi.list
+        const customerIdNum = typeof id === 'string' ? parseInt(id, 10) : id
+        if (!isNaN(customerIdNum)) {
+          const resultDocs = await resultDocumentsApi.list(customerIdNum)
+          surecEvraklari = mapDocuments(resultDocs || [])
+        }
       } catch (error) {
         console.error('Failed to fetch result documents:', error)
+        // Don't throw, just log - result documents are optional
       }
 
       const transformedCustomer: Customer = {
@@ -309,14 +320,37 @@ export default function CustomerDetailPage() {
 
       setCustomer(transformedCustomer)
     } catch (error: any) {
-      console.error('Failed to fetch customer:', error)
+      console.error('[CustomerDetail] Failed to fetch customer:', error)
+      
+      // Extract error message
+      let errorMessage = 'Müşteri bilgileri yüklenemedi'
+      if (error?.message) {
+        errorMessage = error.message
+      } else if (typeof error === 'string') {
+        errorMessage = error
+      } else if (error?.toString && typeof error.toString === 'function') {
+        errorMessage = error.toString()
+      }
+      
+      // Remove "Server Components render" prefix if present
+      if (errorMessage.includes('Server Components render')) {
+        errorMessage = 'Müşteri bilgileri yüklenemedi. Lütfen tekrar deneyin.'
+      }
+      
+      // Check for specific error types
+      if (errorMessage.toLowerCase().includes('getcustomer') || errorMessage.toLowerCase().includes('getcustomer')) {
+        errorMessage = 'Müşteri bilgileri yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.'
+      }
+      
       toast({
-        title: "Uyarı",
-        description: error.message || "Müşteri bilgileri yüklenemedi",
-        variant: "default",
+        title: "Hata",
+        description: errorMessage,
+        variant: "destructive",
         duration: 5000,
       })
-      router.push("/admin/musteriler")
+      
+      // Don't redirect immediately, let user see the error
+      // router.push("/admin/musteriler")
     } finally {
       setLoading(false)
     }
