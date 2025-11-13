@@ -192,6 +192,7 @@ export default function CustomersPage() {
   const [showNewFilePassword, setShowNewFilePassword] = useState(false)
   const [newFileUploadedDocs, setNewFileUploadedDocs] = useState<FileDocType[]>([])
   const [currentUploadingDocType, setCurrentUploadingDocType] = useState<FileDocType | null>(null)
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState<{ [key: string]: File }>({})
   const [dealerOptions, setDealerOptions] = useState<Array<{ id: string; name: string }>>([
     { id: "none", name: "Belirtilmemiş / Bilinmiyor" },
@@ -836,7 +837,14 @@ export default function CustomersPage() {
 
   // New file creation handler
   const handleCreateNewFile = async () => {
+    // Prevent duplicate submissions
+    if (isCreatingCustomer) {
+      return
+    }
+
     try {
+      setIsCreatingCustomer(true)
+      
       // Client-side validation before API call
       const tcNoDigits = newFileData.tc_no.replace(/\D/g, '')
       
@@ -876,24 +884,30 @@ export default function CustomersPage() {
         return
       }
       
-      // Validate and normalize phone number
+      // Validate and normalize phone number - remove all non-digit characters
       const phoneDigits = newFileData.telefon.replace(/\D/g, '')
-      if (phoneDigits.length > 12) {
-        // Auto-trim to 12 digits
-        const trimmedPhone = phoneDigits.slice(0, 12)
-        // Try to preserve format
-        let formattedPhone = trimmedPhone
-        if (newFileData.telefon.includes('+')) {
-          formattedPhone = '+' + trimmedPhone
-        }
-        setNewFileData({ ...newFileData, telefon: formattedPhone })
+      
+      if (!phoneDigits || phoneDigits.length === 0) {
         toast({
-          title: 'Uyarı',
-          description: 'Telefon numarası en fazla 12 rakam olabilir. Fazla karakterler kaldırıldı.',
-          variant: 'default',
-          duration: 3000,
+          title: 'Hata',
+          description: 'Telefon numarası boş bırakılamaz.',
+          variant: 'destructive',
+          duration: 4000,
         })
-        // Continue with trimmed value instead of returning
+        setIsCreatingCustomer(false)
+        return
+      }
+
+      // Check phone length - should be 10-12 digits
+      if (phoneDigits.length < 10 || phoneDigits.length > 12) {
+        toast({
+          title: 'Hata',
+          description: `Telefon numarası 10-12 haneli olmalıdır. (Girilen: ${phoneDigits.length} haneli)`,
+          variant: 'destructive',
+          duration: 4000,
+        })
+        setIsCreatingCustomer(false)
+        return
       }
 
       const fileTypeConfig = newFileData.dosya_tipi ? getFileTypeConfig(Number(newFileData.dosya_tipi)) : null
@@ -917,10 +931,14 @@ export default function CustomersPage() {
               ? Number(user.dealer_id)
               : null
 
+        // Normalize phone number - send only digits to backend
+        // Backend will handle the validation and normalization
+        const normalizedPhone = phoneDigits
+
         const customerData: any = {
           ad_soyad: newFileData.ad_soyad,
-          tc_no: newFileData.tc_no,
-          telefon: newFileData.telefon,
+          tc_no: finalTcNo,
+          telefon: normalizedPhone, // Send normalized phone (digits only)
           email: newFileData.email || null,
           plaka: newFileData.plaka,
           hasar_tarihi: newFileData.hasar_tarihi,
@@ -1077,6 +1095,7 @@ export default function CustomersPage() {
         })
         
         setError("") // Clear error state
+        setIsCreatingCustomer(false) // Reset loading state
         return // Exit early if API fails
       }
 
@@ -1103,9 +1122,11 @@ export default function CustomersPage() {
       setShowNewFilePassword(false)
       setNewFileUploadedDocs([])
       setUploadedFiles({}) // Clear uploaded files
+      setIsCreatingCustomer(false) // Reset loading state
       fetchCustomers() // Refresh data
     } catch (err: any) {
       const errorMessage = err?.message || 'Dosya oluşturulamadı'
+      setIsCreatingCustomer(false) // Reset loading state on error
       toast({
         title: 'Uyarı',
         description: errorMessage,
@@ -2320,6 +2341,7 @@ export default function CustomersPage() {
                 className="rounded-2xl"
                 style={{ backgroundColor: "#F57C00", color: "white" }}
                 disabled={
+                  isCreatingCustomer ||
                   !newFileData.ad_soyad ||
                   !newFileData.tc_no ||
                   !newFileData.telefon ||

@@ -335,16 +335,28 @@ export async function createCustomer(data: {
   
   try {
     // Normalize and validate phone number
+    // First, ensure we're working with a string and trim whitespace
+    const phoneInput = String(data.telefon || '').trim()
+    
+    if (!phoneInput) {
+      throw new Error('Telefon numarası boş bırakılamaz.')
+    }
+    
     let normalizedPhone: string
     try {
-      const phoneValidation = validatePhone(data.telefon)
+      const phoneValidation = validatePhone(phoneInput)
       if (!phoneValidation.valid) {
-        throw new Error(phoneValidation.error || 'Geçersiz telefon numarası')
+        throw new Error(phoneValidation.error || 'Geçersiz telefon numarası formatı')
       }
       normalizedPhone = phoneValidation.sanitized
     } catch (error: any) {
-      // Return user-friendly error message
-      throw new Error(error.message || 'Telefon numarası formatı geçersiz. Lütfen 05XXXXXXXXX formatında girin.')
+      // Return user-friendly error message with more context
+      const errorMsg = error.message || 'Telefon numarası formatı geçersiz.'
+      console.error('[createCustomer] Phone validation error:', {
+        input: phoneInput,
+        error: errorMsg
+      })
+      throw new Error(errorMsg)
     }
 
     // Normalize and validate TC No (without strict algorithm check for flexibility)

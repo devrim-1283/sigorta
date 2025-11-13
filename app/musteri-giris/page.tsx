@@ -69,8 +69,8 @@ export default function CustomerLoginPage() {
       await new Promise(resolve => setTimeout(resolve, 500))
       
       console.log('[Müşteri Giriş] Başarılı')
-      // Müşteri giriş yaptığında direkt Durumum sayfasına yönlendir
-      router.push("/admin/musteriler")
+      // Müşteri giriş yaptığında müşteri paneline yönlendir
+      router.push("/musteri/panel")
     } catch (err: any) {
       console.error('[Müşteri Giriş] Hata:', err)
       setError(err.message || "Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.")
