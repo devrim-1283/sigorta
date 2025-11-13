@@ -55,6 +55,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname()
   const userRole: UserRole = (user?.role?.name as UserRole) || "superadmin"
   const isCustomerRole = userRole === 'musteri'
+  
+  // Debug: Log user role
+  useEffect(() => {
+    console.log('[AdminLayout] User role:', userRole, 'User:', user?.name)
+  }, [userRole, user])
   const [sidebarOpen, setSidebarOpen] = useState(true) // Always start open
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
@@ -65,6 +70,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const themeColor = userRole === 'bayi' ? '#F57C00' : '#0B3D91'
 
   const allMenuItems = getMenuItemsForRole(userRole, stats)
+  
+  // Debug: Log menu items for superadmin
+  useEffect(() => {
+    if (userRole === 'superadmin') {
+      console.log('[AdminLayout] Superadmin menu items:', allMenuItems.map(item => item.label))
+    }
+  }, [userRole, allMenuItems])
   
   // Filter menu items based on search term
   const menuItems = searchTerm.trim() 
