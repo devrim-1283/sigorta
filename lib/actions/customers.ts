@@ -47,10 +47,21 @@ export async function getCustomers(params?: {
       if (user?.dealer_id) {
         // Show only customers assigned to this dealer (dealer_id must not be null and must match)
         where.dealer_id = BigInt(user.dealer_id)
+        console.log('[getCustomers] Bayi filter applied, dealer_id:', user.dealer_id)
       } else {
         // If bayi user has no dealer_id, show no customers
         where.dealer_id = BigInt(-1) // This will return no results since no customer has dealer_id = -1
+        console.log('[getCustomers] Bayi user has no dealer_id, showing no customers')
       }
+    }
+
+    // Build AND conditions array for complex filters
+    const andConditions: any[] = []
+    
+    // Add dealer filter to AND if it exists
+    if (where.dealer_id) {
+      andConditions.push({ dealer_id: where.dealer_id })
+      delete where.dealer_id
     }
 
     // Build search conditions
@@ -62,35 +73,27 @@ export async function getCustomers(params?: {
         { plaka: { contains: params.search } },
       ]
       
-      // If dealer filter exists, combine it with search using AND
-      if (where.dealer_id) {
-        where.AND = [
-          { dealer_id: where.dealer_id },
-          { OR: searchConditions }
-        ]
-        // Remove dealer_id from top level since it's now in AND
-        delete where.dealer_id
+      if (andConditions.length > 0) {
+        // If we have dealer filter, combine with search using AND
+        andConditions.push({ OR: searchConditions })
       } else {
+        // No dealer filter, just use OR for search
         where.OR = searchConditions
       }
     }
 
-    // Add status filter - must be combined with existing filters
+    // Add status filter
     if (params?.status && params.status !== 'all') {
-      if (where.AND) {
-        // If AND already exists (dealer filter + search), add status to AND
-        where.AND.push({ başvuru_durumu: params.status })
-      } else if (where.dealer_id) {
-        // If only dealer filter exists, create AND with dealer and status
-        where.AND = [
-          { dealer_id: where.dealer_id },
-          { başvuru_durumu: params.status }
-        ]
-        delete where.dealer_id
+      if (andConditions.length > 0) {
+        andConditions.push({ başvuru_durumu: params.status })
       } else {
-        // No other filters, just add status
         where.başvuru_durumu = params.status
       }
+    }
+
+    // Apply AND conditions if any
+    if (andConditions.length > 0) {
+      where.AND = andConditions
     }
 
   const [customers, total] = await Promise.all([

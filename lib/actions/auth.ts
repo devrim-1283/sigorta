@@ -19,6 +19,7 @@ export async function getCurrentUser() {
       email: true,
       phone: true,
       tc_no: true,
+      dealer_id: true,
       is_active: true,
       last_login_at: true,
       role: {
@@ -47,6 +48,7 @@ export async function getCurrentUser() {
     email: user.email,
     phone: user.phone,
     tc_no: user.tc_no,
+    dealer_id: user.dealer_id ? Number(user.dealer_id) : null,
     role: {
       id: Number(user.role.id),
       name: user.role.name,
