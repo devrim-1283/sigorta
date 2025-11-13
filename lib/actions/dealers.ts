@@ -384,14 +384,66 @@ export async function updateDealer(id: number, data: Partial<{
         updated_at: new Date(),
       }
 
-      // Update email if provided (use normalized email)
+      // Update email if provided and different from current email
       if (data.email !== undefined) {
-        userUpdateData.email = normalizedEmail
+        // Only update if email is actually changing
+        const currentEmail = existingUser.email?.toLowerCase().trim() || null
+        const newEmail = normalizedEmail
+        
+        if (currentEmail !== newEmail) {
+          // Check for email conflicts if email is changing
+          if (newEmail) {
+            const emailConflict = await tx.user.findFirst({
+              where: {
+                email: newEmail,
+                id: { not: existingUser.id }, // Exclude current user
+              },
+            })
+
+            if (emailConflict) {
+              throw new Error(`Bu e-posta adresi (${newEmail}) başka bir kullanıcı tarafından kullanılıyor. Lütfen farklı bir e-posta adresi girin.`)
+            }
+          }
+          userUpdateData.email = newEmail
+        }
       }
 
-      // Update phone if provided (use normalized phone)
+      // Update phone if provided and different from current phone
       if (data.phone !== undefined) {
-        userUpdateData.phone = normalizedPhone
+        // Only update if phone is actually changing
+        // Normalize current phone for comparison
+        let currentPhoneNormalized: string | null = null
+        if (existingUser.phone) {
+          try {
+            const currentPhoneValidation = validatePhone(existingUser.phone)
+            if (currentPhoneValidation.valid) {
+              currentPhoneNormalized = currentPhoneValidation.sanitized
+            } else {
+              currentPhoneNormalized = existingUser.phone
+            }
+          } catch {
+            currentPhoneNormalized = existingUser.phone
+          }
+        }
+        
+        const newPhone = normalizedPhone
+        
+        if (currentPhoneNormalized !== newPhone) {
+          // Check for phone conflicts if phone is changing
+          if (newPhone) {
+            const phoneConflict = await tx.user.findFirst({
+              where: {
+                phone: newPhone,
+                id: { not: existingUser.id }, // Exclude current user
+              },
+            })
+
+            if (phoneConflict) {
+              throw new Error(`Bu telefon numarası (${newPhone}) başka bir kullanıcı tarafından kullanılıyor. Lütfen farklı bir telefon numarası girin.`)
+            }
+          }
+          userUpdateData.phone = newPhone
+        }
       }
 
       // Update name if dealer_name changed
