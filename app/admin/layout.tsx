@@ -25,6 +25,7 @@ import {
   ChevronDown,
   ChevronRight,
   LogOut,
+  Activity,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -41,6 +42,7 @@ const iconMap: Record<string, any> = {
   Bell,
   Settings,
   Shield,
+  Activity,
 }
 
 interface AdminLayoutProps {
