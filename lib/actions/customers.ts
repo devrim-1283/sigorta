@@ -150,7 +150,12 @@ export async function getCustomers(params?: {
 }
 
 export async function getCustomerByUserInfo() {
-  const user = await requireAuth()
+  await requireAuth() // Check authentication first
+  const user = await getCurrentUser() // Get full user info with tc_no, phone, email
+  
+  if (!user) {
+    throw new Error('Kullanıcı bilgileri alınamadı')
+  }
   
   // For customer role, find customer by TC no, phone, or email
   if (user.role?.name !== 'musteri') {
@@ -162,9 +167,10 @@ export async function getCustomerByUserInfo() {
   // Try to find customer by TC no first (most reliable)
   if (user.tc_no && user.tc_no.trim()) {
     where.tc_no = user.tc_no.trim()
-  } 
-  // If no TC no, try phone number
-  else if (user.phone && user.phone.trim()) {
+  }
+  
+  // Also try phone number (can be used together with TC no)
+  if (user.phone && user.phone.trim()) {
     // Normalize phone for comparison - remove all non-digits
     const phoneDigits = user.phone.replace(/\D/g, '')
     
@@ -178,17 +184,42 @@ export async function getCustomerByUserInfo() {
       normalizedPhone = '0' + phoneDigits.slice(1)
     }
     
-    // Try exact match first, then contains as fallback
-    where.OR = [
-      { telefon: normalizedPhone },
-      { telefon: { contains: phoneDigits.slice(-10) } },
-    ]
-  } 
-  // If no phone, try email
-  else if (user.email && user.email.trim()) {
-    where.email = user.email.toLowerCase().trim()
-  } 
-  else {
+    // Add phone to where clause
+    if (where.tc_no) {
+      // If we already have TC no, use OR condition
+      where.OR = [
+        { tc_no: where.tc_no },
+        { telefon: normalizedPhone },
+        { telefon: { contains: phoneDigits.slice(-10) } },
+      ]
+      delete where.tc_no
+    } else {
+      // If no TC no, use phone with OR
+      where.OR = [
+        { telefon: normalizedPhone },
+        { telefon: { contains: phoneDigits.slice(-10) } },
+      ]
+    }
+  }
+  
+  // Also try email if available
+  if (user.email && user.email.trim()) {
+    const emailLower = user.email.toLowerCase().trim()
+    if (where.OR) {
+      where.OR.push({ email: emailLower })
+    } else if (where.tc_no) {
+      where.OR = [
+        { tc_no: where.tc_no },
+        { email: emailLower },
+      ]
+      delete where.tc_no
+    } else {
+      where.email = emailLower
+    }
+  }
+  
+  // If no search criteria at all, throw error
+  if (!where.tc_no && !where.telefon && !where.email && !where.OR) {
     throw new Error('Müşteri bilgileri bulunamadı. TC Kimlik No, telefon veya e-posta adresi gereklidir.')
   }
 
@@ -226,22 +257,64 @@ export async function getCustomerByUserInfo() {
   })
 
   if (!customer) {
-    // Try to find any customer with similar info for better error message
-    let similarCustomer = null
-    if (user.tc_no) {
-      similarCustomer = await prisma.customer.findFirst({
-        where: { tc_no: { contains: user.tc_no.slice(-4) } },
-        select: { id: true, tc_no: true },
-      })
+    // Try alternative search methods
+    let alternativeCustomer = null
+    
+    // Try searching by user ID if there's a relationship (check if user.id matches customer.id)
+    // This is a fallback - normally customer and user are separate entities
+    try {
+      // Try to find customer by exact TC no match (case sensitive)
+      if (user.tc_no) {
+        alternativeCustomer = await prisma.customer.findFirst({
+          where: { tc_no: user.tc_no },
+          select: { id: true, tc_no: true, telefon: true, email: true },
+        })
+      }
+      
+      // If still not found, try phone with different normalization
+      if (!alternativeCustomer && user.phone) {
+        const phoneDigits = user.phone.replace(/\D/g, '')
+        // Try all possible phone formats
+        const phoneVariations = [
+          phoneDigits,
+          phoneDigits.startsWith('0') ? phoneDigits : '0' + phoneDigits,
+          phoneDigits.length === 10 ? '0' + phoneDigits : phoneDigits,
+          phoneDigits.slice(-10),
+        ]
+        
+        for (const phoneVar of phoneVariations) {
+          alternativeCustomer = await prisma.customer.findFirst({
+            where: { telefon: { contains: phoneVar } },
+            select: { id: true, tc_no: true, telefon: true },
+          })
+          if (alternativeCustomer) break
+        }
+      }
+    } catch (searchError) {
+      console.error('[getCustomerByUserInfo] Alternative search error:', searchError)
     }
     
-    const errorMsg = similarCustomer
-      ? `Müşteri bulunamadı. TC Kimlik No: ${user.tc_no} ile kayıtlı müşteri bulunamadı.`
-      : `Müşteri bulunamadı. Lütfen bilgilerinizi kontrol edin veya yönetici ile iletişime geçin.`
+    // Build detailed error message
+    let errorMsg = 'Müşteri bulunamadı.\n\n'
+    errorMsg += `Aranan bilgiler:\n`
+    errorMsg += `- TC Kimlik No: ${user.tc_no || 'Yok'}\n`
+    errorMsg += `- Telefon: ${user.phone || 'Yok'}\n`
+    errorMsg += `- E-posta: ${user.email || 'Yok'}\n\n`
+    
+    if (alternativeCustomer) {
+      errorMsg += `Not: Benzer bir müşteri kaydı bulundu ama bilgiler eşleşmiyor.\n`
+      errorMsg += `Lütfen yönetici ile iletişime geçin.`
+    } else {
+      errorMsg += `Lütfen bilgilerinizi kontrol edin veya yönetici ile iletişime geçin.\n`
+      errorMsg += `Müşteri kaydınız henüz oluşturulmamış olabilir.`
+    }
     
     console.error('[getCustomerByUserInfo] Customer not found:', {
+      userId: user.id,
+      userName: user.name,
       user: { tc_no: user.tc_no, phone: user.phone, email: user.email },
       where,
+      alternativeCustomer,
     })
     
     throw new Error(errorMsg)

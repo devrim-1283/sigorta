@@ -350,14 +350,37 @@ export default function CustomerPanelPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardContent className="pt-6">
-            <div className="text-center">
+            <div className="text-center space-y-4">
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <h2 className="text-xl font-bold mb-2">Hata</h2>
-              <p className="text-muted-foreground mb-4">{error}</p>
-              <Button onClick={fetchCustomerData} className="rounded-xl">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Tekrar Dene
-              </Button>
+              <h2 className="text-xl font-bold mb-2">Müşteri Bilgileri Yüklenemedi</h2>
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                <p className="text-red-800 font-medium mb-2">Hata Detayı:</p>
+                <div className="text-red-700 text-sm whitespace-pre-line font-mono text-xs">
+                  {error}
+                </div>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-left">
+                <p className="text-blue-900 font-medium mb-2">Olası Nedenler:</p>
+                <ul className="text-blue-800 text-sm space-y-1 list-disc list-inside">
+                  <li>Müşteri kaydı henüz oluşturulmamış olabilir</li>
+                  <li>TC Kimlik No, telefon veya e-posta bilgileri eşleşmiyor olabilir</li>
+                  <li>Veritabanı bağlantı sorunu olabilir</li>
+                </ul>
+              </div>
+              <div className="flex gap-2 justify-center">
+                <Button 
+                  onClick={() => router.push("/musteri-giris")} 
+                  variant="outline"
+                  className="rounded-xl"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Geri Dön
+                </Button>
+                <Button onClick={fetchCustomerData} className="rounded-xl">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Tekrar Dene
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
