@@ -42,8 +42,15 @@ export async function getCustomers(params?: {
 
     // For dealer (bayi) role, filter by their dealer_id
     // This must be applied regardless of search or other filters
-    if (user?.role?.name === 'bayi' && user?.dealer_id) {
-      where.dealer_id = BigInt(user.dealer_id)
+    // Only show customers that are assigned to this dealer (exclude null/unassigned customers)
+    if (user?.role?.name === 'bayi') {
+      if (user?.dealer_id) {
+        // Show only customers assigned to this dealer (dealer_id must not be null and must match)
+        where.dealer_id = BigInt(user.dealer_id)
+      } else {
+        // If bayi user has no dealer_id, show no customers
+        where.dealer_id = BigInt(-1) // This will return no results since no customer has dealer_id = -1
+      }
     }
 
     // Build search conditions
