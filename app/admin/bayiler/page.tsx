@@ -592,13 +592,13 @@ export default function DealersPage() {
                   </select>
                 </div>
                 {canCreateDealer(userRole) && (
-                  <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-                    <DialogTrigger asChild>
-                      <Button className="rounded-2xl" style={{ backgroundColor: "#F57C00", color: "white" }}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Yeni Bayi
-                      </Button>
-                    </DialogTrigger>
+                <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+                  <DialogTrigger asChild>
+                    <Button className="rounded-2xl" style={{ backgroundColor: "#F57C00", color: "white" }}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Yeni Bayi
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent className="rounded-3xl max-w-2xl w-[95vw]">
                     <DialogHeader>
                       <DialogTitle>Yeni Bayi Ekle</DialogTitle>
@@ -786,7 +786,7 @@ export default function DealersPage() {
                       </div>
                     </form>
                   </DialogContent>
-                  </Dialog>
+                </Dialog>
                 )}
               </div>
             </CardContent>
@@ -942,15 +942,15 @@ export default function DealersPage() {
                   <h3 className="text-xl font-semibold text-slate-700 mb-2">Bayi bulunamadı</h3>
                   {canCreateDealer(userRole) && (
                     <>
-                      <p className="text-sm text-slate-500 mb-6">Yeni bir bayi eklemek için "Yeni Bayi" butonunu kullanın.</p>
-                      <Button
-                        onClick={() => setShowAddModal(true)}
-                        className="rounded-2xl"
-                        style={{ backgroundColor: "#F57C00", color: "white" }}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Bayi Ekle
-                      </Button>
+                  <p className="text-sm text-slate-500 mb-6">Yeni bir bayi eklemek için "Yeni Bayi" butonunu kullanın.</p>
+                  <Button
+                    onClick={() => setShowAddModal(true)}
+                    className="rounded-2xl"
+                    style={{ backgroundColor: "#F57C00", color: "white" }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Bayi Ekle
+                  </Button>
                     </>
                   )}
                 </CardContent>

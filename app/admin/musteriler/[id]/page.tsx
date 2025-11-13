@@ -796,6 +796,8 @@ export default function CustomerDetailPage() {
           title: "Kopyalandı",
           description: "Şifre panoya kopyalandı",
         })
+      }).catch(() => {
+        // Clipboard copy failed, ignore
       })
     }
   }
