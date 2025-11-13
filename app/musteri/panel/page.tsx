@@ -15,7 +15,6 @@ import {
   AlertCircle,
   CheckCircle,
   LogOut,
-  User,
 } from "lucide-react"
 
 // Force dynamic rendering
@@ -167,22 +166,46 @@ export default function CustomerPanelPage() {
         sigortadan_yatan_tutar: response.sigortadan_yatan_tutar ? Number(response.sigortadan_yatan_tutar) : undefined,
         musteri_hakedisi: response.musteri_hakedisi ? Number(response.musteri_hakedisi) : undefined,
         bayi_odeme_tutari: response.bayi_odeme_tutari ? Number(response.bayi_odeme_tutari) : undefined,
-        ödemeler: (response.payments || []).map((p: any) => {
-          let tutarValue = 0
-          if (p.tutar) {
-            tutarValue = typeof p.tutar === 'bigint' ? Number(p.tutar) : Number(p.tutar)
-          } else if (p.amount) {
-            tutarValue = typeof p.amount === 'bigint' ? Number(p.amount) : Number(p.amount)
+        ödemeler: (() => {
+          // Normal payments
+          const normalPayments = (response.payments || []).map((p: any) => {
+            let tutarValue = 0
+            if (p.tutar) {
+              tutarValue = typeof p.tutar === 'bigint' ? Number(p.tutar) : Number(p.tutar)
+            } else if (p.amount) {
+              tutarValue = typeof p.amount === 'bigint' ? Number(p.amount) : Number(p.amount)
+            }
+            
+            return {
+              id: String(p.id),
+              tarih: p.tarih || p.date || new Date().toLocaleDateString('tr-TR'),
+              tutar: `₺${tutarValue.toLocaleString('tr-TR')}`,
+              açıklama: p.açıklama || p.description || '',
+              durum: (p.durum || 'Bekliyor') as "Ödendi" | "Bekliyor",
+            }
+          })
+
+          // If file is closed and müşteri hakedişi exists, add it as a payment
+          if (response.dosya_kilitli && response.başvuru_durumu === "DOSYA KAPATILDI" && response.musteri_hakedisi) {
+            const hakedisValue = typeof response.musteri_hakedisi === 'bigint' 
+              ? Number(response.musteri_hakedisi) 
+              : Number(response.musteri_hakedisi)
+            
+            if (hakedisValue > 0) {
+              normalPayments.unshift({
+                id: 'musteri-hakedisi',
+                tarih: response.dosya_kapanma_tarihi 
+                  ? new Date(response.dosya_kapanma_tarihi).toLocaleDateString('tr-TR')
+                  : new Date().toLocaleDateString('tr-TR'),
+                tutar: `₺${hakedisValue.toLocaleString('tr-TR')}`,
+                açıklama: 'Müşteri Hakedişi',
+                durum: 'Ödendi' as "Ödendi" | "Bekliyor",
+              })
+            }
           }
-          
-          return {
-            id: String(p.id),
-            tarih: p.tarih || p.date || new Date().toLocaleDateString('tr-TR'),
-            tutar: `₺${tutarValue.toLocaleString('tr-TR')}`,
-            açıklama: p.açıklama || p.description || '',
-            durum: (p.durum || 'Bekliyor') as "Ödendi" | "Bekliyor",
-          }
-        }),
+
+          return normalPayments
+        })(),
         evraklar: mappedBasvuruEvraklari,
         süreç_evraklari: surecEvraklari,
         bağlı_bayi_id: String(response.dealer_id || ''),
@@ -396,98 +419,91 @@ export default function CustomerPanelPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
       <header className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push("/")}
-                className="rounded-xl"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Ana Sayfa
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold" style={{ color: "#0B3D91" }}>
-                  Müşteri Paneli
-                </h1>
-                <p className="text-sm text-muted-foreground">Hoş geldiniz, {customer.ad_soyad}</p>
-              </div>
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex-1 sm:flex-none">
+              <h1 className="text-xl sm:text-2xl font-bold" style={{ color: "#0B3D91" }}>
+                Müşteri Paneli
+              </h1>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                <span className="hidden sm:inline">Hoş geldiniz, </span>
+                {customer.ad_soyad}
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={fetchCustomerData}
-                className="rounded-xl"
+                className="rounded-xl flex-1 sm:flex-none"
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Yenile
+                <RefreshCw className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Yenile</span>
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleLogout}
-                className="rounded-xl"
+                className="rounded-xl flex-1 sm:flex-none"
               >
-                <LogOut className="h-4 w-4 mr-2" />
-                Çıkış
+                <LogOut className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Çıkış</span>
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-        <div className="space-y-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+        <div className="space-y-4 sm:space-y-6">
           {/* Status Card */}
-          <Card className="rounded-3xl border-2 shadow-lg bg-gradient-to-br from-white to-slate-50">
-            <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
-                Başvuru Durumu
+          <Card className="rounded-2xl sm:rounded-3xl border-2 shadow-lg bg-gradient-to-br from-white to-slate-50">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-lg sm:text-xl md:text-2xl flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                <span>Başvuru Durumu</span>
                 {customer.dosya_kilitli && customer.başvuru_durumu === "DOSYA KAPATILDI" && (
-                  <Badge className="bg-green-100 text-green-800 border-green-300 rounded-xl flex items-center gap-1">
-                    <CheckCircle2 className="h-4 w-4" />
+                  <Badge className="bg-green-100 text-green-800 border-green-300 rounded-xl flex items-center gap-1 text-xs sm:text-sm">
+                    <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4" />
                     Tamamlandı
                   </Badge>
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-6 bg-gradient-to-r from-blue-50 to-blue-100 rounded-2xl">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">Şu anki durum</p>
-                  <Badge className={cn("text-lg px-4 py-2 rounded-xl border-2", getStatusColor(customer.başvuru_durumu))}>
+            <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl sm:rounded-2xl">
+                <div className="w-full sm:w-auto">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-2">Şu anki durum</p>
+                  <Badge className={cn("text-sm sm:text-base md:text-lg px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl border-2", getStatusColor(customer.başvuru_durumu))}>
                     {customer.başvuru_durumu}
                   </Badge>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground mb-1">Son Güncelleme</p>
-                  <p className="font-semibold">{customer.son_güncelleme}</p>
+                <div className="text-left sm:text-right w-full sm:w-auto">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Son Güncelleme</p>
+                  <p className="font-semibold text-sm sm:text-base">{customer.son_güncelleme}</p>
                 </div>
               </div>
 
               {/* Document Status Alert */}
               {customer.evrak_durumu === "Eksik" && customer.eksik_evraklar && customer.eksik_evraklar.length > 0 && (
-                <div className="p-4 bg-orange-50 border-2 border-orange-200 rounded-2xl flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-semibold text-orange-900">Eksik Evrak Var</p>
-                    <p className="text-sm text-orange-800 mt-1">
-                      Lütfen şu evrakları yükleyin: {customer.eksik_evraklar.join(", ")}
+                <div className="p-3 sm:p-4 bg-orange-50 border-2 border-orange-200 rounded-xl sm:rounded-2xl flex items-start gap-2 sm:gap-3">
+                  <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-orange-900 text-sm sm:text-base">Eksik Evrak Var</p>
+                    <p className="text-xs sm:text-sm text-orange-800 mt-1 break-words">
+                      Lütfen şu evrakları yükleyin: <span className="hidden sm:inline">{customer.eksik_evraklar.join(", ")}</span>
+                      <span className="sm:hidden">{customer.eksik_evraklar.join(", ")}</span>
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-3 flex flex-col sm:flex-row flex-wrap gap-2">
                       {customer.eksik_evraklar.map((docName) => (
                         <Button
                           key={docName}
                           size="sm"
                           variant="outline"
                           onClick={() => handleDocUploadClick(docName as DocumentType)}
-                          className="rounded-xl bg-white"
+                          className="rounded-xl bg-white w-full sm:w-auto"
                         >
                           <Upload className="h-3 w-3 mr-1" />
-                          {docName} Yükle
+                          <span className="truncate">{docName} Yükle</span>
                         </Button>
                       ))}
                     </div>
@@ -496,11 +512,11 @@ export default function CustomerPanelPage() {
               )}
 
               {customer.evrak_durumu === "Tamam" && (
-                <div className="p-4 bg-green-50 border-2 border-green-200 rounded-2xl flex items-start gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-green-900">Tüm Evraklar Tamamlandı</p>
-                    <p className="text-sm text-green-800 mt-1">Evrak kontrolü tamamlanmıştır.</p>
+                <div className="p-3 sm:p-4 bg-green-50 border-2 border-green-200 rounded-xl sm:rounded-2xl flex items-start gap-2 sm:gap-3">
+                  <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-green-900 text-sm sm:text-base">Tüm Evraklar Tamamlandı</p>
+                    <p className="text-xs sm:text-sm text-green-800 mt-1">Evrak kontrolü tamamlanmıştır.</p>
                   </div>
                 </div>
               )}
@@ -509,35 +525,35 @@ export default function CustomerPanelPage() {
 
           {/* Financial Information */}
           {(customer.sigortadan_yatan_tutar || customer.musteri_hakedisi || customer.bayi_odeme_tutari) && (
-            <Card className="rounded-3xl border-2 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
+            <Card className="rounded-2xl sm:rounded-3xl border-2 shadow-lg">
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                  <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
                   Mali Bilgiler
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <CardContent className="p-4 sm:p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                   {customer.sigortadan_yatan_tutar !== undefined && (
-                    <div className="p-4 bg-blue-50 rounded-2xl">
-                      <p className="text-sm text-muted-foreground mb-1">Sigortadan Yatan Tutar</p>
-                      <p className="text-2xl font-bold" style={{ color: "#0B3D91" }}>
+                    <div className="p-3 sm:p-4 bg-blue-50 rounded-xl sm:rounded-2xl">
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-1">Sigortadan Yatan Tutar</p>
+                      <p className="text-xl sm:text-2xl font-bold break-words" style={{ color: "#0B3D91" }}>
                         ₺{customer.sigortadan_yatan_tutar.toLocaleString('tr-TR')}
                       </p>
                     </div>
                   )}
                   {customer.musteri_hakedisi !== undefined && (
-                    <div className="p-4 bg-green-50 rounded-2xl">
-                      <p className="text-sm text-muted-foreground mb-1">Müşteri Hakedişi</p>
-                      <p className="text-2xl font-bold" style={{ color: "#F57C00" }}>
+                    <div className="p-3 sm:p-4 bg-green-50 rounded-xl sm:rounded-2xl">
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-1">Müşteri Hakedişi</p>
+                      <p className="text-xl sm:text-2xl font-bold break-words" style={{ color: "#F57C00" }}>
                         ₺{customer.musteri_hakedisi.toLocaleString('tr-TR')}
                       </p>
                     </div>
                   )}
                   {customer.bayi_odeme_tutari !== undefined && (
-                    <div className="p-4 bg-purple-50 rounded-2xl">
-                      <p className="text-sm text-muted-foreground mb-1">Bayi Ödeme Tutarı</p>
-                      <p className="text-2xl font-bold" style={{ color: "#0B3D91" }}>
+                    <div className="p-3 sm:p-4 bg-purple-50 rounded-xl sm:rounded-2xl sm:col-span-2 lg:col-span-1">
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-1">Bayi Ödeme Tutarı</p>
+                      <p className="text-xl sm:text-2xl font-bold break-words" style={{ color: "#0B3D91" }}>
                         ₺{customer.bayi_odeme_tutari.toLocaleString('tr-TR')}
                       </p>
                     </div>
@@ -548,29 +564,29 @@ export default function CustomerPanelPage() {
           )}
 
           {/* Payments Card */}
-          <Card className="rounded-3xl border-2 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
+          <Card className="rounded-2xl sm:rounded-3xl border-2 shadow-lg">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
                 Ödemelerim
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6">
               {customer.ödemeler.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {customer.ödemeler.map((payment) => (
-                    <div key={payment.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                      <div>
-                        <p className="font-semibold">{payment.açıklama}</p>
-                        <p className="text-sm text-muted-foreground">{payment.tarih}</p>
+                    <div key={payment.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 sm:p-4 bg-slate-50 rounded-xl">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm sm:text-base break-words">{payment.açıklama}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">{payment.tarih}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-lg" style={{ color: "#F57C00" }}>
+                      <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2 w-full sm:w-auto">
+                        <p className="font-bold text-base sm:text-lg" style={{ color: "#F57C00" }}>
                           {payment.tutar}
                         </p>
                         <Badge
                           className={cn(
-                            "rounded-xl",
+                            "rounded-xl text-xs sm:text-sm",
                             payment.durum === "Ödendi"
                               ? "bg-green-100 text-green-800 border-green-300"
                               : "bg-yellow-100 text-yellow-800 border-yellow-300",
@@ -583,47 +599,47 @@ export default function CustomerPanelPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-muted-foreground py-8">Henüz ödeme kaydı bulunmuyor.</p>
+                <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm sm:text-base">Henüz ödeme kaydı bulunmuyor.</p>
               )}
             </CardContent>
           </Card>
 
           {/* Documents Card */}
-          <Card className="rounded-3xl border-2 shadow-lg">
-            <CardHeader>
+          <Card className="rounded-2xl sm:rounded-3xl border-2 shadow-lg">
+            <CardHeader className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                  <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
                   Belgelerim
                 </CardTitle>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6">
               {customer.evraklar && customer.evraklar.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {customer.evraklar.map((doc) => (
-                    <Card key={doc.id} className="rounded-2xl hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-blue-600" />
-                            <p className="font-semibold text-sm">{doc.tip}</p>
+                    <Card key={doc.id} className="rounded-xl sm:rounded-2xl hover:shadow-md transition-shadow">
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex items-start justify-between mb-2 gap-2">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
+                            <p className="font-semibold text-xs sm:text-sm truncate">{doc.tip}</p>
                           </div>
                           <Badge
                             className={cn(
-                              "rounded-xl text-xs",
+                              "rounded-xl text-xs flex-shrink-0",
                               doc.durum === "Onaylandı" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800",
                             )}
                           >
                             {doc.durum}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-3">{doc.dosya_adı}</p>
-                        <div className="flex gap-2">
+                        <p className="text-xs text-muted-foreground mb-3 break-words line-clamp-2">{doc.dosya_adı}</p>
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="rounded-xl flex-1 bg-transparent"
+                            className="rounded-xl flex-1 bg-transparent text-xs sm:text-sm"
                             onClick={() => handleViewDocument(doc)}
                           >
                             <Eye className="h-3 w-3 mr-1" />
@@ -632,7 +648,7 @@ export default function CustomerPanelPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="rounded-xl flex-1 bg-transparent"
+                            className="rounded-xl flex-1 bg-transparent text-xs sm:text-sm"
                             onClick={() => handleDownloadDocument(doc)}
                           >
                             <Download className="h-3 w-3 mr-1" />
@@ -644,45 +660,45 @@ export default function CustomerPanelPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-muted-foreground py-8">Henüz evrak yüklenmemiş.</p>
+                <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm sm:text-base">Henüz evrak yüklenmemiş.</p>
               )}
             </CardContent>
           </Card>
 
           {/* Process Documents Card */}
           {customer.süreç_evraklari && customer.süreç_evraklari.length > 0 && (
-            <Card className="rounded-3xl border-2 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
+            <Card className="rounded-2xl sm:rounded-3xl border-2 shadow-lg">
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                  <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
                   Süreç Evrakları
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <CardContent className="p-4 sm:p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {customer.süreç_evraklari.map((doc) => (
-                    <Card key={doc.id} className="rounded-2xl hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-purple-600" />
-                            <p className="font-semibold text-sm">{doc.tip}</p>
+                    <Card key={doc.id} className="rounded-xl sm:rounded-2xl hover:shadow-md transition-shadow">
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex items-start justify-between mb-2 gap-2">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 flex-shrink-0" />
+                            <p className="font-semibold text-xs sm:text-sm truncate">{doc.tip}</p>
                           </div>
                           <Badge
                             className={cn(
-                              "rounded-xl text-xs",
+                              "rounded-xl text-xs flex-shrink-0",
                               doc.durum === "Onaylandı" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800",
                             )}
                           >
                             {doc.durum}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-3">{doc.dosya_adı}</p>
-                        <div className="flex gap-2">
+                        <p className="text-xs text-muted-foreground mb-3 break-words line-clamp-2">{doc.dosya_adı}</p>
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="rounded-xl flex-1 bg-transparent"
+                            className="rounded-xl flex-1 bg-transparent text-xs sm:text-sm"
                             onClick={() => handleViewDocument(doc)}
                           >
                             <Eye className="h-3 w-3 mr-1" />
@@ -691,7 +707,7 @@ export default function CustomerPanelPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="rounded-xl flex-1 bg-transparent"
+                            className="rounded-xl flex-1 bg-transparent text-xs sm:text-sm"
                             onClick={() => handleDownloadDocument(doc)}
                           >
                             <Download className="h-3 w-3 mr-1" />
