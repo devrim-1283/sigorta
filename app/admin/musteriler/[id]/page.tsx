@@ -1008,7 +1008,7 @@ export default function CustomerDetailPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold" style={{ color: "#0B3D91" }}>BAŞVURU EVRAKLARI</h3>
-                  {canCreate && (
+                  {canCreate && userRole !== 'ikincil-admin' && (
                     <Button
                       className="rounded-2xl"
                       style={{ backgroundColor: "#F57C00", color: "white" }}
@@ -1090,118 +1090,124 @@ export default function CustomerDetailPage() {
               <div className="space-y-4 pt-6 border-t">
                 <h3 className="text-xl font-bold" style={{ color: "#0B3D91" }}>SÜREÇ EVRAKLARI</h3>
                 
-                {/* Upload areas for roles with permission */}
-                {canUploadResultDocs && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                    {RESULT_DOCUMENT_TYPES.map((docType) => {
-                      const existingDoc = customer.süreç_evraklari.find(
-                        (d) => d.tip === docType.name
-                      )
-                      const isUploading = uploadingResultDoc[docType.id]
-                      
-                      return (
-                        <Card key={docType.id} className="rounded-2xl border-2">
-                          <CardContent className="p-4">
-                            <div className="space-y-3">
-                              <div>
-                                <p className="font-semibold text-sm mb-1">{docType.name}</p>
-                                {docType.description && (
-                                  <p className="text-xs text-muted-foreground">{docType.description}</p>
-                                )}
-                              </div>
-                              
-                              {existingDoc ? (
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2 text-sm text-green-600">
-                                    <FileText className="h-4 w-4" />
-                                    <span className="truncate">{existingDoc.dosya_adı}</span>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="flex-1 rounded-xl text-xs"
-                                      onClick={() => handleViewDocument(existingDoc)}
-                                    >
-                                      <Eye className="h-3 w-3 mr-1" />
-                                      Görüntüle
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="flex-1 rounded-xl text-xs"
-                                      onClick={() => handleDownloadDocument(existingDoc)}
-                                    >
-                                      <Download className="h-3 w-3 mr-1" />
-                                      İndir
-                                    </Button>
-                                  </div>
-                                  {canDelete && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="w-full rounded-xl text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                                      onClick={() => handleDeleteDocument(existingDoc)}
-                                    >
-                                      <Trash2 className="h-3 w-3 mr-1" />
-                                      Sil
-                                    </Button>
-                                  )}
+                {/* Upload areas - Show for all roles with permission (birincil-admin, ikincil-admin, etc.) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                  {RESULT_DOCUMENT_TYPES.map((docType) => {
+                    const existingDoc = customer.süreç_evraklari.find(
+                      (d) => d.tip === docType.name
+                    )
+                    const isUploading = uploadingResultDoc[docType.id]
+                    
+                    return (
+                      <Card key={docType.id} className="rounded-2xl border-2">
+                        <CardContent className="p-4">
+                          <div className="space-y-3">
+                            <div>
+                              <p className="font-semibold text-sm mb-1">{docType.name}</p>
+                              {docType.description && (
+                                <p className="text-xs text-muted-foreground">{docType.description}</p>
+                              )}
+                            </div>
+                            
+                            {existingDoc ? (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-sm text-green-600">
+                                  <FileText className="h-4 w-4" />
+                                  <span className="truncate">{existingDoc.dosya_adı}</span>
                                 </div>
-                              ) : (
-                                <label className="block">
-                                  <input
-                                    type="file"
-                                    className="hidden"
-                                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0]
-                                      if (file) {
-                                        handleUploadResultDocument(docType.id, file)
-                                      }
-                                      e.target.value = '' // Reset input
-                                    }}
-                                    disabled={isUploading || customer.dosya_kilitli}
-                                  />
+                                <div className="flex gap-2">
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="w-full rounded-xl text-xs"
-                                    disabled={isUploading || customer.dosya_kilitli}
-                                    onClick={() => {
-                                      const input = document.createElement('input')
-                                      input.type = 'file'
-                                      input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx'
-                                      input.onchange = (e: any) => {
+                                    className="flex-1 rounded-xl text-xs"
+                                    onClick={() => handleViewDocument(existingDoc)}
+                                  >
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    Görüntüle
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="flex-1 rounded-xl text-xs"
+                                    onClick={() => handleDownloadDocument(existingDoc)}
+                                  >
+                                    <Download className="h-3 w-3 mr-1" />
+                                    İndir
+                                  </Button>
+                                </div>
+                                {canDelete && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full rounded-xl text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => handleDeleteDocument(existingDoc)}
+                                  >
+                                    <Trash2 className="h-3 w-3 mr-1" />
+                                    Sil
+                                  </Button>
+                                )}
+                              </div>
+                            ) : (
+                              <>
+                                {canUploadResultDocs ? (
+                                  <label className="block">
+                                    <input
+                                      type="file"
+                                      className="hidden"
+                                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                      onChange={(e) => {
                                         const file = e.target.files?.[0]
                                         if (file) {
                                           handleUploadResultDocument(docType.id, file)
                                         }
-                                      }
-                                      input.click()
-                                    }}
-                                  >
-                                    {isUploading ? (
-                                      <>
-                                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                                        Yükleniyor...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Upload className="h-3 w-3 mr-1" />
-                                        Yükle
-                                      </>
-                                    )}
-                                  </Button>
-                                </label>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                )}
+                                        e.target.value = '' // Reset input
+                                      }}
+                                      disabled={isUploading || customer.dosya_kilitli}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="w-full rounded-xl text-xs"
+                                      disabled={isUploading || customer.dosya_kilitli}
+                                      onClick={() => {
+                                        const input = document.createElement('input')
+                                        input.type = 'file'
+                                        input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx'
+                                        input.onchange = (e: any) => {
+                                          const file = e.target.files?.[0]
+                                          if (file) {
+                                            handleUploadResultDocument(docType.id, file)
+                                          }
+                                        }
+                                        input.click()
+                                      }}
+                                    >
+                                      {isUploading ? (
+                                        <>
+                                          <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                          Yükleniyor...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Upload className="h-3 w-3 mr-1" />
+                                          Yükle
+                                        </>
+                                      )}
+                                    </Button>
+                                  </label>
+                                ) : (
+                                  <div className="text-center py-2">
+                                    <p className="text-xs text-muted-foreground">Yüklenmemiş</p>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
 
                 {/* Display uploaded result documents for all roles */}
                 {customer.süreç_evraklari.length > 0 && (
