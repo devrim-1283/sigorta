@@ -160,15 +160,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* Sidebar - Desktop */}
       <div
         className={cn(
-          "fixed top-0 left-0 z-30 h-screen transition-all duration-300 ease-in-out border-r border-slate-200 hidden md:flex",
+          "fixed top-0 left-0 z-50 h-screen transition-all duration-300 ease-in-out border-r border-slate-200 hidden md:flex shadow-lg",
           isCustomerRole ? "w-64" : (sidebarOpen ? "w-64" : "w-20")
         )}
         style={{ backgroundColor: themeColor }}
       >
-        <div className="flex h-full flex-col">
+        <div className="flex h-full flex-col overflow-hidden">
           {/* Header - Logo removed, title and menu toggle */}
           <div className={cn(
-            "flex items-center p-4 border-b border-white/10",
+            "flex items-center p-4 border-b border-white/10 flex-shrink-0",
             (isCustomerRole || sidebarOpen) ? "justify-between" : "justify-center"
           )}>
               {(isCustomerRole || sidebarOpen) && (
@@ -195,7 +195,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
           {/* Search - Hide for customer role */}
           {!isCustomerRole && sidebarOpen && (
-            <div className="px-4 py-4">
+            <div className="px-4 py-4 flex-shrink-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 h-4 w-4" />
                 <input
@@ -218,7 +218,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           )}
 
           {/* Navigation */}
-          <ScrollArea className="flex-1 px-4 pb-4">
+          <ScrollArea className="flex-1 px-4 pb-4 overflow-y-auto">
             <div className="space-y-2">
               {menuItems.map((item) => (
                 <div key={item.id}>
@@ -304,7 +304,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </ScrollArea>
 
           {/* User Profile */}
-          <div className="p-4 border-t border-white/10">
+          <div className="p-4 border-t border-white/10 flex-shrink-0">
             <div className={cn(
               "flex items-center p-2 rounded-2xl bg-white/10",
               (isCustomerRole || sidebarOpen) ? "gap-3" : "justify-center"
@@ -359,13 +359,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* Sidebar - Mobile */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out md:hidden",
+          "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out md:hidden shadow-2xl",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
         )}
         style={{ backgroundColor: themeColor }}
       >
-        <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between p-4 border-b border-white/10">
+        <div className="flex h-full flex-col overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-white/10 flex-shrink-0">
               <div>
                 <h2 className="font-semibold text-white">Sigorta</h2>
                 <p className="text-xs text-white/70">Yönetim Sistemi</p>
@@ -380,7 +380,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </Button>
           </div>
 
-          <ScrollArea className="flex-1 px-4 py-4">
+          <ScrollArea className="flex-1 px-4 py-4 overflow-y-auto">
             <div className="space-y-2">
               {menuItems.map((item) => (
                 <div key={item.id}>
@@ -452,7 +452,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </ScrollArea>
 
           {/* User Profile */}
-          <div className="p-4 border-t border-white/10">
+          <div className="p-4 border-t border-white/10 flex-shrink-0">
             <div className="flex items-center gap-3 p-2 rounded-2xl bg-white/10">
               <Avatar className="h-8 w-8 flex-shrink-0">
                 <AvatarImage src="/placeholder.svg" />
@@ -484,7 +484,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Main Content */}
       <div className={cn(
-        "transition-all duration-300 ease-in-out",
+        "transition-all duration-300 ease-in-out relative z-10",
         isCustomerRole ? "md:ml-64" : (sidebarOpen ? "md:ml-64" : "md:ml-20"),
         "pt-16 md:pt-0" // Padding for mobile header
       )}>

@@ -32,7 +32,7 @@ export function validateEmail(email: string): { valid: boolean; sanitized: strin
 
 /**
  * Validates and sanitizes phone number input (Turkish format)
- * Handles formats: +905XXXXXXXXX, 905XXXXXXXXX, 05XXXXXXXXX, 5XXXXXXXXX
+ * Handles formats: +905XXXXXXXXX, 905XXXXXXXXX, 05XXXXXXXXX, 5XXXXXXXXX, 5XXXXXXXXXX (11 digits starting with 5)
  */
 export function validatePhone(phone: string): { valid: boolean; sanitized: string; error?: string } {
   // Remove all non-digit characters
@@ -41,9 +41,27 @@ export function validatePhone(phone: string): { valid: boolean; sanitized: strin
   // Handle different formats
   let normalized = digitsOnly
 
-  // Priority: Check 12-digit formats first (country code)
-  if (digitsOnly.length === 12) {
-    // Format: +905XXXXXXXXX or 905XXXXXXXXX (country code 90 + area code 5)
+  // Priority: Check 13-digit formats first (+90 country code)
+  if (digitsOnly.length === 13) {
+    // Format: +905XXXXXXXXXX or 905XXXXXXXXXX (country code 90 + 11 digits)
+    if (digitsOnly.startsWith('905')) {
+      // Remove country code (90), keep the rest (should be 11 digits)
+      normalized = '0' + digitsOnly.substring(2) // 0 + 5386912283X = 05386912283X
+    } else if (digitsOnly.startsWith('90')) {
+      // Remove country code, result should be 11 digits
+      normalized = digitsOnly.substring(2)
+      if (normalized.length === 11 && normalized.startsWith('5')) {
+        normalized = '0' + normalized.substring(0, 10) // Take first 10 digits after 5
+      } else {
+        return { valid: false, sanitized: '', error: 'Telefon numarası geçersiz. Lütfen 05XXXXXXXXX formatında girin (örn: 05321234567)' }
+      }
+    } else {
+      return { valid: false, sanitized: '', error: 'Telefon numarası geçersiz. Lütfen 05XXXXXXXXX formatında girin (örn: 05321234567)' }
+    }
+  }
+  // 12 digits: could be 90XXXXXXXXXX (country code), 05XXXXXXXXXX (extra digit), or 5XXXXXXXXXXX (11 digits starting with 5)
+  else if (digitsOnly.length === 12) {
+    // Format: 905XXXXXXXXXX (country code 90 + 10 digits starting with 5)
     if (digitsOnly.startsWith('905')) {
       // Remove country code (90), keep area code (5) and add leading 0
       normalized = '0' + digitsOnly.substring(2) // 0 + 5386912283 = 05386912283
@@ -55,33 +73,47 @@ export function validatePhone(phone: string): { valid: boolean; sanitized: strin
       if (normalized.length === 10 && normalized.startsWith('5')) {
         normalized = '0' + normalized
       } else {
-        return { valid: false, sanitized: '', error: 'Geçersiz telefon numarası formatı' }
+        return { valid: false, sanitized: '', error: 'Telefon numarası geçersiz. Lütfen 05XXXXXXXXX formatında girin (örn: 05321234567)' }
       }
+    }
+    // Format: 05XXXXXXXXXX (12 digits starting with 05) - Take first 11 digits
+    else if (digitsOnly.startsWith('05')) {
+      // Take first 11 digits
+      normalized = digitsOnly.substring(0, 11)
+    }
+    // Format: 5XXXXXXXXXXX (12 digits starting with 5) - Treat as 11 digits (take first 10 after 5)
+    else if (digitsOnly.startsWith('5')) {
+      // Take first 10 digits after the leading 5, then add 0
+      normalized = '0' + digitsOnly.substring(0, 10)
     } else {
-      return { valid: false, sanitized: '', error: 'Geçersiz telefon numarası formatı' }
+      return { valid: false, sanitized: '', error: 'Telefon numarası geçersiz. Lütfen 05XXXXXXXXX formatında girin (örn: 05321234567)' }
     }
   }
-  // 11 digits: should be 05XXXXXXXXX
+  // 11 digits: should be 05XXXXXXXXX or 5XXXXXXXXXX (starting with 5)
   else if (digitsOnly.length === 11) {
-    if (!digitsOnly.startsWith('05')) {
-      return { valid: false, sanitized: '', error: 'Telefon numarası 05 ile başlamalı' }
+    if (digitsOnly.startsWith('05')) {
+      normalized = digitsOnly
+    } else if (digitsOnly.startsWith('5')) {
+      // 11 digits starting with 5 - add leading 0
+      normalized = '0' + digitsOnly.substring(0, 10)
+    } else {
+      return { valid: false, sanitized: '', error: 'Telefon numarası 05 veya 5 ile başlamalı. Örnek: 05321234567 veya 5321234567' }
     }
-    normalized = digitsOnly
   }
   // 10 digits: should be 5XXXXXXXXX, add leading 0
   else if (digitsOnly.length === 10) {
     if (!digitsOnly.startsWith('5')) {
-      return { valid: false, sanitized: '', error: 'Telefon numarası 5 ile başlamalı' }
+      return { valid: false, sanitized: '', error: 'Telefon numarası 5 ile başlamalı. Örnek: 5321234567' }
     }
     normalized = `0${digitsOnly}`
   }
   else {
-    return { valid: false, sanitized: '', error: `Geçersiz telefon numarası formatı (${digitsOnly.length} haneli, 10-12 haneli olmalı)` }
+    return { valid: false, sanitized: '', error: `Telefon numarası geçersiz. ${digitsOnly.length} haneli girdiniz, 10-13 haneli olmalı. Örnek: 05321234567` }
   }
 
   // Final validation: should be 11 digits starting with 05
   if (normalized.length !== 11 || !normalized.startsWith('05')) {
-    return { valid: false, sanitized: '', error: 'Telefon numarası 05XXXXXXXXX formatında olmalı' }
+    return { valid: false, sanitized: '', error: 'Telefon numarası 05XXXXXXXXX formatında olmalı. Örnek: 05321234567' }
   }
 
   return { valid: true, sanitized: normalized }

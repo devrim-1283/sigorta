@@ -87,7 +87,7 @@ export const customerApi = {
 
   update: async (id: number | string, data: any) => {
     try {
-      return await customerActions.updateCustomer(typeof id === 'string' ? parseInt(id) : id, data)
+    return await customerActions.updateCustomer(typeof id === 'string' ? parseInt(id) : id, data)
     } catch (error: any) {
       console.error('[customerApi.update] Server action error:', error)
       console.error('[customerApi.update] Error type:', typeof error)

@@ -1102,7 +1102,7 @@ export async function updateCustomer(id: number, data: Partial<{
   const currentUser = await requireAuth()
 
   try {
-    return await prisma.$transaction(async (tx) => {
+  return await prisma.$transaction(async (tx) => {
     // Get customer first to get normalized values and old status
     const existingCustomer = await tx.customer.findUnique({
       where: { id: BigInt(id) },
@@ -1199,25 +1199,36 @@ export async function updateCustomer(id: number, data: Partial<{
           
           // Only check if email is actually changing and new email is not empty
           if (newEmail && currentEmail !== newEmail) {
-            // Check if email is used by another user (excluding the current customer's user)
-            const emailConflict = await tx.user.findFirst({
+            // Find user with the new email
+            const userWithNewEmail = await tx.user.findFirst({
               where: {
                 email: newEmail,
-                ...(existingUser ? { id: { not: existingUser.id } } : {}),
               },
             })
 
-            if (emailConflict) {
-              throw new Error(`Bu e-posta adresi (${newEmail}) başka bir kullanıcı tarafından kullanılıyor. Lütfen farklı bir e-posta adresi girin.`)
+            if (userWithNewEmail) {
+              // Check if this user belongs to the current customer
+              // If the user's TC No or phone matches the customer's TC No or phone, it's the same customer
+              const isSameCustomer = existingUser 
+                ? userWithNewEmail.id === existingUser.id
+                : (userWithNewEmail.tc_no === existingCustomer.tc_no || 
+                   userWithNewEmail.phone === existingCustomer.telefon)
+              
+              if (!isSameCustomer) {
+                // Different user - this is a conflict
+                throw new Error(`Bu e-posta adresi (${newEmail}) başka bir kullanıcı tarafından kullanılıyor. Lütfen farklı bir e-posta adresi girin.`)
+              }
+              // Same customer - no conflict, allow the update
             }
+            // If no user found with new email, it's available - no conflict
           }
         }
 
         const userUpdateData: any = {
-          name: customerName,
-          tc_no: normalizedTC,
-          phone: normalizedPhone,
-          updated_at: new Date(),
+              name: customerName,
+              tc_no: normalizedTC,
+              phone: normalizedPhone,
+              updated_at: new Date(),
         }
 
         // Only include email if it's being updated (don't set to null if not provided)
@@ -1245,15 +1256,15 @@ export async function updateCustomer(id: number, data: Partial<{
         } else {
           // Create new user account (only if password is provided)
           if (data.password && data.password.trim()) {
-            await tx.user.create({
-              data: {
+          await tx.user.create({
+            data: {
                 ...userUpdateData,
                 password: await bcrypt.hash(data.password.trim(), 12),
-                role_id: musteriRole.id,
-                is_active: true,
-                created_at: new Date(),
-              },
-            })
+              role_id: musteriRole.id,
+              is_active: true,
+              created_at: new Date(),
+            },
+          })
           }
         }
       }
