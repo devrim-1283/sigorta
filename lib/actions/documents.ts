@@ -256,6 +256,22 @@ export async function uploadDocument(formData: FormData) {
       throw new Error('File ve customer_id gerekli')
     }
 
+    // Check permissions based on document type
+    const userRole = user.role?.name as string
+    const { canUploadApplicationDocuments, canUploadResultDocuments } = await import('@/lib/permissions')
+    
+    if (isResultDocument) {
+      // Check permission for result documents (süreç evrakları)
+      if (!canUploadResultDocuments(userRole as any)) {
+        throw new Error('Süreç evrağı yükleme yetkiniz yok')
+      }
+    } else {
+      // Check permission for application documents (başvuru evrakları)
+      if (!canUploadApplicationDocuments(userRole as any)) {
+        throw new Error('Başvuru evrağı yükleme yetkiniz yok')
+      }
+    }
+
     // Validate file size (10MB max)
     const maxSize = 10 * 1024 * 1024
     if (file.size > maxSize) {

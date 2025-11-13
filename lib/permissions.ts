@@ -34,7 +34,7 @@ export function canEditCustomer(role: UserRole): boolean {
  * Check if user can upload application documents (başvuru evrakları)
  */
 export function canUploadApplicationDocuments(role: UserRole): boolean {
-  return role === 'superadmin' || role === 'birincil-admin' || role === 'ikincil-admin' || role === 'evrak-birimi' || role === 'operasyon'
+  return role === 'superadmin' || role === 'birincil-admin' || role === 'evrak-birimi' || role === 'operasyon'
 }
 
 /**

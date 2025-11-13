@@ -1435,7 +1435,15 @@ export async function deleteCustomer(id: number) {
 }
 
 export async function closeCustomerFile(id: number, reason: string, sigortadanYatanTutar?: number, musteriHakedisi?: number) {
-  await requireAuth()
+  const user = await requireAuth()
+
+  // Check if user has permission to close files
+  const { canCloseFile } = await import('@/lib/permissions')
+  const userRole = user.role?.name as string
+  
+  if (!canCloseFile(userRole as any)) {
+    throw new Error('Dosya kapatma yetkiniz yok')
+  }
 
   const updateData: any = {
       dosya_kilitli: true,
