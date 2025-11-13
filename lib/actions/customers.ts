@@ -149,6 +149,170 @@ export async function getCustomers(params?: {
   }
 }
 
+export async function getCustomer(id: number) {
+  await requireAuth()
+  
+  const customer = await prisma.customer.findUnique({
+    where: { id: BigInt(id) },
+    include: {
+      dealer: true,
+      file_type: true,
+      documents: {
+        include: {
+          uploader: true,
+          approver: true,
+        },
+      },
+      payments: {
+        include: {
+          creator: true,
+        },
+      },
+      notes: {
+        include: {
+          user: true,
+        },
+        orderBy: { created_at: 'desc' },
+      },
+    },
+  })
+
+  if (!customer) {
+    throw new Error('Müşteri bulunamadı')
+  }
+
+  // Return in the same format as getCustomerByUserInfo
+  return {
+    id: Number(customer.id),
+    ad_soyad: customer.ad_soyad,
+    tc_no: customer.tc_no,
+    telefon: customer.telefon,
+    email: customer.email,
+    plaka: customer.plaka,
+    hasar_tarihi: customer.hasar_tarihi ? customer.hasar_tarihi.toISOString() : null,
+    file_type_id: Number(customer.file_type_id),
+    dealer_id: customer.dealer_id ? Number(customer.dealer_id) : null,
+    başvuru_durumu: customer.başvuru_durumu,
+    evrak_durumu: customer.evrak_durumu,
+    dosya_kilitli: customer.dosya_kilitli,
+    dosya_kapanma_nedeni: customer.dosya_kapanma_nedeni,
+    dosya_kapanma_tarihi: customer.dosya_kapanma_tarihi ? customer.dosya_kapanma_tarihi.toISOString() : null,
+    sigortadan_yatan_tutar: customer.sigortadan_yatan_tutar ? Number(customer.sigortadan_yatan_tutar) : null,
+    musteri_hakedisi: customer.musteri_hakedisi ? Number(customer.musteri_hakedisi) : null,
+    bayi_odeme_tutari: customer.bayi_odeme_tutari ? Number(customer.bayi_odeme_tutari) : null,
+    created_at: customer.created_at ? customer.created_at.toISOString() : null,
+    updated_at: customer.updated_at ? customer.updated_at.toISOString() : null,
+    dealer: customer.dealer
+      ? {
+          id: Number(customer.dealer.id),
+          dealer_name: customer.dealer.dealer_name,
+          contact_person: customer.dealer.contact_person,
+          phone: customer.dealer.phone,
+          email: customer.dealer.email,
+        }
+      : null,
+    file_type: customer.file_type
+      ? {
+          id: Number(customer.file_type.id),
+          name: customer.file_type.name,
+          description: customer.file_type.description || null,
+          required_for_approval: customer.file_type.required_for_approval || false,
+        }
+      : null,
+    documents:
+      customer.documents?.map((doc: any) => {
+        const docId = typeof doc.id === 'bigint' ? Number(doc.id) : Number(doc.id)
+        const customerId = typeof doc.customer_id === 'bigint' ? Number(doc.customer_id) : Number(doc.customer_id)
+        const uploadedBy = typeof doc.uploaded_by === 'bigint' ? Number(doc.uploaded_by) : Number(doc.uploaded_by)
+        const dosyaBoyutu = doc.dosya_boyutu ? (typeof doc.dosya_boyutu === 'bigint' ? Number(doc.dosya_boyutu) : Number(doc.dosya_boyutu)) : null
+        const onaylayanId = doc.onaylayan_id ? (typeof doc.onaylayan_id === 'bigint' ? Number(doc.onaylayan_id) : Number(doc.onaylayan_id)) : null
+
+        return {
+          id: docId,
+          customer_id: customerId,
+          tip: doc.tip || null,
+          dosya_adı: (doc as any).dosya_adı || (doc as any).belge_adi || 'Belge',
+          dosya_yolu: doc.dosya_yolu || null,
+          dosya_boyutu: dosyaBoyutu,
+          mime_type: doc.mime_type || null,
+          durum: doc.durum || null,
+          red_nedeni: doc.red_nedeni || null,
+          document_type: doc.document_type || null,
+          is_result_document: doc.is_result_document || false,
+          uploaded_by: uploadedBy,
+          onaylayan_id: onaylayanId,
+          onay_tarihi: doc.onay_tarihi ? doc.onay_tarihi.toISOString() : null,
+          created_at: doc.created_at ? doc.created_at.toISOString() : null,
+          updated_at: doc.updated_at ? doc.updated_at.toISOString() : null,
+          uploader: doc.uploader
+            ? {
+                id: typeof doc.uploader.id === 'bigint' ? Number(doc.uploader.id) : Number(doc.uploader.id),
+                name: doc.uploader.name || null,
+                email: doc.uploader.email || null,
+              }
+            : null,
+          approver: doc.approver
+            ? {
+                id: typeof doc.approver.id === 'bigint' ? Number(doc.approver.id) : Number(doc.approver.id),
+                name: doc.approver.name || null,
+                email: doc.approver.email || null,
+              }
+            : null,
+        }
+      }) || [],
+    payments:
+      customer.payments?.map((payment: any) => {
+        let tutarValue: number | null = null
+        if (payment.tutar) {
+          tutarValue = typeof payment.tutar === 'bigint' ? Number(payment.tutar) : Number(payment.tutar)
+        }
+
+        let tarihValue: string | null = null
+        if (payment.tarih) {
+          if (payment.tarih instanceof Date) {
+            tarihValue = payment.tarih.toISOString()
+          } else if (typeof payment.tarih === 'string') {
+            tarihValue = payment.tarih
+          }
+        }
+
+        return {
+          id: typeof payment.id === 'bigint' ? Number(payment.id) : Number(payment.id),
+          tutar: tutarValue,
+          tarih: tarihValue,
+          durum: payment.durum || null,
+          açıklama: (payment as any).açıklama || payment.description || null,
+          created_at: payment.created_at ? payment.created_at.toISOString() : null,
+          updated_at: payment.updated_at ? payment.updated_at.toISOString() : null,
+          recorder: payment.creator
+            ? {
+                id: typeof payment.creator.id === 'bigint' ? Number(payment.creator.id) : Number(payment.creator.id),
+                name: payment.creator.name || null,
+                email: payment.creator.email || null,
+              }
+            : null,
+        }
+      }) || [],
+    notes:
+      customer.notes?.map((note: any) => {
+        const content = note.içerik ?? note.note ?? note.content ?? ''
+        return {
+          id: typeof note.id === 'bigint' ? Number(note.id) : Number(note.id),
+          content: content || '',
+          created_at: note.created_at ? note.created_at.toISOString() : null,
+          updated_at: note.updated_at ? note.updated_at.toISOString() : null,
+          author: note.user
+            ? {
+                id: typeof note.user.id === 'bigint' ? Number(note.user.id) : Number(note.user.id),
+                name: note.user.name || null,
+                email: note.user.email || null,
+              }
+            : null,
+        }
+      }).filter((note: any) => Boolean(note.content?.trim())) || [],
+  }
+}
+
 export async function getCustomerByUserInfo() {
   await requireAuth() // Check authentication first
   const user = await getCurrentUser() // Get full user info with tc_no, phone, email
