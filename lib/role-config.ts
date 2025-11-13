@@ -44,7 +44,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Müşteri Yönetimi",
         icon: "Users",
         route: "/admin/musteriler",
-        badge: "156",
         permissions: {
           canCreate: true,
           canEdit: true,
@@ -58,7 +57,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Bayi Yönetimi",
         icon: "Building2",
         route: "/admin/bayiler",
-        badge: "12",
         permissions: {
           canCreate: true,
           canEdit: true,
@@ -83,7 +81,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Muhasebe",
         icon: "CreditCard",
         route: "/admin/muhasebe",
-        badge: "3",
         permissions: {
           canViewAll: true,
           canExport: true,
@@ -100,7 +97,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Bildirim Merkezi",
         icon: "Bell",
         route: "/admin/bildirimler",
-        badge: "5",
       },
       {
         id: "settings",
@@ -146,7 +142,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Müşteri Yönetimi",
         icon: "Users",
         route: "/admin/musteriler",
-        badge: "156",
         permissions: {
           canCreate: true,
           canEdit: true,
@@ -159,7 +154,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Bayi Yönetimi",
         icon: "Building2",
         route: "/admin/bayiler",
-        badge: "12",
         permissions: {
           canCreate: false,
           canEdit: false,
@@ -183,7 +177,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Muhasebe",
         icon: "CreditCard",
         route: "/admin/muhasebe",
-        badge: "3",
         permissions: {
           canViewAll: true,
           canEdit: true,
@@ -201,7 +194,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Bildirim Merkezi",
         icon: "Bell",
         route: "/admin/bildirimler",
-        badge: "5",
       },
     ],
   },
@@ -220,7 +212,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Müşteri Yönetimi",
         icon: "Users",
         route: "/admin/musteriler",
-        badge: "156",
         permissions: {
           canCreate: false,
           canEdit: true,
@@ -243,7 +234,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Bildirim Merkezi",
         icon: "Bell",
         route: "/admin/bildirimler",
-        badge: "3",
       },
     ],
   },
@@ -262,7 +252,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Müşteri Yönetimi",
         icon: "Users",
         route: "/admin/musteriler",
-        badge: "156",
         permissions: {
           canCreate: true,
           canEdit: false,
@@ -284,7 +273,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Bildirimler",
         icon: "Bell",
         route: "/admin/bildirimler",
-        badge: "2",
       },
     ],
   },
@@ -303,7 +291,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Müşterilerim",
         icon: "Users",
         route: "/admin/musteriler",
-        badge: "24",
         permissions: {
           canCreate: false,
           canEdit: false,
@@ -324,7 +311,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Bildirimler",
         icon: "Bell",
         route: "/admin/bildirimler",
-        badge: "2",
       },
     ],
   },
@@ -346,7 +332,6 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         label: "Bildirimler",
         icon: "Bell",
         route: "/admin/bildirimler",
-        badge: "1",
       },
     ],
   },
@@ -358,18 +343,27 @@ export function getMenuItemsForRole(role: UserRole, stats?: any): MenuItem[] {
 
   // Update badges with real stats if available
   return menuItems.map(item => {
+    // Update customer-management badge with total customers
     if (item.id === "customer-management" && stats?.total_customers !== undefined) {
       return { ...item, badge: stats.total_customers.toString() }
     }
+    // Update dealer-management badge with total dealers
     if (item.id === "dealer-management" && stats?.total_dealers !== undefined) {
       return { ...item, badge: stats.total_dealers.toString() }
     }
-    if (item.id === "accounting" && stats?.total_payments !== undefined) {
-      return { ...item, badge: stats.total_payments.toString() }
+    // Update accounting badge with pending payments count
+    if (item.id === "accounting" && stats?.pending_payments !== undefined) {
+      const pendingCount = typeof stats.pending_payments === 'number' 
+        ? stats.pending_payments 
+        : parseInt(stats.pending_payments) || 0
+      return { ...item, badge: pendingCount > 0 ? pendingCount.toString() : undefined }
     }
+    // Update notifications badge with unread notifications count
     if (item.id === "notifications" && stats?.unread_notifications !== undefined) {
+      const notificationCount = typeof stats.unread_notifications === 'number'
+        ? stats.unread_notifications
+        : parseInt(stats.unread_notifications) || 0
       // Only show badge if there are unread notifications
-      const notificationCount = stats.unread_notifications
       return { ...item, badge: notificationCount > 0 ? notificationCount.toString() : undefined }
     }
     return item

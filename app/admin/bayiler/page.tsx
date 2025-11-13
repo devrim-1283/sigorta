@@ -155,8 +155,8 @@ export default function DealersPage() {
         (userRole === 'birincil-admin' 
           ? dealer.id.toString().includes(search)
           : (dealer.dealer_name?.toLowerCase().includes(search.toLowerCase()) ||
-             dealer.contact_person?.toLowerCase?.().includes(search.toLowerCase()) ||
-             dealer.city?.toLowerCase?.().includes(search.toLowerCase()) ||
+        dealer.contact_person?.toLowerCase?.().includes(search.toLowerCase()) ||
+        dealer.city?.toLowerCase?.().includes(search.toLowerCase()) ||
              dealer.tax_number?.toLowerCase?.().includes(search.toLowerCase())))
 
       const matchesStatus = !status || dealer.status === status
@@ -876,14 +876,14 @@ export default function DealersPage() {
                         </div>
                         {userRole !== 'birincil-admin' && (
                           <>
-                            <div className="flex items-center gap-2 text-sm text-slate-500">
-                              <MapPin className="h-4 w-4 text-[#F57C00]" />
-                              <span>{dealer.city || "Belirtilmemiş"}</span>
-                            </div>
-                            {dealer.tax_number && (
-                              <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
-                                <span>Vergi No: {dealer.tax_number}</span>
-                              </div>
+                        <div className="flex items-center gap-2 text-sm text-slate-500">
+                          <MapPin className="h-4 w-4 text-[#F57C00]" />
+                          <span>{dealer.city || "Belirtilmemiş"}</span>
+                        </div>
+                        {dealer.tax_number && (
+                          <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
+                            <span>Vergi No: {dealer.tax_number}</span>
+                          </div>
                             )}
                           </>
                         )}
@@ -904,19 +904,19 @@ export default function DealersPage() {
                     <div className="space-y-3 text-sm text-slate-600">
                       {userRole !== 'birincil-admin' && (
                         <>
-                          <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4 text-[#0B3D91]" />
-                            <span>{dealer.phone || "-"}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Mail className="h-4 w-4 text-[#0B3D91]" />
-                            <span>{dealer.email || "-"}</span>
-                          </div>
-                          {dealer.address && (
-                            <div className="flex items-center gap-2">
-                              <Building2 className="h-4 w-4 text-[#0B3D91]" />
-                              <span>{dealer.address}</span>
-                            </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-[#0B3D91]" />
+                        <span>{dealer.phone || "-"}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-[#0B3D91]" />
+                        <span>{dealer.email || "-"}</span>
+                      </div>
+                      {dealer.address && (
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-[#0B3D91]" />
+                          <span>{dealer.address}</span>
+                        </div>
                           )}
                         </>
                       )}
@@ -927,24 +927,24 @@ export default function DealersPage() {
                     </div>
 
                     {userRole !== 'birincil-admin' && (
-                      <div className="flex gap-3 mt-6">
-                        <Button
-                          variant="outline"
-                          className="rounded-xl flex-1"
-                          onClick={() => openEditModal(dealer)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Düzenle
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="rounded-xl text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
-                          onClick={() => handleDeleteDealer(dealer)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Sil
-                        </Button>
-                      </div>
+                    <div className="flex gap-3 mt-6">
+                      <Button
+                        variant="outline"
+                        className="rounded-xl flex-1"
+                        onClick={() => openEditModal(dealer)}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Düzenle
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="rounded-xl text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
+                        onClick={() => handleDeleteDealer(dealer)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Sil
+                      </Button>
+                    </div>
                     )}
                   </CardContent>
                 </Card>

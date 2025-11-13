@@ -43,9 +43,28 @@ export async function createUser(data: {
       throw new Error('Ad, şifre ve rol gereklidir')
     }
 
-    // At least one contact method required
-    if (!data.email && !data.phone && !data.tc_no) {
-      throw new Error('En az bir iletişim bilgisi (Email, Telefon veya TC No) gereklidir')
+    // Email is required for login
+    if (!data.email || !data.email.trim()) {
+      throw new Error('E-posta adresi gereklidir')
+    }
+
+    // Validate and sanitize email
+    const { validateEmail } = await import('@/lib/validation')
+    const emailValidation = validateEmail(data.email)
+    if (!emailValidation.valid) {
+      throw new Error(emailValidation.error || 'Geçersiz e-posta formatı')
+    }
+
+    // Normalize email to lowercase
+    const normalizedEmail = emailValidation.sanitized.toLowerCase().trim()
+
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    })
+
+    if (existingUser) {
+      throw new Error('Bu e-posta adresi zaten kullanılıyor')
     }
 
     const hashedPassword = await bcrypt.hash(data.password, 12)
@@ -53,7 +72,7 @@ export async function createUser(data: {
     const user = await prisma.user.create({
       data: {
         name: data.name,
-        email: data.email || null,
+        email: normalizedEmail,
         phone: data.phone || null,
         tc_no: data.tc_no || null,
         password: hashedPassword,
@@ -96,6 +115,27 @@ export async function updateUser(id: number, data: Partial<{
   await requireRole(['superadmin'])
 
   const updateData: any = { ...data }
+  
+  // Normalize email if provided
+  if (data.email) {
+    const { validateEmail } = await import('@/lib/validation')
+    const emailValidation = validateEmail(data.email)
+    if (!emailValidation.valid) {
+      throw new Error(emailValidation.error || 'Geçersiz e-posta formatı')
+    }
+    const normalizedEmail = emailValidation.sanitized.toLowerCase().trim()
+    
+    // Check if email is already used by another user
+    const existingUser = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    })
+    
+    if (existingUser && Number(existingUser.id) !== id) {
+      throw new Error('Bu e-posta adresi başka bir kullanıcı tarafından kullanılıyor')
+    }
+    
+    updateData.email = normalizedEmail
+  }
   
   if (data.password) {
     updateData.password = await bcrypt.hash(data.password, 12)

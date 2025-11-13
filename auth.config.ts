@@ -72,54 +72,61 @@ export const authConfig: NextAuthConfig = {
             throw new Error(passwordValidation.error || 'Geçersiz şifre formatı')
           }
 
-          // Determine login type and validate input
-          let user
-          let identifier: string
+          // Only allow email login
+          if (!credentials.email) {
+            throw new Error('E-posta adresi gerekli')
+          }
 
-          if (credentials.email) {
-            const emailValidation = validateEmail(credentials.email as string)
-            if (!emailValidation.valid) {
-              throw new Error(emailValidation.error || 'Geçersiz e-posta')
+          // Validate and sanitize email
+          const emailValidation = validateEmail(credentials.email as string)
+          if (!emailValidation.valid) {
+            throw new Error(emailValidation.error || 'Geçersiz e-posta')
+          }
+          
+          // Ensure email is lowercase for consistent lookup
+          const email = emailValidation.sanitized.toLowerCase().trim()
+
+          // Find user by email - try exact match first
+          let user = await prisma.user.findUnique({
+            where: { email: email },
+            include: {
+              role: true,
+              dealer: true,
+            },
+          })
+
+          // If not found with exact match, try case-insensitive search using raw SQL
+          if (!user) {
+            // Use Prisma raw query for case-insensitive email search
+            // Import Prisma for safe SQL queries
+            const { Prisma } = await import('@prisma/client')
+            const users = await prisma.$queryRaw<Array<{
+              id: bigint
+              name: string
+              email: string | null
+              phone: string | null
+              tc_no: string | null
+              password: string
+              role_id: bigint
+              dealer_id: bigint | null
+              is_active: boolean
+            }>>(Prisma.sql`
+              SELECT * FROM users 
+              WHERE LOWER(email) = LOWER(${email})
+              LIMIT 1
+            `)
+            
+            if (users && users.length > 0) {
+              const foundUser = users[0]
+              // Fetch full user with relations
+              user = await prisma.user.findUnique({
+                where: { id: foundUser.id },
+                include: {
+                  role: true,
+                  dealer: true,
+                },
+              })
             }
-            identifier = emailValidation.sanitized
-
-            user = await prisma.user.findUnique({
-              where: { email: identifier },
-              include: {
-                role: true,
-                dealer: true,
-              },
-            })
-          } else if (credentials.phone) {
-            const phoneValidation = validatePhone(credentials.phone as string)
-            if (!phoneValidation.valid) {
-              throw new Error(phoneValidation.error || 'Geçersiz telefon numarası')
-            }
-            identifier = phoneValidation.sanitized
-
-            user = await prisma.user.findUnique({
-              where: { phone: identifier },
-              include: {
-                role: true,
-                dealer: true,
-              },
-            })
-          } else if (credentials.tc_no) {
-            const tcValidation = validateTCNo(credentials.tc_no as string)
-            if (!tcValidation.valid) {
-              throw new Error(tcValidation.error || 'Geçersiz TC Kimlik No')
-            }
-            identifier = tcValidation.sanitized
-
-            user = await prisma.user.findUnique({
-              where: { tc_no: identifier },
-              include: {
-                role: true,
-                dealer: true,
-              },
-            })
-          } else {
-            throw new Error('E-posta, telefon veya TC Kimlik No gerekli')
           }
 
           if (!user) {
