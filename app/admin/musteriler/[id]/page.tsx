@@ -165,7 +165,7 @@ export default function CustomerDetailPage() {
     email: '',
     plaka: '',
     hasar_tarihi: '',
-        başvuru_durumu: 'EVRAK AŞAMASINDA' as ApplicationStatus,
+    başvuru_durumu: 'EVRAK AŞAMASINDA' as ApplicationStatus,
     dealer_id: 'none',
     password: '',
   })
