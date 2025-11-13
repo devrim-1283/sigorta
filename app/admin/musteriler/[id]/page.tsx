@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import {
@@ -377,17 +377,24 @@ export default function CustomerDetailPage() {
     }
   }
 
-  // Use permission helpers
-  const shouldShowDealerInfo = canViewDealerInfo(userRole)
-  const shouldShowDealerCode = canViewDealerCode(userRole)
-  const shouldShowDealerPayment = canViewDealerPayment(userRole)
-  const canUpdateStatus = canUpdateCustomerStatus(userRole)
-  const canCreate = canUploadApplicationDocuments(userRole)
-  const canDelete = userRole === "superadmin" || userRole === "operasyon" || userRole === "admin" || userRole === "birincil-admin"
-  const canUploadResultDocs = canUploadResultDocuments(userRole)
-  const canCloseFilePermission = canCloseFile(userRole)
-  const canEdit = canEditCustomer(userRole)
-  const canManageDealerPaymentPermission = canManageDealerPayment(userRole)
+  // Use permission helpers - Use useMemo to ensure fresh calculations
+  const shouldShowDealerInfo = useMemo(() => canViewDealerInfo(userRole), [userRole])
+  const shouldShowDealerCode = useMemo(() => canViewDealerCode(userRole), [userRole])
+  const shouldShowDealerPayment = useMemo(() => canViewDealerPayment(userRole), [userRole])
+  const canUpdateStatus = useMemo(() => canUpdateCustomerStatus(userRole), [userRole])
+  const canCreate = useMemo(() => canUploadApplicationDocuments(userRole), [userRole])
+  const canDelete = useMemo(() => userRole === "superadmin" || userRole === "operasyon" || userRole === "admin" || userRole === "birincil-admin", [userRole])
+  const canUploadResultDocs = useMemo(() => canUploadResultDocuments(userRole), [userRole])
+  const canCloseFilePermission = useMemo(() => canCloseFile(userRole), [userRole])
+  const canEdit = useMemo(() => canEditCustomer(userRole), [userRole])
+  const canManageDealerPaymentPermission = useMemo(() => canManageDealerPayment(userRole), [userRole])
+
+  // Debug: Log permissions
+  useEffect(() => {
+    console.log('[Customer Detail] User Role:', userRole)
+    console.log('[Customer Detail] Can Upload Result Docs:', canUploadResultDocs)
+    console.log('[Customer Detail] Checking permission manually:', userRole, '- Result:', ['superadmin', 'birincil-admin', 'ikincil-admin', 'operasyon'].includes(userRole))
+  }, [userRole, canUploadResultDocs])
 
   const handleDocumentUpload = async (file: File, type: DocumentType) => {
     if (!customer) return
