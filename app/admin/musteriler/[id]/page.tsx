@@ -187,7 +187,7 @@ export default function CustomerDetailPage() {
 
   const fetchDealers = async () => {
     try {
-      const dealers = await dealerApi.getAll()
+      const dealers = await dealerApi.list()
       const options = [
         { id: "none", name: "Belirtilmemiş / Bilinmiyor" },
         ...dealers.map((d: any) => ({
@@ -243,7 +243,7 @@ export default function CustomerDetailPage() {
         })
       }
 
-      const documents = response.documents || response.evraklar || []
+      const documents = response.documents || (response as any).evraklar || []
       // Separate başvuru evrakları (is_result_document = false) and süreç evrakları (is_result_document = true)
       const basvuruEvraklari = documents.filter((d: any) => !d.is_result_document)
       const mappedBasvuruEvraklari = mapDocuments(basvuruEvraklari)
@@ -259,17 +259,17 @@ export default function CustomerDetailPage() {
 
       const transformedCustomer: Customer = {
         id: String(response.id),
-        ad_soyad: response.ad_soyad || response.name || 'Bilinmeyen',
+        ad_soyad: response.ad_soyad || (response as any).name || 'Bilinmeyen',
         tc_no: response.tc_no || '',
-        telefon: response.telefon || response.phone || '',
+        telefon: response.telefon || (response as any).phone || '',
         email: response.email || '',
         plaka: response.plaka || '',
-        hasar_tarihi: response.hasar_tarihi || response.damage_date || '',
-        başvuru_durumu: response.başvuru_durumu || 'EVRAK AŞAMASINDA',
+        hasar_tarihi: response.hasar_tarihi || (response as any).damage_date || '',
+        başvuru_durumu: (response.başvuru_durumu || 'EVRAK AŞAMASINDA') as ApplicationStatus,
         sigortadan_yatan_tutar: response.sigortadan_yatan_tutar ? Number(response.sigortadan_yatan_tutar) : undefined,
         musteri_hakedisi: response.musteri_hakedisi ? Number(response.musteri_hakedisi) : undefined,
         bayi_odeme_tutari: response.bayi_odeme_tutari ? Number(response.bayi_odeme_tutari) : undefined,
-        ödemeler: (response.payments || response.ödemeler || []).map((p: any) => {
+        ödemeler: (response.payments || (response as any).ödemeler || []).map((p: any) => {
           // Handle BigInt for tutar/amount
           let tutarValue = 0
           if (p.tutar) {
@@ -288,9 +288,9 @@ export default function CustomerDetailPage() {
         }),
         evraklar: mappedBasvuruEvraklari,
         süreç_evraklari: surecEvraklari,
-        bağlı_bayi_id: String(response.dealer_id || response.bağlı_bayi_id || ''),
-        bağlı_bayi_adı: response.dealer?.dealer_name || response.bağlı_bayi_adı || 'Belirtilmemiş',
-        notlar: (response.notes || response.notlar || []).map((n: any) => {
+        bağlı_bayi_id: String(response.dealer_id || (response as any).bağlı_bayi_id || ''),
+        bağlı_bayi_adı: response.dealer?.dealer_name || (response as any).bağlı_bayi_adı || 'Belirtilmemiş',
+        notlar: (response.notes || (response as any).notlar || []).map((n: any) => {
           // Handle both 'içerik' and 'content' fields
           const content = n.içerik || n.content || n.note || ''
           return {
@@ -300,11 +300,11 @@ export default function CustomerDetailPage() {
             içerik: content,
           }
         }).filter((note: any) => Boolean(note.içerik?.trim())),
-        son_güncelleme: response.updated_at || response.son_güncelleme || new Date().toLocaleDateString('tr-TR'),
-        evrak_durumu: response.evrak_durumu || 'Eksik',
-        eksik_evraklar: response.eksik_evraklar || [],
+        son_güncelleme: response.updated_at || (response as any).son_güncelleme || new Date().toLocaleDateString('tr-TR'),
+        evrak_durumu: ((response as any).evrak_durumu || 'Eksik') as "Tamam" | "Eksik",
+        eksik_evraklar: (response as any).eksik_evraklar || [],
         dosya_kilitli: response.dosya_kilitli || false,
-        dosya_tipi: response.file_type?.name || response.dosya_tipi || 'deger-kaybi',
+        dosya_tipi: response.file_type?.name || (response as any).dosya_tipi || 'deger-kaybi',
       }
 
       setCustomer(transformedCustomer)
@@ -860,7 +860,7 @@ export default function CustomerDetailPage() {
             </Button>
           )}
         </div>
-
+          
         {/* Customer Details */}
         {customer && (
           <Tabs defaultValue="info" className="w-full">
@@ -1397,6 +1397,7 @@ export default function CustomerDetailPage() {
                     </div>
                   </CardContent>
                 </Card>
+                )}
               </div>
             </TabsContent>
           </Tabs>
@@ -1838,7 +1839,7 @@ export default function CustomerDetailPage() {
                       <SelectItem value="İCRA AŞAMASINDA">İCRA AŞAMASINDA</SelectItem>
                       <SelectItem value="TAHKİM BAŞVURUSU YAPILDI">TAHKİM BAŞVURUSU YAPILDI</SelectItem>
                       <SelectItem value="TAHKİM AŞAMASINDA">TAHKİM AŞAMASINDA</SelectItem>
-                      <SelectItem value="KAPALI">KAPALI</SelectItem>
+                      <SelectItem value="DOSYA KAPATILDI">DOSYA KAPATILDI</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
