@@ -6,6 +6,7 @@ import { createNotification } from './notifications'
 import { requireAuth } from './auth'
 import prisma from '@/lib/db'
 import { revalidatePath } from 'next/cache'
+import { validatePhone, validateEmail } from '@/lib/validation'
 
 async function getDealerRoleId(tx: Prisma.TransactionClient): Promise<bigint> {
   const role = await tx.role.findFirst({
@@ -314,30 +315,117 @@ export async function updateDealer(id: number, data: Partial<{
   const { password, ...dealerData } = data
 
   const dealer = await prisma.$transaction(async (tx) => {
+    // Normalize email if provided
+    let normalizedEmail: string | null = null
+    if (data.email !== undefined) {
+      // Handle empty string as null
+      const emailInput = data.email === '' ? null : data.email
+      const trimmedEmail = emailInput?.trim() || null
+      if (trimmedEmail) {
+        try {
+          // Use validateEmail to normalize email (lowercase, trim, validate)
+          const emailValidation = validateEmail(trimmedEmail)
+          if (emailValidation.valid) {
+            normalizedEmail = emailValidation.sanitized
+          } else {
+            // If validation fails, use trimmed lowercase email as fallback
+            normalizedEmail = trimmedEmail.toLowerCase().trim()
+          }
+        } catch (error) {
+          // If validation throws error, use trimmed lowercase email as fallback
+          normalizedEmail = trimmedEmail.toLowerCase().trim()
+        }
+      }
+      // Update dealerData with normalized email
+      dealerData.email = normalizedEmail
+    }
+
+    // Normalize phone if provided
+    let normalizedPhone: string | null = null
+    if (data.phone !== undefined) {
+      // Handle empty string as null
+      const phoneInput = data.phone === '' ? null : data.phone
+      const trimmedPhone = phoneInput?.trim() || null
+      if (trimmedPhone) {
+        try {
+          // Use validatePhone to normalize phone number
+          const phoneValidation = validatePhone(trimmedPhone)
+          if (phoneValidation.valid) {
+            normalizedPhone = phoneValidation.sanitized
+          } else {
+            // If validation fails, use trimmed phone as-is (let database handle it)
+            normalizedPhone = trimmedPhone
+          }
+        } catch (error) {
+          // If validation throws error, use trimmed phone as-is
+          normalizedPhone = trimmedPhone
+        }
+      }
+      // Update dealerData with normalized phone
+      dealerData.phone = normalizedPhone
+    }
+
     // Update dealer (without password field)
     const updated = await tx.dealer.update({
       where: { id: BigInt(id) },
       data: dealerData,
     })
 
-    // If password is provided, update the associated user's password
-    if (password && password.trim()) {
-      const hashedPassword = await bcrypt.hash(password, 12)
-      const existingUser = await tx.user.findFirst({
-        where: {
-          dealer_id: BigInt(id),
-        },
-      })
+    // Find the associated user
+    const existingUser = await tx.user.findFirst({
+      where: {
+        dealer_id: BigInt(id),
+      },
+    })
 
-      if (existingUser) {
+    if (existingUser) {
+      // Prepare user update data
+      const userUpdateData: any = {
+        updated_at: new Date(),
+      }
+
+      // Update email if provided (use normalized email)
+      if (data.email !== undefined) {
+        userUpdateData.email = normalizedEmail
+      }
+
+      // Update phone if provided (use normalized phone)
+      if (data.phone !== undefined) {
+        userUpdateData.phone = normalizedPhone
+      }
+
+      // Update name if dealer_name changed
+      if (data.dealer_name !== undefined) {
+        userUpdateData.name = data.dealer_name
+      }
+
+      // Update password if provided
+      if (password && password.trim()) {
+        userUpdateData.password = await bcrypt.hash(password.trim(), 12)
+      }
+
+      // Only update if there's something to update
+      if (Object.keys(userUpdateData).length > 1) { // More than just updated_at
+        console.log(`[updateDealer] Updating user for dealer ${id}:`, {
+          userId: existingUser.id.toString(),
+          updates: {
+            email: userUpdateData.email !== undefined ? userUpdateData.email : 'not changed',
+            phone: userUpdateData.phone !== undefined ? userUpdateData.phone : 'not changed',
+            name: userUpdateData.name !== undefined ? userUpdateData.name : 'not changed',
+            password: userUpdateData.password ? '***updated***' : 'not changed',
+          }
+        })
+        
         await tx.user.update({
           where: { id: existingUser.id },
-          data: { password: hashedPassword },
+          data: userUpdateData,
         })
-      } else {
-        // If no user exists, create one (optional - you might want to throw error instead)
-        console.warn(`No user found for dealer ${id}, password update skipped`)
+        
+        console.log(`[updateDealer] User updated successfully for dealer ${id}`)
       }
+    } else {
+      // If no user exists, log warning
+      console.warn(`[updateDealer] No user found for dealer ${id}, user update skipped`)
     }
 
     return updated
