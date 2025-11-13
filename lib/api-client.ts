@@ -105,6 +105,10 @@ export const customerApi = {
     return await customerActions.getCustomer(typeof id === 'string' ? parseInt(id) : id)
   },
 
+  getByUserInfo: async () => {
+    return await customerActions.getCustomerByUserInfo()
+  },
+
   checkAndUpdateStatus: async (id: number | string) => {
     return await customerActions.checkAndUpdateCustomerStatus(typeof id === 'string' ? parseInt(id) : id)
   },

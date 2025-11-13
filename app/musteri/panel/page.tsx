@@ -113,16 +113,22 @@ export default function CustomerPanelPage() {
     if (user?.id && user?.role?.name === "musteri") {
       fetchCustomerData()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const fetchCustomerData = async () => {
-    if (!user?.id) return
+    if (!user?.id || user?.role?.name !== "musteri") {
+      setError("Müşteri bilgileri bulunamadı")
+      setLoading(false)
+      return
+    }
 
     try {
       setLoading(true)
       setError("")
       
-      const response = await customerApi.getById(String(user.id))
+      // Use getByUserInfo for customer role to find customer by TC no, phone, or email
+      const response = await customerApi.getByUserInfo()
       
       // Map documents
       const mapDocuments = (docs: any[]) => {
@@ -143,7 +149,7 @@ export default function CustomerPanelPage() {
       // Fetch result documents (süreç evrakları)
       let surecEvraklari: any[] = []
       try {
-        const resultDocs = await resultDocumentsApi.list(String(user.id))
+        const resultDocs = await resultDocumentsApi.list(String(response.id))
         surecEvraklari = mapDocuments(resultDocs || [])
       } catch (error) {
         console.error('Failed to fetch result documents:', error)
@@ -199,12 +205,29 @@ export default function CustomerPanelPage() {
 
       setCustomer(transformedCustomer)
     } catch (error: any) {
-      console.error('Failed to fetch customer:', error)
-      setError(error.message || 'Müşteri bilgileri yüklenemedi')
+      console.error('[CustomerPanel] Failed to fetch customer:', error)
+      
+      // Extract error message
+      let errorMessage = 'Müşteri bilgileri yüklenemedi'
+      if (error?.message) {
+        errorMessage = error.message
+      } else if (typeof error === 'string') {
+        errorMessage = error
+      } else if (error?.toString && typeof error.toString === 'function') {
+        errorMessage = error.toString()
+      }
+      
+      // Remove "Server Components render" prefix if present
+      if (errorMessage.includes('Server Components render')) {
+        errorMessage = 'Müşteri bilgileri yüklenemedi. Lütfen tekrar deneyin.'
+      }
+      
+      setError(errorMessage)
       toast({
         title: 'Hata',
-        description: error.message || 'Müşteri bilgileri yüklenemedi',
+        description: errorMessage,
         variant: 'destructive',
+        duration: 5000,
       })
     } finally {
       setLoading(false)

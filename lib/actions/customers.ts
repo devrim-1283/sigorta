@@ -149,11 +149,32 @@ export async function getCustomers(params?: {
   }
 }
 
-export async function getCustomer(id: number) {
-  await requireAuth()
+export async function getCustomerByUserInfo() {
+  const user = await requireAuth()
+  
+  // For customer role, find customer by TC no, phone, or email
+  if (user.role?.name !== 'musteri') {
+    throw new Error('Bu fonksiyon sadece müşteri rolü için kullanılabilir')
+  }
 
-  const customer = await prisma.customer.findUnique({
-    where: { id: BigInt(id) },
+  const where: any = {}
+  
+  if (user.tc_no) {
+    where.tc_no = user.tc_no
+  } else if (user.phone) {
+    // Normalize phone for comparison
+    const phoneDigits = user.phone.replace(/\D/g, '')
+    where.telefon = {
+      contains: phoneDigits.slice(-10), // Match last 10 digits
+    }
+  } else if (user.email) {
+    where.email = user.email.toLowerCase().trim()
+  } else {
+    throw new Error('Müşteri bilgileri bulunamadı')
+  }
+
+  const customer = await prisma.customer.findFirst({
+    where,
     include: {
       dealer: true,
       file_type: true,
