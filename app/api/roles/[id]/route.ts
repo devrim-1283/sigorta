@@ -38,21 +38,32 @@ export async function PUT(
     }
 
     // Only allow changing permissions if not a read-only role (bayi, musteri)
-    if (!readOnlyRoles.includes(existingRole.name) && permissions !== undefined) {
-      updateData.permissions = permissions || null
-    }
+    // permissions column doesn't exist in database yet
+    // if (!readOnlyRoles.includes(existingRole.name) && permissions !== undefined) {
+    //   updateData.permissions = permissions || null
+    // }
 
     const role = await prisma.role.update({
       where: {
         id: BigInt(params.id),
       },
       data: updateData,
+      select: {
+        id: true,
+        name: true,
+        display_name: true,
+        description: true,
+        // permissions: true, // Column doesn't exist in database yet
+        created_at: true,
+        updated_at: true,
+      },
     })
 
     return NextResponse.json({
       role: {
         ...role,
         id: Number(role.id),
+        permissions: null, // Add null for compatibility
       },
     })
   } catch (error: any) {

@@ -10,7 +10,14 @@ export async function GET(request: NextRequest) {
     }
 
     const roles = await prisma.role.findMany({
-      include: {
+      select: {
+        id: true,
+        name: true,
+        display_name: true,
+        description: true,
+        // permissions: true, // Column doesn't exist in database yet
+        created_at: true,
+        updated_at: true,
         _count: {
           select: { users: true },
         },
@@ -24,6 +31,7 @@ export async function GET(request: NextRequest) {
       roles: roles.map(r => ({
         ...r,
         id: Number(r.id),
+        permissions: null, // Add null for compatibility
       })),
     })
   } catch (error: any) {
@@ -68,8 +76,9 @@ export async function POST(request: NextRequest) {
     const role = await prisma.role.create({
       data: {
         name,
+        display_name: name, // Use name as display_name if not provided
         description: description || null,
-        permissions: permissions || null,
+        // permissions: permissions || null, // Column doesn't exist in database yet
         created_at: new Date(),
         updated_at: new Date(),
       },

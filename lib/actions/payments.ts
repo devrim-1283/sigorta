@@ -162,9 +162,9 @@ export async function updatePayment(id: number, data: Partial<{
 export async function deletePayment(id: number) {
   await requireAuth()
 
-  await prisma.payment.update({
+  // Hard delete (deleted_at column doesn't exist yet)
+  await prisma.payment.delete({
     where: { id: BigInt(id) },
-    data: { deleted_at: new Date() },
   })
 
   revalidatePath('/dashboard/payments')

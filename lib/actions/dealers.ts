@@ -355,9 +355,9 @@ export async function updateDealer(id: number, data: Partial<{
 export async function deleteDealer(id: number) {
   await requireAuth()
 
-  await prisma.dealer.update({
+  // Hard delete (deleted_at column doesn't exist yet)
+  await prisma.dealer.delete({
     where: { id: BigInt(id) },
-    data: { deleted_at: new Date() },
   })
 
   revalidatePath('/dashboard/dealers')

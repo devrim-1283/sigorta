@@ -159,19 +159,46 @@ export async function getCustomerByUserInfo() {
 
   const where: any = {}
   
-  if (user.tc_no) {
-    where.tc_no = user.tc_no
-  } else if (user.phone) {
-    // Normalize phone for comparison
+  // Try to find customer by TC no first (most reliable)
+  if (user.tc_no && user.tc_no.trim()) {
+    where.tc_no = user.tc_no.trim()
+  } 
+  // If no TC no, try phone number
+  else if (user.phone && user.phone.trim()) {
+    // Normalize phone for comparison - remove all non-digits
     const phoneDigits = user.phone.replace(/\D/g, '')
-    where.telefon = {
-      contains: phoneDigits.slice(-10), // Match last 10 digits
+    
+    // Normalize phone to 11 digits starting with 0
+    let normalizedPhone = phoneDigits
+    if (phoneDigits.length === 10 && phoneDigits.startsWith('5')) {
+      normalizedPhone = '0' + phoneDigits
+    } else if (phoneDigits.length === 12 && phoneDigits.startsWith('90')) {
+      normalizedPhone = '0' + phoneDigits.slice(2)
+    } else if (phoneDigits.length === 11 && !phoneDigits.startsWith('0')) {
+      normalizedPhone = '0' + phoneDigits.slice(1)
     }
-  } else if (user.email) {
+    
+    // Try exact match first, then contains as fallback
+    where.OR = [
+      { telefon: normalizedPhone },
+      { telefon: { contains: phoneDigits.slice(-10) } },
+    ]
+  } 
+  // If no phone, try email
+  else if (user.email && user.email.trim()) {
     where.email = user.email.toLowerCase().trim()
-  } else {
-    throw new Error('Müşteri bilgileri bulunamadı')
+  } 
+  else {
+    throw new Error('Müşteri bilgileri bulunamadı. TC Kimlik No, telefon veya e-posta adresi gereklidir.')
   }
+
+  // Log search criteria for debugging
+  console.log('[getCustomerByUserInfo] Searching customer with:', {
+    tc_no: user.tc_no,
+    phone: user.phone,
+    email: user.email,
+    where,
+  })
 
   const customer = await prisma.customer.findFirst({
     where,
@@ -199,7 +226,25 @@ export async function getCustomerByUserInfo() {
   })
 
   if (!customer) {
-    throw new Error('Müşteri bulunamadı')
+    // Try to find any customer with similar info for better error message
+    let similarCustomer = null
+    if (user.tc_no) {
+      similarCustomer = await prisma.customer.findFirst({
+        where: { tc_no: { contains: user.tc_no.slice(-4) } },
+        select: { id: true, tc_no: true },
+      })
+    }
+    
+    const errorMsg = similarCustomer
+      ? `Müşteri bulunamadı. TC Kimlik No: ${user.tc_no} ile kayıtlı müşteri bulunamadı.`
+      : `Müşteri bulunamadı. Lütfen bilgilerinizi kontrol edin veya yönetici ile iletişime geçin.`
+    
+    console.error('[getCustomerByUserInfo] Customer not found:', {
+      user: { tc_no: user.tc_no, phone: user.phone, email: user.email },
+      where,
+    })
+    
+    throw new Error(errorMsg)
   }
 
   return {

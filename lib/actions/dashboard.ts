@@ -23,8 +23,8 @@ export async function getDashboardStats() {
     recentDocuments,
   ] = await Promise.all([
     prisma.customer.count(),
-    prisma.dealer.count({ where: { deleted_at: null } }),
-    prisma.document.count({ where: { deleted_at: null } }),
+    prisma.dealer.count(), // deleted_at column doesn't exist yet
+    prisma.document.count(), // deleted_at column doesn't exist yet
     prisma.payment.aggregate({ _sum: { tutar: true } }),
     prisma.policy.count(),
     prisma.policy.count({ where: { status: 'active' } }),
@@ -49,7 +49,7 @@ export async function getDashboardStats() {
       },
     }),
     prisma.document.findMany({
-      where: { deleted_at: null },
+      // where: { deleted_at: null }, // Column doesn't exist in database yet
       take: 5,
       orderBy: { created_at: 'desc' },
       include: {

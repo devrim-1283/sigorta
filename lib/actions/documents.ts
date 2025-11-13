@@ -83,7 +83,7 @@ export async function getDocuments(params?: {
   const documents = await prisma.document.findMany({
     where: {
       ...where,
-      deleted_at: null, // Only include non-deleted documents
+      // deleted_at: null, // Column doesn't exist in database yet
     },
     include: {
       customer: true,
@@ -135,18 +135,14 @@ export async function getDocumentStats() {
     uploadedToday,
     deletedToday,
   ] = await Promise.all([
-    prisma.document.count({ where: { deleted_at: null } }),
+    prisma.document.count(),
     prisma.document.count({
       where: {
-        deleted_at: null,
         created_at: { gte: today },
       },
     }),
-    prisma.document.count({
-      where: {
-        deleted_at: { gte: today },
-      },
-    }),
+    // deletedToday count removed - deleted_at column doesn't exist
+    Promise.resolve(0),
   ])
 
   return {
@@ -475,12 +471,9 @@ export async function deleteDocument(id: number) {
     // Continue even if file deletion fails
   }
 
-  // Soft delete from database
-  await prisma.document.update({
+  // Hard delete from database (deleted_at column doesn't exist yet)
+  await prisma.document.delete({
     where: { id: BigInt(id) },
-    data: {
-      deleted_at: new Date(),
-    },
   })
 
   revalidatePath('/dashboard/documents')

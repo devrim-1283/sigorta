@@ -14,7 +14,7 @@ export async function getResultDocuments(customerId: number) {
     where: {
       customer_id: BigInt(customerId),
       is_result_document: true,
-      deleted_at: null,
+      // deleted_at: null, // Column doesn't exist in database yet
     },
     include: {
       result_document_type: true,
