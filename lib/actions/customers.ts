@@ -147,7 +147,8 @@ export async function getCustomers(params?: {
       } : null,
       dealer: c.dealer ? {
         id: Number(c.dealer.id),
-        dealer_name: c.dealer.dealer_name,
+        // Hide dealer name for birincil-admin role
+        dealer_name: user?.role?.name === 'birincil-admin' ? 'Bilinmiyor' : c.dealer.dealer_name,
       } : null,
       documents: c.documents?.map(d => ({
         id: Number(d.id),
@@ -189,6 +190,7 @@ export async function getCustomers(params?: {
 
 export async function getCustomer(id: number) {
   await requireAuth()
+  const user = await getCurrentUser()
   
   const customer = await prisma.customer.findUnique({
     where: { id: BigInt(id) },
@@ -243,7 +245,8 @@ export async function getCustomer(id: number) {
     dealer: customer.dealer
       ? {
           id: Number(customer.dealer.id),
-          dealer_name: customer.dealer.dealer_name,
+          // Hide dealer name for birincil-admin role
+          dealer_name: user?.role?.name === 'birincil-admin' ? 'Bilinmiyor' : customer.dealer.dealer_name,
           contact_person: customer.dealer.contact_person,
           phone: customer.dealer.phone,
           email: customer.dealer.email,

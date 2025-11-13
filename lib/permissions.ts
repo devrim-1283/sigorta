@@ -2,9 +2,10 @@ import { type UserRole } from './role-config'
 
 /**
  * Check if user can view dealer information (dealer name, dealer details)
+ * Note: birincil-admin can view dealer info but dealer name will be hidden as "Bilinmiyor"
  */
 export function canViewDealerInfo(role: UserRole): boolean {
-  return role === 'superadmin' || role === 'bayi'
+  return role === 'superadmin' || role === 'bayi' || role === 'birincil-admin'
 }
 
 /**

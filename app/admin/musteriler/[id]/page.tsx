@@ -941,7 +941,7 @@ export default function CustomerDetailPage() {
                     </div>
                   </div>
 
-                  {shouldShowDealerInfo && (
+                  {shouldShowDealerInfo && userRole !== 'birincil-admin' && (
                     <div className="pt-4 border-t">
                       <p className="text-sm text-muted-foreground">Bağlı Bayi</p>
                       <p className="font-semibold">{customer.bağlı_bayi_adı}</p>

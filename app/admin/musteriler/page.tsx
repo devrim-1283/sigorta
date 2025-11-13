@@ -1776,7 +1776,9 @@ export default function CustomersPage() {
                           <td className="p-4">
                             <div className="flex items-center gap-2">
                               <Building className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm">{customer.bağlı_bayi_adı}</span>
+                              <span className="text-sm">
+                                {userRole === 'birincil-admin' ? 'Bilinmiyor' : customer.bağlı_bayi_adı}
+                              </span>
                             </div>
                           </td>
                         )}
@@ -1903,7 +1905,9 @@ export default function CustomersPage() {
                     {shouldShowDealerInfo && (
                       <div className="flex items-center gap-2 pt-2 border-t">
                         <Building className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{customer.bağlı_bayi_adı}</span>
+                        <span className="text-sm">
+                          {userRole === 'birincil-admin' ? 'Bilinmiyor' : customer.bağlı_bayi_adı}
+                        </span>
                       </div>
                     )}
 
