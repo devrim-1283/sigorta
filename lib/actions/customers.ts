@@ -1101,7 +1101,8 @@ export async function updateCustomer(id: number, data: Partial<{
 }>) {
   const currentUser = await requireAuth()
 
-  return await prisma.$transaction(async (tx) => {
+  try {
+    return await prisma.$transaction(async (tx) => {
     // Get customer first to get normalized values and old status
     const existingCustomer = await tx.customer.findUnique({
       where: { id: BigInt(id) },
@@ -1148,39 +1149,6 @@ export async function updateCustomer(id: number, data: Partial<{
     updateData.bayi_odeme_tutari = data.bayi_odeme_tutari
   }
 
-    // Check email uniqueness if email is being updated
-    if (data.email !== undefined && customerEmail) {
-      const currentEmail = existingCustomer.email?.trim().toLowerCase() || null
-      const newEmail = customerEmail
-      
-      // Only check if email is actually changing
-      if (currentEmail !== newEmail) {
-        // Find existing user associated with this customer (use existing TC No and phone, not updated values)
-        const existingTCForUserSearch = existingCustomer.tc_no
-        const existingPhoneForUserSearch = existingCustomer.telefon
-        const customerUser = await tx.user.findFirst({
-          where: {
-            OR: [
-              { tc_no: existingTCForUserSearch },
-              { phone: existingPhoneForUserSearch },
-            ],
-          },
-        })
-        
-        // Check if email is used by another user (excluding the current customer's user)
-        const emailConflict = await tx.user.findFirst({
-          where: {
-            email: newEmail,
-            ...(customerUser ? { id: { not: customerUser.id } } : {}),
-          },
-        })
-
-        if (emailConflict) {
-          throw new Error(`Bu e-posta adresi (${newEmail}) başka bir kullanıcı tarafından kullanılıyor. Lütfen farklı bir e-posta adresi girin.`)
-        }
-      }
-    }
-
     // Update normalized values
     if (data.tc_no) updateData.tc_no = normalizedTC
     if (data.telefon) updateData.telefon = normalizedPhone
@@ -1224,12 +1192,37 @@ export async function updateCustomer(id: number, data: Partial<{
           },
         })
 
+        // Check email uniqueness if email is being updated and is different
+        if (data.email !== undefined) {
+          const currentEmail = existingCustomer.email?.trim().toLowerCase() || null
+          const newEmail = customerEmail
+          
+          // Only check if email is actually changing and new email is not empty
+          if (newEmail && currentEmail !== newEmail) {
+            // Check if email is used by another user (excluding the current customer's user)
+            const emailConflict = await tx.user.findFirst({
+              where: {
+                email: newEmail,
+                ...(existingUser ? { id: { not: existingUser.id } } : {}),
+              },
+            })
+
+            if (emailConflict) {
+              throw new Error(`Bu e-posta adresi (${newEmail}) başka bir kullanıcı tarafından kullanılıyor. Lütfen farklı bir e-posta adresi girin.`)
+            }
+          }
+        }
+
         const userUpdateData: any = {
           name: customerName,
           tc_no: normalizedTC,
           phone: normalizedPhone,
-          email: customerEmail,
           updated_at: new Date(),
+        }
+
+        // Only include email if it's being updated (don't set to null if not provided)
+        if (data.email !== undefined) {
+          userUpdateData.email = customerEmail
         }
 
         // Add password if provided
@@ -1337,6 +1330,11 @@ export async function updateCustomer(id: number, data: Partial<{
     dealer_id: customer.dealer_id ? Number(customer.dealer_id) : null,
   }
   })
+  } catch (error: any) {
+    console.error('[updateCustomer] Error:', error)
+    // Re-throw with a user-friendly message
+    throw new Error(error?.message || 'Müşteri güncellenirken bir hata oluştu')
+  }
 }
 
 export async function deleteCustomer(id: number) {

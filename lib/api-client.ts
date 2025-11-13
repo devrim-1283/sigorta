@@ -86,7 +86,23 @@ export const customerApi = {
   },
 
   update: async (id: number | string, data: any) => {
-    return await customerActions.updateCustomer(typeof id === 'string' ? parseInt(id) : id, data)
+    try {
+      return await customerActions.updateCustomer(typeof id === 'string' ? parseInt(id) : id, data)
+    } catch (error: any) {
+      console.error('[customerApi.update] Server action error:', error)
+      console.error('[customerApi.update] Error type:', typeof error)
+      console.error('[customerApi.update] Error message:', error?.message)
+      console.error('[customerApi.update] Error digest:', error?.digest)
+      
+      // Ensure error message is preserved and properly formatted
+      const errorMessage = error?.message || 'Müşteri güncellenirken bir hata oluştu'
+      const customError: any = new Error(errorMessage)
+      customError.isValidationError = (error as any)?.isValidationError || false
+      customError.digest = (error as any)?.digest
+      customError.message = errorMessage
+      
+      throw customError
+    }
   },
 
   delete: async (id: number | string) => {
