@@ -155,6 +155,19 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         },
       },
       {
+        id: "dealer-management",
+        label: "Bayi Yönetimi",
+        icon: "Building2",
+        route: "/admin/bayiler",
+        badge: "12",
+        permissions: {
+          canCreate: false,
+          canEdit: false,
+          canDelete: false,
+          canViewAll: true,
+        },
+      },
+      {
         id: "document-management",
         label: "Evrak Yönetimi",
         icon: "FileText",
