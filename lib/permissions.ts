@@ -41,7 +41,7 @@ export function canUploadApplicationDocuments(role: UserRole): boolean {
  * Check if user can upload result documents (süreç evrakları)
  */
 export function canUploadResultDocuments(role: UserRole): boolean {
-  return role === 'superadmin' || role === 'birincil-admin' || role === 'ikincil-admin' || role === 'operasyon'
+  return role === 'superadmin' || role === 'birincil-admin' || role === 'ikincil-admin' || role === 'operasyon' || role === 'evrak-birimi'
 }
 
 /**

@@ -171,6 +171,8 @@ export default function CustomerDetailPage() {
   })
   const [showPassword, setShowPassword] = useState(false)
   const [dealerOptions, setDealerOptions] = useState<{ id: string; name: string }[]>([])
+  const [dealerPaymentAmount, setDealerPaymentAmount] = useState<string>("")
+  const [savingDealerPayment, setSavingDealerPayment] = useState(false)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -319,6 +321,9 @@ export default function CustomerDetailPage() {
       }
 
       setCustomer(transformedCustomer)
+      
+      // Set dealer payment amount to state
+      setDealerPaymentAmount(transformedCustomer.bayi_odeme_tutari?.toString() || "")
     } catch (error: any) {
       console.error('[CustomerDetail] Failed to fetch customer:', error)
       
@@ -566,6 +571,32 @@ export default function CustomerDetailPage() {
         variant: "default",
         duration: 5000,
       })
+    }
+  }
+
+  const handleSaveDealerPayment = async () => {
+    if (!customer) return
+    
+    try {
+      setSavingDealerPayment(true)
+      const value = parseFloat(dealerPaymentAmount) || 0
+      
+      await customerApi.update(customer.id, { bayi_odeme_tutari: value })
+      await fetchCustomer()
+      
+      toast({
+        title: "Başarılı",
+        description: "Bayi ödeme tutarı güncellendi",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Uyarı",
+        description: error.message || "Bayi ödeme tutarı güncellenemedi",
+        variant: "default",
+        duration: 5000,
+      })
+    } finally {
+      setSavingDealerPayment(false)
     }
   }
 
@@ -974,34 +1005,27 @@ export default function CustomerDetailPage() {
                         <Label htmlFor="bayi_odeme_tutari" className="text-sm font-semibold mb-2">
                           Bayi Ödeme Tutarı (₺)
                         </Label>
-                        <Input
-                          id="bayi_odeme_tutari"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          value={customer.bayi_odeme_tutari || ''}
-                          onChange={async (e) => {
-                            const value = parseFloat(e.target.value) || 0
-                            try {
-                              await customerApi.update(customer.id, { bayi_odeme_tutari: value })
-                              await fetchCustomer()
-                              toast({
-                                title: "Başarılı",
-                                description: "Bayi ödeme tutarı güncellendi",
-                              })
-                            } catch (error: any) {
-                              toast({
-                                title: "Uyarı",
-                                description: error.message || "Bayi ödeme tutarı güncellenemedi",
-                                variant: "default",
-                                duration: 5000,
-                              })
-                            }
-                          }}
-                          className="rounded-2xl mt-2"
-                          disabled={customer.dosya_kilitli}
-                        />
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            id="bayi_odeme_tutari"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            value={dealerPaymentAmount}
+                            onChange={(e) => setDealerPaymentAmount(e.target.value)}
+                            className="rounded-2xl flex-1"
+                            disabled={customer.dosya_kilitli || savingDealerPayment}
+                          />
+                          <Button
+                            onClick={handleSaveDealerPayment}
+                            disabled={customer.dosya_kilitli || savingDealerPayment}
+                            className="rounded-2xl"
+                            style={{ backgroundColor: "#0B3D91", color: "white" }}
+                          >
+                            {savingDealerPayment ? "Kaydediliyor..." : "Kaydet"}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}
