@@ -41,22 +41,50 @@ export async function getCustomers(params?: {
     }
 
     // For dealer (bayi) role, filter by their dealer_id
+    // This must be applied regardless of search or other filters
     if (user?.role?.name === 'bayi' && user?.dealer_id) {
       where.dealer_id = BigInt(user.dealer_id)
     }
 
-  if (params?.search) {
-    where.OR = [
-      { ad_soyad: { contains: params.search, mode: 'insensitive' } },
-      { tc_no: { contains: params.search } },
-      { telefon: { contains: params.search } },
-      { plaka: { contains: params.search } },
-    ]
-  }
+    // Build search conditions
+    if (params?.search) {
+      const searchConditions = [
+        { ad_soyad: { contains: params.search, mode: 'insensitive' } },
+        { tc_no: { contains: params.search } },
+        { telefon: { contains: params.search } },
+        { plaka: { contains: params.search } },
+      ]
+      
+      // If dealer filter exists, combine it with search using AND
+      if (where.dealer_id) {
+        where.AND = [
+          { dealer_id: where.dealer_id },
+          { OR: searchConditions }
+        ]
+        // Remove dealer_id from top level since it's now in AND
+        delete where.dealer_id
+      } else {
+        where.OR = searchConditions
+      }
+    }
 
-  if (params?.status && params.status !== 'all') {
-    where.başvuru_durumu = params.status
-  }
+    // Add status filter - must be combined with existing filters
+    if (params?.status && params.status !== 'all') {
+      if (where.AND) {
+        // If AND already exists (dealer filter + search), add status to AND
+        where.AND.push({ başvuru_durumu: params.status })
+      } else if (where.dealer_id) {
+        // If only dealer filter exists, create AND with dealer and status
+        where.AND = [
+          { dealer_id: where.dealer_id },
+          { başvuru_durumu: params.status }
+        ]
+        delete where.dealer_id
+      } else {
+        // No other filters, just add status
+        where.başvuru_durumu = params.status
+      }
+    }
 
   const [customers, total] = await Promise.all([
     prisma.customer.findMany({
@@ -786,19 +814,52 @@ export async function createCustomer(data: {
       // Build detailed error message
       let errorMessage = ''
       if (conflicts.length === 1) {
-        errorMessage = `Bu ${conflicts[0]} (${conflictDetails[0]}) ile kayıtlı bir müşteri zaten mevcut. `
+        const conflictType = conflicts[0]
+        if (conflictType === 'Telefon Numarası') {
+          errorMessage = `Bu telefon numarasına kayıtlı bir müşteri mevcut. `
+          if (existingCustomer.ad_soyad) {
+            errorMessage += `Mevcut müşteri: ${existingCustomer.ad_soyad}. `
+          }
+          errorMessage += `Lütfen mevcut kaydı düzenleyin veya farklı bir telefon numarası girin.`
+        } else if (conflictType === 'TC Kimlik No') {
+          errorMessage = `Bu TC Kimlik No'ya kayıtlı bir müşteri mevcut. `
+          if (existingCustomer.ad_soyad) {
+            errorMessage += `Mevcut müşteri: ${existingCustomer.ad_soyad}. `
+          }
+          errorMessage += `Lütfen mevcut kaydı düzenleyin veya farklı bir TC Kimlik No girin.`
+        } else if (conflictType === 'Plaka') {
+          errorMessage = `Bu plakaya kayıtlı bir müşteri mevcut. `
+          if (existingCustomer.ad_soyad) {
+            errorMessage += `Mevcut müşteri: ${existingCustomer.ad_soyad}. `
+          }
+          errorMessage += `Lütfen mevcut kaydı düzenleyin veya farklı bir plaka girin.`
+        } else if (conflictType === 'Ad Soyad') {
+          errorMessage = `Bu ad soyad ile kayıtlı bir müşteri mevcut. `
+          if (existingCustomer.ad_soyad) {
+            errorMessage += `Mevcut müşteri: ${existingCustomer.ad_soyad}. `
+          }
+          errorMessage += `Lütfen mevcut kaydı düzenleyin veya farklı bir ad soyad girin.`
+        } else {
+          errorMessage = `Bu ${conflictType} ile kayıtlı bir müşteri mevcut. `
+          if (existingCustomer.ad_soyad) {
+            errorMessage += `Mevcut müşteri: ${existingCustomer.ad_soyad}. `
+          }
+          errorMessage += `Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.`
+        }
       } else if (conflicts.length > 1) {
-        errorMessage = `Bu ${conflicts.join(', ')} ile kayıtlı bir müşteri zaten mevcut. `
-        errorMessage += `Çakışan bilgiler: ${conflictDetails.join(', ')}. `
+        errorMessage = `Bu bilgiler ile kayıtlı bir müşteri mevcut. `
+        errorMessage += `Çakışan bilgiler: ${conflicts.join(', ')}. `
+        if (existingCustomer.ad_soyad) {
+          errorMessage += `Mevcut müşteri: ${existingCustomer.ad_soyad}. `
+        }
+        errorMessage += `Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.`
       } else {
-        errorMessage = 'Bu bilgiler ile kayıtlı bir müşteri zaten mevcut. '
+        errorMessage = 'Bu bilgiler ile kayıtlı bir müşteri mevcut. '
+        if (existingCustomer.ad_soyad) {
+          errorMessage += `Mevcut müşteri: ${existingCustomer.ad_soyad}. `
+        }
+        errorMessage += 'Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.'
       }
-      
-      // Add existing customer info
-      if (existingCustomer.ad_soyad) {
-        errorMessage += `Mevcut kayıt: ${existingCustomer.ad_soyad}. `
-      }
-      errorMessage += 'Lütfen mevcut kaydı düzenleyin veya farklı bilgiler girin.'
       
       // Create a proper error object that will be caught by the client
       const error = new Error(errorMessage)
