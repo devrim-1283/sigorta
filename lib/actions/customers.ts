@@ -1148,6 +1148,39 @@ export async function updateCustomer(id: number, data: Partial<{
     updateData.bayi_odeme_tutari = data.bayi_odeme_tutari
   }
 
+    // Check email uniqueness if email is being updated
+    if (data.email !== undefined && customerEmail) {
+      const currentEmail = existingCustomer.email?.trim().toLowerCase() || null
+      const newEmail = customerEmail
+      
+      // Only check if email is actually changing
+      if (currentEmail !== newEmail) {
+        // Find existing user associated with this customer (use existing TC No and phone, not updated values)
+        const existingTCForUserSearch = existingCustomer.tc_no
+        const existingPhoneForUserSearch = existingCustomer.telefon
+        const customerUser = await tx.user.findFirst({
+          where: {
+            OR: [
+              { tc_no: existingTCForUserSearch },
+              { phone: existingPhoneForUserSearch },
+            ],
+          },
+        })
+        
+        // Check if email is used by another user (excluding the current customer's user)
+        const emailConflict = await tx.user.findFirst({
+          where: {
+            email: newEmail,
+            ...(customerUser ? { id: { not: customerUser.id } } : {}),
+          },
+        })
+
+        if (emailConflict) {
+          throw new Error(`Bu e-posta adresi (${newEmail}) başka bir kullanıcı tarafından kullanılıyor. Lütfen farklı bir e-posta adresi girin.`)
+        }
+      }
+    }
+
     // Update normalized values
     if (data.tc_no) updateData.tc_no = normalizedTC
     if (data.telefon) updateData.telefon = normalizedPhone
@@ -1163,14 +1196,14 @@ export async function updateCustomer(id: number, data: Partial<{
     },
   })
 
-    // Handle password update if provided
-    if (data.password && data.password.trim()) {
-      const password = data.password.trim()
-      
-      if (password.length < 8) {
-        throw new Error('Şifre en az 8 karakter olmalıdır')
-      }
+    // Update user account if email, name, phone, or TC No changed, or if password is provided
+    const shouldUpdateUser = data.email !== undefined || 
+                            data.ad_soyad !== undefined || 
+                            data.telefon !== undefined || 
+                            data.tc_no !== undefined || 
+                            (data.password && data.password.trim())
 
+    if (shouldUpdateUser) {
       // Get musteri role
       const musteriRole = await tx.role.findFirst({
         where: { name: 'musteri' },
@@ -1179,47 +1212,56 @@ export async function updateCustomer(id: number, data: Partial<{
       if (!musteriRole) {
         console.warn('Musteri role not found, skipping user account update')
       } else {
-        // Find existing user by TC No, phone, or email
+        // Find existing user by existing TC No, phone, or email (before update)
+        // This ensures we find the user account even if TC No or phone are being updated
         const existingUser = await tx.user.findFirst({
           where: {
             OR: [
-              { tc_no: normalizedTC },
-              { phone: normalizedPhone },
-              ...(customerEmail ? [{ email: customerEmail }] : []),
+              { tc_no: existingCustomer.tc_no },
+              { phone: existingCustomer.telefon },
+              ...(existingCustomer.email ? [{ email: existingCustomer.email.trim().toLowerCase() }] : []),
             ],
           },
         })
 
-        const hashedPassword = await bcrypt.hash(password, 12)
+        const userUpdateData: any = {
+          name: customerName,
+          tc_no: normalizedTC,
+          phone: normalizedPhone,
+          email: customerEmail,
+          updated_at: new Date(),
+        }
+
+        // Add password if provided
+        if (data.password && data.password.trim()) {
+          const password = data.password.trim()
+          
+          if (password.length < 8) {
+            throw new Error('Şifre en az 8 karakter olmalıdır')
+          }
+
+          userUpdateData.password = await bcrypt.hash(password, 12)
+        }
 
         if (existingUser) {
           // Update existing user
           await tx.user.update({
             where: { id: existingUser.id },
-            data: {
-              name: customerName,
-              tc_no: normalizedTC,
-              phone: normalizedPhone,
-              email: customerEmail,
-              password: hashedPassword,
-              updated_at: new Date(),
-            },
+            data: userUpdateData,
           })
         } else {
-          // Create new user account
-          await tx.user.create({
-            data: {
-              name: customerName,
-              tc_no: normalizedTC,
-              phone: normalizedPhone,
-              email: customerEmail,
-              password: hashedPassword,
-              role_id: musteriRole.id,
-              is_active: true,
-              created_at: new Date(),
-              updated_at: new Date(),
-            },
-          })
+          // Create new user account (only if password is provided)
+          if (data.password && data.password.trim()) {
+            await tx.user.create({
+              data: {
+                ...userUpdateData,
+                password: await bcrypt.hash(data.password.trim(), 12),
+                role_id: musteriRole.id,
+                is_active: true,
+                created_at: new Date(),
+              },
+            })
+          }
         }
       }
     }
