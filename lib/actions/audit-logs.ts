@@ -1,6 +1,6 @@
 'use server'
 
-import { prisma } from '@/lib/prisma'
+import prisma from '@/lib/db'
 import { requireAuth, getCurrentUser } from './auth'
 import { headers } from 'next/headers'
 

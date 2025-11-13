@@ -1,23 +1,11 @@
-# Nixpacks Configuration for Next.js Full-Stack (Monolithic)
-# Coolify deployment için optimize edilmiş yapılandırma
-
 [phases.setup]
-nixPkgs = [
-    "nodejs_20"
-]
+nixPkgs = ["nodejs_22"]
 
 [phases.install]
-cmds = [
-    "npm ci --legacy-peer-deps"
-]
+cmds = ["npm ci"]
 
 [phases.build]
-cmds = [
-    "npx prisma generate",
-    "npm run build"
-]
+cmds = ["npm run build"]
 
 [start]
-# Next.js standalone server
-# Coolify otomatik olarak PORT'u yönetir
 cmd = "npm start"

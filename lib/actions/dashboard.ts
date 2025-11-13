@@ -5,7 +5,7 @@ import { requireAuth } from './auth'
 
 export async function getDashboardStats() {
   try {
-    await requireAuth()
+    const user = await requireAuth()
 
     const [
     totalCustomers,
@@ -23,14 +23,19 @@ export async function getDashboardStats() {
     recentDocuments,
   ] = await Promise.all([
     prisma.customer.count(),
-    prisma.dealer.count(), // deleted_at column doesn't exist yet
+    prisma.dealer.count({ where: { status: 'active' } }), // Only count active dealers
     prisma.document.count(), // deleted_at column doesn't exist yet
     prisma.payment.aggregate({ _sum: { tutar: true } }),
     prisma.policy.count(),
     prisma.policy.count({ where: { status: 'active' } }),
     prisma.claim.count(),
     prisma.claim.count({ where: { status: 'pending' } }),
-    prisma.notification.count({ where: { is_read: false } }),
+    prisma.notification.count({ 
+      where: { 
+        is_read: false,
+        user_id: BigInt(user.id)
+      } 
+    }),
     prisma.payment.count({ where: { durum: 'Bekliyor' } }),
     prisma.customer.count({
       where: {
