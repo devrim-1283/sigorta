@@ -246,7 +246,12 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Dashboard Overview Cards */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-10">
+      <div className={cn(
+        "grid grid-cols-1 gap-6 mb-10",
+        userRole === 'bayi' ? "sm:grid-cols-1 lg:grid-cols-1 max-w-md" : "sm:grid-cols-2 lg:grid-cols-4"
+      )}>
+        {/* Only show customer card for bayi role */}
+        {userRole !== 'bayi' && (
         <Card className="rounded-3xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-slate-50">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -268,7 +273,9 @@ export default function AdminDashboardPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
+        {userRole !== 'bayi' && (
         <Card className="rounded-3xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-slate-50">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -290,7 +297,9 @@ export default function AdminDashboardPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
+        {userRole !== 'bayi' && (
         <Card className="rounded-3xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-slate-50">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -309,7 +318,9 @@ export default function AdminDashboardPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
+        {/* Müşteri kartı - Tüm roller için göster, bayi için özel metin */}
         <Card className="rounded-3xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-slate-50">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -324,7 +335,9 @@ export default function AdminDashboardPage() {
               <p className="text-3xl font-bold tracking-tight">
                 {loading ? '...' : (stats?.active_customers || stats?.total_customers || 0)}
               </p>
-              <p className="text-sm text-muted-foreground font-semibold">Aktif Müşteri</p>
+              <p className="text-sm text-muted-foreground font-semibold">
+                {userRole === 'bayi' ? 'Toplam Müşterilerim' : 'Aktif Müşteri'}
+              </p>
             </div>
           </CardContent>
         </Card>

@@ -86,9 +86,159 @@ export async function createAuditLog(params: CreateAuditLogParams) {
         user_agent: userAgent,
       },
     })
+
+    // Create notifications for important events
+    await createNotificationsForAuditLog(params, userId, userName, userRole)
   } catch (error) {
     // Don't throw errors from audit logging to prevent breaking the main flow
     console.error('[AuditLog] Failed to create audit log:', error)
+  }
+}
+
+/**
+ * Create notifications based on audit log events
+ */
+async function createNotificationsForAuditLog(
+  params: CreateAuditLogParams,
+  userId: number | bigint | undefined,
+  userName: string | undefined,
+  userRole: string | undefined
+) {
+  try {
+    const { createNotification } = await import('./notifications')
+    
+    // Admin login notifications - Only for superadmin
+    if (params.action === 'LOGIN' && userRole && ['superadmin', 'birincil-admin', 'ikincil-admin'].includes(userRole)) {
+      await createNotification({
+        title: 'Yönetici Girişi',
+        message: `${userName} (${userRole}) sisteme giriş yaptı`,
+        type: 'info',
+        link: '/admin/loglar',
+        roles: ['superadmin'],
+        excludeUserId: userId ? Number(userId) : undefined,
+      })
+    }
+
+    // Customer creation - Notify all admins except creator
+    if (params.action === 'CREATE' && params.entityType === 'CUSTOMER') {
+      // Determine who created the customer
+      let creatorDisplayName = userName || 'Bilinmeyen'
+      
+      // If creator is a dealer (bayi), hide their name for non-superadmin roles
+      if (userRole === 'bayi') {
+        try {
+          const user = await prisma.user.findUnique({
+            where: { id: BigInt(userId || 0) },
+            include: { dealer: true },
+          })
+          
+          // For superadmin: show dealer name
+          const superadminMessage = `${userName} tarafından yeni müşteri eklendi: ${params.entityName}`
+          
+          // For other admins: hide dealer name, show only dealer ID
+          const otherAdminsMessage = user?.dealer 
+            ? `Bayi ID: ${user.dealer.id} tarafından yeni müşteri eklendi: ${params.entityName}`
+            : `${userName} tarafından yeni müşteri eklendi: ${params.entityName}`
+          
+          // Send to superadmin with full dealer name
+          await createNotification({
+            title: 'Yeni Müşteri Eklendi',
+            message: superadminMessage,
+            type: 'success',
+            link: `/admin/musteriler/${params.entityId}`,
+            roles: ['superadmin'],
+            excludeUserId: userId ? Number(userId) : undefined,
+          })
+          
+          // Send to other admins with masked dealer info
+          await createNotification({
+            title: 'Yeni Müşteri Eklendi',
+            message: otherAdminsMessage,
+            type: 'success',
+            link: `/admin/musteriler/${params.entityId}`,
+            roles: ['birincil-admin', 'ikincil-admin', 'evrak-birimi'],
+            excludeUserId: userId ? Number(userId) : undefined,
+          })
+          
+          return // Exit early, notifications sent
+        } catch (error) {
+          console.error('[AuditLog] Error getting dealer info:', error)
+        }
+      }
+      
+      // For non-dealer creators (admin, evrak-birimi, etc.), show their name to everyone
+      await createNotification({
+        title: 'Yeni Müşteri Eklendi',
+        message: `${creatorDisplayName} tarafından yeni müşteri eklendi: ${params.entityName}`,
+        type: 'success',
+        link: `/admin/musteriler/${params.entityId}`,
+        roles: ['superadmin', 'birincil-admin', 'ikincil-admin', 'evrak-birimi'],
+        excludeUserId: userId ? Number(userId) : undefined,
+      })
+    }
+
+    // Document upload - Notify all admins
+    if (params.action === 'UPLOAD' || (params.action === 'CREATE' && params.entityType === 'DOCUMENT')) {
+      await createNotification({
+        title: 'Yeni Evrak Yüklendi',
+        message: `${userName} tarafından yeni evrak yüklendi${params.entityName ? `: ${params.entityName}` : ''}`,
+        type: 'info',
+        link: params.entityId ? `/admin/musteriler/${params.entityId}` : '/admin/dokumanlar',
+        roles: ['superadmin', 'birincil-admin', 'ikincil-admin', 'evrak-birimi', 'operasyon'],
+        excludeUserId: userId ? Number(userId) : undefined,
+      })
+    }
+
+    // Payment creation - Notify all admins
+    if (params.action === 'CREATE' && params.entityType === 'PAYMENT') {
+      await createNotification({
+        title: 'Yeni Ödeme Kaydı',
+        message: `${userName} tarafından yeni ödeme kaydedildi${params.entityName ? `: ${params.entityName}` : ''}`,
+        type: 'success',
+        link: '/admin/muhasebe',
+        roles: ['superadmin', 'birincil-admin', 'ikincil-admin'],
+        excludeUserId: userId ? Number(userId) : undefined,
+      })
+    }
+
+    // File closed - Notify all admins
+    if (params.action === 'CLOSE_FILE') {
+      await createNotification({
+        title: 'Dosya Kapatıldı',
+        message: `${userName} tarafından dosya kapatıldı: ${params.entityName}`,
+        type: 'warning',
+        link: `/admin/musteriler/${params.entityId}`,
+        roles: ['superadmin', 'birincil-admin', 'ikincil-admin'],
+        excludeUserId: userId ? Number(userId) : undefined,
+      })
+    }
+
+    // Dealer creation - Notify only superadmin
+    if (params.action === 'CREATE' && params.entityType === 'DEALER') {
+      await createNotification({
+        title: 'Yeni Bayi Eklendi',
+        message: `${userName} tarafından yeni bayi eklendi: ${params.entityName}`,
+        type: 'success',
+        link: '/admin/bayiler',
+        roles: ['superadmin'],
+        excludeUserId: userId ? Number(userId) : undefined,
+      })
+    }
+
+    // User creation - Notify superadmin
+    if (params.action === 'CREATE' && params.entityType === 'USER') {
+      await createNotification({
+        title: 'Yeni Kullanıcı Oluşturuldu',
+        message: `${userName} tarafından yeni kullanıcı oluşturuldu: ${params.entityName}`,
+        type: 'info',
+        link: '/admin/ayarlar/kullanicilar',
+        roles: ['superadmin'],
+        excludeUserId: userId ? Number(userId) : undefined,
+      })
+    }
+  } catch (notifError) {
+    // Don't fail audit log creation if notification fails
+    console.error('[AuditLog] Failed to create notification:', notifError)
   }
 }
 

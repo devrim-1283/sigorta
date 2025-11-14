@@ -115,6 +115,27 @@ export async function createPayment(data: {
     revalidatePath(`/dashboard/customers/${data.customer_id}`)
     revalidatePath('/admin/musteriler')
 
+    // Log payment creation
+    try {
+      const { createAuditLog } = await import('./audit-logs')
+      await createAuditLog({
+        action: 'CREATE',
+        entityType: 'PAYMENT',
+        entityId: payment.customer_id.toString(),
+        entityName: `${payment.customer.ad_soyad} - ${payment.tutar.toString()} TL`,
+        description: `${user.name} tarafından ${payment.customer.ad_soyad} için ${payment.tutar.toString()} TL ödeme kaydı oluşturuldu`,
+        newValues: {
+          tutar: payment.tutar.toString(),
+          tarih: payment.tarih.toISOString(),
+          durum: payment.durum,
+          ödeme_yöntemi: payment.ödeme_yöntemi,
+          açıklama: payment.açıklama,
+        },
+      })
+    } catch (logError) {
+      console.error('[Payment] Failed to log creation:', logError)
+    }
+
     return {
       ...payment,
       id: Number(payment.id),

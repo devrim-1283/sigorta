@@ -386,6 +386,27 @@ export async function uploadDocument(formData: FormData) {
     revalidatePath('/dashboard/documents')
     revalidatePath('/dashboard/customers')
 
+    // Log document upload
+    try {
+      const { createAuditLog } = await import('./audit-logs')
+      const customer = document.customer
+      await createAuditLog({
+        action: 'UPLOAD',
+        entityType: 'DOCUMENT',
+        entityId: customer_id,
+        entityName: `${customer.ad_soyad} - ${tipFromForm || documentTypeFromForm || 'Evrak'}`,
+        description: `${user.name} tarafından ${customer.ad_soyad} için ${tipFromForm || documentTypeFromForm || 'evrak'} yüklendi`,
+        newValues: {
+          document_type: tipFromForm || documentTypeFromForm,
+          file_name: document.dosya_adı,
+          file_size: document.dosya_boyutu?.toString(),
+          is_result_document: isResultDocument,
+        },
+      })
+    } catch (logError) {
+      console.error('[Document] Failed to log upload:', logError)
+    }
+
     // Send notifications
     try {
       const customer = document.customer
