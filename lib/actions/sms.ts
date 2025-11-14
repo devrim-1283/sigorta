@@ -214,6 +214,26 @@ export async function sendManualSMS(data: {
       errorMessage: smsResult.error,
     })
 
+    // Log to audit logs
+    const { createAuditLog } = await import('./audit-logs')
+    await createAuditLog({
+      action: 'SEND_SMS',
+      entityType: data.customerId ? 'CUSTOMER' : 'SMS',
+      entityId: data.customerId || null,
+      entityName: data.recipientName || data.phone,
+      description: smsResult.success 
+        ? `Manuel SMS gönderildi: ${data.phone}`
+        : `Manuel SMS gönderimi başarısız oldu: ${smsResult.error}`,
+      metadata: {
+        phone: data.phone,
+        messageLength: data.message.length,
+        jobId: smsResult.jobid,
+        status: smsResult.success ? 'sent' : 'failed',
+        error: smsResult.error,
+        isManual: true,
+      }
+    })
+
     revalidatePath('/admin/sms')
 
     return {

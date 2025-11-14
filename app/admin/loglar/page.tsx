@@ -158,6 +158,7 @@ export default function LoglarPage() {
       case 'DELETE': return 'bg-red-600'
       case 'CLOSE_FILE': return 'bg-purple-500'
       case 'UPLOAD': return 'bg-indigo-500'
+      case 'SEND_SMS': return 'bg-teal-500'
       default: return 'bg-gray-400'
     }
   }
@@ -175,6 +176,7 @@ export default function LoglarPage() {
       'DOWNLOAD': 'İndirme',
       'APPROVE': 'Onaylama',
       'REJECT': 'Reddetme',
+      'SEND_SMS': 'SMS Gönderimi',
       'PASSWORD_RESET': 'Şifre Sıfırlama',
       'PASSWORD_CHANGE': 'Şifre Değiştirme',
     }
@@ -189,6 +191,7 @@ export default function LoglarPage() {
       'USER': 'Kullanıcı',
       'DOCUMENT': 'Evrak',
       'PAYMENT': 'Ödeme',
+      'SMS': 'SMS',
       'NOTE': 'Not',
       'SYSTEM': 'Sistem',
     }
@@ -317,6 +320,8 @@ export default function LoglarPage() {
                 <SelectItem value="UPDATE">Güncelleme</SelectItem>
                 <SelectItem value="DELETE">Silme</SelectItem>
                 <SelectItem value="CLOSE_FILE">Dosya Kapatma</SelectItem>
+                <SelectItem value="UPLOAD">Yükleme</SelectItem>
+                <SelectItem value="SEND_SMS">SMS Gönderimi</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterEntityType} onValueChange={setFilterEntityType}>
@@ -331,6 +336,7 @@ export default function LoglarPage() {
                 <SelectItem value="USER">Kullanıcı</SelectItem>
                 <SelectItem value="DOCUMENT">Evrak</SelectItem>
                 <SelectItem value="PAYMENT">Ödeme</SelectItem>
+                <SelectItem value="SMS">SMS</SelectItem>
               </SelectContent>
             </Select>
             <Button type="submit" className="rounded-2xl" style={{ backgroundColor: "#0B3D91" }}>

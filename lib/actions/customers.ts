@@ -1014,6 +1014,7 @@ export async function createCustomer(data: {
       try {
         const { sendSMS } = await import('@/lib/services/netgsm')
         const { createSMSLog } = await import('./sms')
+        const { createAuditLog } = await import('./audit-logs')
         
         const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://yourdomain.com'}/musteri-giris`
         const smsMessage = `Merhaba ${customer.ad_soyad}, Şeffaf Danışmanlık'a hoş geldiniz. Giriş bilgileriniz - E-posta: ${customer.email}, Şifre: ${loginCredentials.password}. Dosya durumunuzu ${loginUrl} adresinden sorgulayabilirsiniz.`
@@ -1025,7 +1026,7 @@ export async function createCustomer(data: {
           customerName: customer.ad_soyad,
         })
 
-        // Log SMS
+        // Log SMS to database
         await createSMSLog({
           recipientName: customer.ad_soyad,
           recipientPhone: customer.telefon,
@@ -1036,7 +1037,25 @@ export async function createCustomer(data: {
           errorMessage: smsResult.error,
         })
 
-        console.log('[Customer] SMS sent:', smsResult.success ? 'Success' : 'Failed')
+        // Log SMS to audit logs
+        await createAuditLog({
+          action: 'SEND_SMS',
+          entityType: 'CUSTOMER',
+          entityId: Number(customer.id),
+          entityName: customer.ad_soyad,
+          description: smsResult.success 
+            ? `Müşteriye hoş geldin SMS'i gönderildi: ${customer.telefon}`
+            : `SMS gönderimi başarısız oldu: ${smsResult.error}`,
+          metadata: {
+            phone: customer.telefon,
+            messageLength: smsMessage.length,
+            jobId: smsResult.jobid,
+            status: smsResult.success ? 'sent' : 'failed',
+            error: smsResult.error,
+          }
+        })
+
+        console.log('[Customer] SMS sent:', smsResult.success ? 'Success' : 'Failed', smsResult.error || '')
       } catch (smsError) {
         console.error('[Customer] Failed to send SMS:', smsError)
         // Don't throw - SMS failure shouldn't prevent customer creation
@@ -1543,7 +1562,7 @@ export async function updateCustomer(id: number, data: Partial<{
           customerName: customerName,
         })
 
-        // Log SMS
+        // Log SMS to database
         await createSMSLog({
           recipientName: customerName,
           recipientPhone: targetPhone,
@@ -1554,7 +1573,31 @@ export async function updateCustomer(id: number, data: Partial<{
           errorMessage: smsResult.error,
         })
 
-        console.log('[Customer] Update SMS sent:', smsResult.success ? 'Success' : 'Failed')
+        // Log SMS to audit logs
+        const { createAuditLog } = await import('./audit-logs')
+        await createAuditLog({
+          action: 'SEND_SMS',
+          entityType: 'CUSTOMER',
+          entityId: id,
+          entityName: customerName,
+          description: smsResult.success 
+            ? `Müşteriye bilgi güncelleme SMS'i gönderildi: ${targetPhone}`
+            : `SMS gönderimi başarısız oldu: ${smsResult.error}`,
+          metadata: {
+            phone: targetPhone,
+            messageLength: smsMessage.length,
+            jobId: smsResult.jobid,
+            status: smsResult.success ? 'sent' : 'failed',
+            error: smsResult.error,
+            changedFields: {
+              email: emailChanged,
+              phone: phoneChanged,
+              password: passwordChanged,
+            }
+          }
+        })
+
+        console.log('[Customer] Update SMS sent:', smsResult.success ? 'Success' : 'Failed', smsResult.error || '')
       } catch (smsError) {
         console.error('[Customer] Failed to send update SMS:', smsError)
         // Don't throw - SMS failure shouldn't prevent customer update
