@@ -135,7 +135,7 @@ export default function CustomerLoginPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="E-posta"
+                    placeholder="musteri@sigorta.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 rounded-xl"
