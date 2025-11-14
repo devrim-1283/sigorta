@@ -23,25 +23,38 @@ interface Document {
   }
 }
 
-export function useDocuments(params?: { search?: string; type?: string; status?: string }) {
+export function useDocuments(params?: { search?: string; type?: string; status?: string; page?: number; perPage?: number }) {
   const [documents, setDocuments] = useState<Document[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [currentPage, setCurrentPage] = useState(params?.page || 1)
 
   useEffect(() => {
     fetchDocuments()
-  }, [params?.search, params?.type, params?.status])
+  }, [params?.search, params?.type, params?.status, params?.page, params?.perPage])
 
   const fetchDocuments = async () => {
     try {
       setIsLoading(true)
       setError(null)
       const response = await documentApi.list(params)
-      // Response is directly an array
-      if (Array.isArray(response)) {
+      // Response is now an object with documents array and pagination info
+      if (response && typeof response === 'object' && 'documents' in response) {
+        setDocuments(response.documents || [])
+        setTotal(response.total || 0)
+        setTotalPages(response.totalPages || 1)
+        setCurrentPage(response.page || 1)
+      } else if (Array.isArray(response)) {
+        // Fallback for old format
         setDocuments(response)
+        setTotal(response.length)
+        setTotalPages(1)
       } else {
         setDocuments([])
+        setTotal(0)
+        setTotalPages(1)
       }
     } catch (err: any) {
       setError(err.message || 'Evraklar yüklenemedi')
@@ -95,6 +108,9 @@ export function useDocuments(params?: { search?: string; type?: string; status?:
     documents,
     isLoading,
     error,
+    total,
+    totalPages,
+    currentPage,
     fetchDocuments,
     refetch: fetchDocuments,
     uploadDocument,

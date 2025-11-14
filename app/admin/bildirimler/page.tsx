@@ -22,6 +22,10 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState("all")
   const [notifications, setNotifications] = useState<any[]>([])
   const [loadingNotifications, setLoadingNotifications] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
+  const perPage = 50
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -34,20 +38,28 @@ export default function NotificationsPage() {
     const fetchNotifications = async () => {
       try {
         setLoadingNotifications(true)
-        const data = await notificationApi.list()
+        const data = await notificationApi.list({ page: currentPage, perPage })
+        console.log('[NotificationPage] Raw data from API:', data)
+        console.log('[NotificationPage] Notifications array:', data.notifications)
         
         // Transform notifications to match the component's expected format
-        const transformedNotifications = (data.notifications || []).map((notif: any) => ({
-          id: Number(notif.id),
-          type: notif.tur || 'system',
-          title: notif.baslik,
-          message: notif.icerik,
-          time: formatTimeAgo(notif.created_at),
-          read: notif.is_read,
-          priority: notif.oncelik || 'normal'
-        }))
+        const transformedNotifications = (data.notifications || []).map((notif: any) => {
+          console.log('[NotificationPage] Processing notification:', notif)
+          return {
+            id: Number(notif.id),
+            type: notif.type || 'info',
+            title: notif.title,
+            message: notif.message,
+            time: formatTimeAgo(notif.created_at),
+            read: notif.is_read,
+            priority: 'normal'
+          }
+        })
         
+        console.log('[NotificationPage] Transformed notifications:', transformedNotifications)
         setNotifications(transformedNotifications)
+        setTotal(data.total || 0)
+        setTotalPages(data.totalPages || 1)
       } catch (error) {
         console.error('Failed to fetch notifications:', error)
       } finally {
@@ -58,7 +70,7 @@ export default function NotificationsPage() {
     if (isAuthenticated) {
       fetchNotifications()
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, currentPage, perPage])
 
   const handleLogout = async () => {
     try {
@@ -408,6 +420,61 @@ export default function NotificationsPage() {
                     </div>
                   )
                 })}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-6 border-t">
+                <div className="text-sm text-slate-600">
+                  Toplam {total} bildirim - Sayfa {currentPage} / {totalPages}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                  >
+                    Önceki
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum
+                      if (totalPages <= 5) {
+                        pageNum = i + 1
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i
+                      } else {
+                        pageNum = currentPage - 2 + i
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          className="rounded-xl w-10"
+                          style={currentPage === pageNum ? { backgroundColor: "#0B3D91", color: "white" } : {}}
+                        >
+                          {pageNum}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                  <Button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                  >
+                    Sonraki
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>

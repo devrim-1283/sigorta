@@ -220,8 +220,8 @@ export const dashboardApi = {
 
 // Notification API
 export const notificationApi = {
-  list: async () => {
-    return await notificationActions.getNotifications()
+  list: async (params?: { page?: number; perPage?: number }) => {
+    return await notificationActions.getNotifications(params)
   },
 
   markAsRead: async (id: number) => {

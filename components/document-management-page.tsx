@@ -22,6 +22,8 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
   const [searchTerm, setSearchTerm] = useState("")
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [currentPage, setCurrentPage] = useState(1)
+  const perPage = 50
   const [stats, setStats] = useState({
     totalDocuments: 0,
     totalCustomers: 0,
@@ -61,10 +63,12 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
   }, [])
 
   // Use API hook
-  const { documents, isLoading, uploadDocument, deleteDocument, refetch } = useDocuments({
+  const { documents, isLoading, total, totalPages, uploadDocument, deleteDocument, refetch } = useDocuments({
     search: searchTerm || undefined,
     type: typeFilter !== "all" ? typeFilter : undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
+    page: currentPage,
+    perPage,
   })
 
   // Transform API data to match component interface
@@ -397,6 +401,74 @@ export function DocumentManagementPage({ userRole = "superadmin" }: DocumentMana
             </Card>
           )}
         </div>
+      )}
+
+      {/* Pagination */}
+      {!isLoading && totalPages > 1 && (
+        <Card className="rounded-3xl border-2 mt-6">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-slate-600">
+                Toplam {total} evrak - Sayfa {currentPage} / {totalPages}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    setCurrentPage(prev => Math.max(1, prev - 1))
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  disabled={currentPage === 1}
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                >
+                  Önceki
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum
+                    if (totalPages <= 5) {
+                      pageNum = i + 1
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i
+                    } else {
+                      pageNum = currentPage - 2 + i
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        onClick={() => {
+                          setCurrentPage(pageNum)
+                          window.scrollTo({ top: 0, behavior: 'smooth' })
+                        }}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        className="rounded-xl w-10"
+                        style={currentPage === pageNum ? { backgroundColor: "#0B3D91", color: "white" } : {}}
+                      >
+                        {pageNum}
+                      </Button>
+                    )
+                  })}
+                </div>
+                <Button
+                  onClick={() => {
+                    setCurrentPage(prev => Math.min(totalPages, prev + 1))
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  disabled={currentPage === totalPages}
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                >
+                  Sonraki
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
     </div>

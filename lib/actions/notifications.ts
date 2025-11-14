@@ -4,20 +4,37 @@ import prisma from '@/lib/db'
 import { requireAuth } from './auth'
 import { revalidatePath } from 'next/cache'
 
-export async function getNotifications() {
+export async function getNotifications(params?: {
+  page?: number
+  perPage?: number
+}) {
   const user = await requireAuth()
 
-  const notifications = await prisma.notification.findMany({
-    where: { user_id: BigInt(user.id) },
-    orderBy: { created_at: 'desc' },
-  })
+  // Pagination
+  const page = params?.page || 1
+  const perPage = params?.perPage || 50
+  const skip = (page - 1) * perPage
+
+  const [notifications, total] = await Promise.all([
+    prisma.notification.findMany({
+      where: { user_id: BigInt(user.id) },
+      orderBy: { created_at: 'desc' },
+      skip,
+      take: perPage,
+    }),
+    prisma.notification.count({ where: { user_id: BigInt(user.id) } }),
+  ])
 
   return {
     notifications: notifications.map(n => ({
       ...n,
       id: Number(n.id),
       user_id: Number(n.user_id),
-    }))
+    })),
+    total,
+    page,
+    perPage,
+    totalPages: Math.ceil(total / perPage),
   }
 }
 

@@ -48,6 +48,8 @@ export async function getDocuments(params?: {
   type?: string
   status?: string
   customerId?: number
+  page?: number
+  perPage?: number
 }) {
   const user = await getCurrentUser()
   
@@ -80,43 +82,63 @@ export async function getDocuments(params?: {
     where.customer_id = BigInt(params.customerId)
   }
 
-  const documents = await prisma.document.findMany({
-    where: {
-      ...where,
-      // deleted_at: null, // Column doesn't exist in database yet
-    },
-    include: {
-      customer: true,
-      uploader: true,
-      approver: true,
-    },
-    orderBy: { created_at: 'desc' },
-  })
+  // Pagination
+  const page = params?.page || 1
+  const perPage = params?.perPage || 50
+  const skip = (page - 1) * perPage
 
-  return documents.map(d => ({
-    ...serializeDocument(d),
-    customer: d.customer
-      ? {
-          id: Number(d.customer.id),
-          ad_soyad: d.customer.ad_soyad,
-          dealer_id: d.customer.dealer_id ? Number(d.customer.dealer_id) : null,
-        }
-      : null,
-    uploader: d.uploader
-      ? {
-          id: Number(d.uploader.id),
-          name: d.uploader.name,
-          email: d.uploader.email,
-        }
-      : null,
-    approver: d.approver
-      ? {
-          id: Number(d.approver.id),
-          name: d.approver.name,
-          email: d.approver.email,
-        }
-      : null,
-  }))
+  const [documents, total] = await Promise.all([
+    prisma.document.findMany({
+      where: {
+        ...where,
+        // deleted_at: null, // Column doesn't exist in database yet
+      },
+      include: {
+        customer: true,
+        uploader: true,
+        approver: true,
+      },
+      orderBy: { created_at: 'desc' },
+      skip,
+      take: perPage,
+    }),
+    prisma.document.count({
+      where: {
+        ...where,
+      },
+    }),
+  ])
+
+  return {
+    documents: documents.map(d => ({
+      ...serializeDocument(d),
+      customer: d.customer
+        ? {
+            id: Number(d.customer.id),
+            ad_soyad: d.customer.ad_soyad,
+            dealer_id: d.customer.dealer_id ? Number(d.customer.dealer_id) : null,
+          }
+        : null,
+      uploader: d.uploader
+        ? {
+            id: Number(d.uploader.id),
+            name: d.uploader.name,
+            email: d.uploader.email,
+          }
+        : null,
+      approver: d.approver
+        ? {
+            id: Number(d.approver.id),
+            name: d.approver.name,
+            email: d.approver.email,
+          }
+        : null,
+    })),
+    total,
+    page,
+    perPage,
+    totalPages: Math.ceil(total / perPage),
+  }
 }
 
 // Get document statistics including deleted ones
