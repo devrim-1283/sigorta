@@ -39,12 +39,9 @@ export default function NotificationsPage() {
       try {
         setLoadingNotifications(true)
         const data = await notificationApi.list({ page: currentPage, perPage })
-        console.log('[NotificationPage] Raw data from API:', data)
-        console.log('[NotificationPage] Notifications array:', data.notifications)
         
         // Transform notifications to match the component's expected format
         const transformedNotifications = (data.notifications || []).map((notif: any) => {
-          console.log('[NotificationPage] Processing notification:', notif)
           return {
             id: Number(notif.id),
             type: notif.type || 'info',
@@ -56,7 +53,6 @@ export default function NotificationsPage() {
           }
         })
         
-        console.log('[NotificationPage] Transformed notifications:', transformedNotifications)
         setNotifications(transformedNotifications)
         setTotal(data.total || 0)
         setTotalPages(data.totalPages || 1)
