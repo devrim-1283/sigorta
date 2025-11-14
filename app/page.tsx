@@ -58,16 +58,6 @@ export default function Home() {
             </Button>
           </Link>
         </div>
-
-        {/* Demo Info */}
-        <div className="mt-16 p-6 bg-white/80 backdrop-blur-sm rounded-2xl max-w-md mx-auto">
-          <h3 className="text-lg font-semibold text-slate-800 mb-3">Demo Hesapları</h3>
-          <div className="space-y-2 text-sm text-slate-600">
-            <p><strong>Yönetici:</strong> admin@sigorta.com / password</p>
-            <p><strong>Bayi:</strong> bayi@sigorta.com / password</p>
-            <p><strong>Müşteri:</strong> musteri@sigorta.com / password</p>
-          </div>
-        </div>
       </div>
     </div>
   )
