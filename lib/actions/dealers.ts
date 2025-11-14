@@ -491,7 +491,8 @@ export async function updateDealer(id: number, data: Partial<{
       }
 
       // Update password if provided
-      if (password && password.trim()) {
+      const isPasswordChanged = password && password.trim()
+      if (isPasswordChanged) {
         userUpdateData.password = await bcrypt.hash(password.trim(), 12)
       }
 
@@ -501,6 +502,25 @@ export async function updateDealer(id: number, data: Partial<{
           where: { id: existingUser.id },
           data: userUpdateData,
         })
+
+        // Log password change separately
+        if (isPasswordChanged) {
+          try {
+            const { createAuditLog } = await import('./audit-logs')
+            await createAuditLog({
+              action: 'UPDATE',
+              entityType: 'DEALER',
+              entityId: id.toString(),
+              entityName: updated.dealer_name,
+              description: `${updated.dealer_name} (Bayi) şifresini güncelledi`,
+              newValues: {
+                password_changed: true,
+              },
+            })
+          } catch (logError) {
+            console.error('[Dealer] Failed to log password change:', logError)
+          }
+        }
       }
     } else {
       // If no user exists, log warning

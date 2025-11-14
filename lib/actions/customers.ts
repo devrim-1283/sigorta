@@ -1313,7 +1313,8 @@ export async function updateCustomer(id: number, data: Partial<{
         }
 
         // Add password if provided
-        if (data.password && data.password.trim()) {
+        const isPasswordChanged = data.password && data.password.trim()
+        if (isPasswordChanged) {
           const password = data.password.trim()
           
           if (password.length < 8) {
@@ -1329,6 +1330,25 @@ export async function updateCustomer(id: number, data: Partial<{
             where: { id: existingUser.id },
             data: userUpdateData,
           })
+
+          // Log customer password change
+          if (isPasswordChanged) {
+            try {
+              const { createAuditLog } = await import('./audit-logs')
+              await createAuditLog({
+                action: 'UPDATE',
+                entityType: 'CUSTOMER',
+                entityId: id.toString(),
+                entityName: customerName,
+                description: `${customerName} (Müşteri) şifresini güncelledi`,
+                newValues: {
+                  password_changed: true,
+                },
+              })
+            } catch (logError) {
+              console.error('[Customer] Failed to log password change:', logError)
+            }
+          }
         } else {
           // Create new user account (only if password is provided)
           if (data.password && data.password.trim()) {

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Bell, Check, X, Filter, Trash2, User, FileText, DollarSign, Settings, Info, AlertTriangle } from "lucide-react"
 import type { UserRole } from "@/lib/role-config"
+import { notificationApi } from "@/lib/api-client"
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'

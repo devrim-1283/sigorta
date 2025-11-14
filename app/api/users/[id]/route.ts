@@ -30,7 +30,8 @@ export async function PUT(
     }
 
     // Only update password if provided
-    if (password && password.trim() !== '') {
+    const isPasswordChanged = password && password.trim() !== ''
+    if (isPasswordChanged) {
       updateData.password = await bcrypt.hash(password, 10)
     }
 
@@ -43,6 +44,25 @@ export async function PUT(
         role: true,
       },
     })
+
+    // Log password change
+    if (isPasswordChanged) {
+      try {
+        const { createAuditLog } = await import('@/lib/actions/audit-logs')
+        await createAuditLog({
+          action: 'UPDATE',
+          entityType: 'USER',
+          entityId: params.id,
+          entityName: user.name,
+          description: `${user.name} (${user.role.name}) şifresini güncelledi`,
+          newValues: {
+            password_changed: true,
+          },
+        })
+      } catch (logError) {
+        console.error('[User API] Failed to log password change:', logError)
+      }
+    }
 
     return NextResponse.json({
       user: {

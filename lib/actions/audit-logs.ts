@@ -88,6 +88,12 @@ export async function createAuditLog(params: CreateAuditLogParams) {
     })
 
     // Create notifications for important events
+    console.log('[AuditLog] Calling createNotificationsForAuditLog:', {
+      action: params.action,
+      entityType: params.entityType,
+      userName,
+      userRole,
+    })
     await createNotificationsForAuditLog(params, userId, userName, userRole)
   } catch (error) {
     // Don't throw errors from audit logging to prevent breaking the main flow
@@ -105,10 +111,18 @@ async function createNotificationsForAuditLog(
   userRole: string | undefined
 ) {
   try {
+    console.log('[AuditLog] createNotificationsForAuditLog called:', {
+      action: params.action,
+      entityType: params.entityType,
+      userRole,
+      userName,
+    })
+    
     const { createNotification } = await import('./notifications')
     
     // Admin login notifications - Only for superadmin
     if (params.action === 'LOGIN' && userRole && ['superadmin', 'birincil-admin', 'ikincil-admin'].includes(userRole)) {
+      console.log('[AuditLog] Sending admin login notification')
       await createNotification({
         title: 'Yönetici Girişi',
         message: `${userName} (${userRole}) sisteme giriş yaptı`,
@@ -121,11 +135,13 @@ async function createNotificationsForAuditLog(
 
     // Customer creation - Notify all admins except creator
     if (params.action === 'CREATE' && params.entityType === 'CUSTOMER') {
+      console.log('[AuditLog] Processing customer creation notification, userRole:', userRole)
       // Determine who created the customer
       let creatorDisplayName = userName || 'Bilinmeyen'
       
       // If creator is a dealer (bayi), hide their name for non-superadmin roles
       if (userRole === 'bayi') {
+        console.log('[AuditLog] Creator is a bayi, sending split notifications')
         try {
           const user = await prisma.user.findUnique({
             where: { id: BigInt(userId || 0) },
@@ -140,8 +156,9 @@ async function createNotificationsForAuditLog(
             ? `Bayi ID: ${user.dealer.id} tarafından yeni müşteri eklendi: ${params.entityName}`
             : `${userName} tarafından yeni müşteri eklendi: ${params.entityName}`
           
+          console.log('[AuditLog] Sending notification to superadmin:', superadminMessage)
           // Send to superadmin with full dealer name
-          await createNotification({
+          const result1 = await createNotification({
             title: 'Yeni Müşteri Eklendi',
             message: superadminMessage,
             type: 'success',
@@ -149,9 +166,11 @@ async function createNotificationsForAuditLog(
             roles: ['superadmin'],
             excludeUserId: userId ? Number(userId) : undefined,
           })
+          console.log('[AuditLog] Superadmin notification result:', result1)
           
+          console.log('[AuditLog] Sending notification to other admins:', otherAdminsMessage)
           // Send to other admins with masked dealer info
-          await createNotification({
+          const result2 = await createNotification({
             title: 'Yeni Müşteri Eklendi',
             message: otherAdminsMessage,
             type: 'success',
@@ -159,6 +178,7 @@ async function createNotificationsForAuditLog(
             roles: ['birincil-admin', 'ikincil-admin', 'evrak-birimi'],
             excludeUserId: userId ? Number(userId) : undefined,
           })
+          console.log('[AuditLog] Other admins notification result:', result2)
           
           return // Exit early, notifications sent
         } catch (error) {
@@ -166,8 +186,9 @@ async function createNotificationsForAuditLog(
         }
       }
       
+      console.log('[AuditLog] Creator is not bayi, sending unified notification to all admins')
       // For non-dealer creators (admin, evrak-birimi, etc.), show their name to everyone
-      await createNotification({
+      const result = await createNotification({
         title: 'Yeni Müşteri Eklendi',
         message: `${creatorDisplayName} tarafından yeni müşteri eklendi: ${params.entityName}`,
         type: 'success',
@@ -175,6 +196,7 @@ async function createNotificationsForAuditLog(
         roles: ['superadmin', 'birincil-admin', 'ikincil-admin', 'evrak-birimi'],
         excludeUserId: userId ? Number(userId) : undefined,
       })
+      console.log('[AuditLog] Unified notification result:', result)
     }
 
     // Document upload - Notify all admins
