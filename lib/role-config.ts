@@ -352,11 +352,11 @@ export function getMenuItemsForRole(role: UserRole, stats?: any): MenuItem[] {
 
   // Update badges with real stats if available
   return menuItems.map(item => {
-    // Update customer-management badge with total customers
-    if (item.id === "customer-management" && stats?.total_customers !== undefined) {
-      return { ...item, badge: stats.total_customers.toString() }
+    // Update customer-management badge with active customers (excluding closed files)
+    if (item.id === "customer-management" && stats?.active_customers !== undefined) {
+      return { ...item, badge: stats.active_customers.toString() }
     }
-    // Update dealer-management badge with total dealers
+    // Update dealer-management badge with active dealers
     if (item.id === "dealer-management" && stats?.total_dealers !== undefined) {
       return { ...item, badge: stats.total_dealers.toString() }
     }
