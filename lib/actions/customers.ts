@@ -983,8 +983,10 @@ export async function createCustomer(data: {
     revalidatePath('/admin/musteriler')
 
     // Log customer creation
+    console.log('[Customer] About to create audit log for:', customer.ad_soyad)
     try {
       const { createAuditLog } = await import('./audit-logs')
+      console.log('[Customer] createAuditLog imported successfully')
       await createAuditLog({
         action: 'CREATE',
         entityType: 'CUSTOMER',
@@ -1002,6 +1004,7 @@ export async function createCustomer(data: {
           dealer_id: customer.dealer_id ? customer.dealer_id.toString() : null,
         },
       })
+      console.log('[Customer] Audit log created successfully')
     } catch (logError) {
       console.error('[Customer] Failed to log creation:', logError)
     }

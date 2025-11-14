@@ -48,6 +48,8 @@ interface CreateAuditLogParams {
  */
 export async function createAuditLog(params: CreateAuditLogParams) {
   try {
+    console.log('[AuditLog] createAuditLog called with:', { action: params.action, entityType: params.entityType, entityName: params.entityName })
+    
     const headersList = await headers()
     const ipAddress = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || 'unknown'
     const userAgent = headersList.get('user-agent') || 'unknown'
@@ -64,12 +66,15 @@ export async function createAuditLog(params: CreateAuditLogParams) {
           userId = currentUser.id
           userName = currentUser.name
           userRole = currentUser.role?.name
+          console.log('[AuditLog] Got current user:', { userId, userName, userRole })
         }
       } catch {
         // User might not be authenticated (e.g., failed login)
+        console.log('[AuditLog] Could not get current user')
       }
     }
 
+    console.log('[AuditLog] Creating audit log entry...')
     await prisma.auditLog.create({
       data: {
         user_id: userId ? BigInt(userId) : null,
@@ -86,9 +91,12 @@ export async function createAuditLog(params: CreateAuditLogParams) {
         user_agent: userAgent,
       },
     })
+    console.log('[AuditLog] Audit log entry created')
 
     // Create notifications for important events
+    console.log('[AuditLog] About to call createNotificationsForAuditLog')
     await createNotificationsForAuditLog(params, userId, userName, userRole)
+    console.log('[AuditLog] createNotificationsForAuditLog completed')
   } catch (error) {
     // Don't throw errors from audit logging to prevent breaking the main flow
     console.error('[AuditLog] Failed to create audit log:', error)
@@ -105,10 +113,12 @@ async function createNotificationsForAuditLog(
   userRole: string | undefined
 ) {
   try {
+    console.log('[AuditLog Notification] Starting with:', { action: params.action, entityType: params.entityType, userRole })
     const { createNotification } = await import('./notifications')
     
     // Admin login notifications - Only for superadmin
     if (params.action === 'LOGIN' && userRole && ['superadmin', 'birincil-admin', 'ikincil-admin'].includes(userRole)) {
+      console.log('[AuditLog Notification] Handling LOGIN notification')
       await createNotification({
         title: 'Yönetici Girişi',
         message: `${userName} (${userRole}) sisteme giriş yaptı`,
@@ -121,11 +131,13 @@ async function createNotificationsForAuditLog(
 
     // Customer creation - Notify all admins except creator
     if (params.action === 'CREATE' && params.entityType === 'CUSTOMER') {
+      console.log('[AuditLog Notification] Handling CUSTOMER CREATE notification')
       // Determine who created the customer
       let creatorDisplayName = userName || 'Bilinmeyen'
       
       // If creator is a dealer (bayi), hide their name for non-superadmin roles
       if (userRole === 'bayi') {
+        console.log('[AuditLog Notification] Creator is a bayi')
         try {
           const user = await prisma.user.findUnique({
             where: { id: BigInt(userId || 0) },
