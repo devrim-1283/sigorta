@@ -131,6 +131,8 @@ export async function createNotification(data: {
   excludeUserId?: number // User ID to exclude (e.g., the one who triggered the action)
 }) {
   try {
+    console.log('[Notification] createNotification called:', { title: data.title, roles: data.roles, excludeUserId: data.excludeUserId })
+    
     const type = data.type || 'info'
     
     // Get user IDs to notify
@@ -139,16 +141,19 @@ export async function createNotification(data: {
     if (data.userIds && data.userIds.length > 0) {
       // Use specific user IDs
       userIds = data.userIds.filter(id => id !== data.excludeUserId)
+      console.log('[Notification] Using specific user IDs:', userIds)
     } else if (data.roles && data.roles.length > 0) {
       // Get all users with specified roles
+      console.log('[Notification] Looking for users with roles:', data.roles)
       const roleRecords = await prisma.role.findMany({
         where: {
           name: {
             in: data.roles,
           },
         },
-        select: { id: true },
+        select: { id: true, name: true },
       })
+      console.log('[Notification] Found roles:', roleRecords)
       
       if (roleRecords.length > 0) {
         const roleIds = roleRecords.map(r => r.id)
@@ -160,11 +165,14 @@ export async function createNotification(data: {
             is_active: true,
             ...(data.excludeUserId ? { id: { not: BigInt(data.excludeUserId) } } : {}),
           },
-          select: { id: true },
+          select: { id: true, name: true },
         })
+        console.log('[Notification] Found users:', users.map(u => ({ id: Number(u.id), name: u.name })))
         userIds = users.map(u => Number(u.id))
       }
     }
+    
+    console.log('[Notification] Final user IDs to notify:', userIds)
     
     // Create notifications for all target users
     if (userIds.length > 0) {
@@ -181,8 +189,12 @@ export async function createNotification(data: {
         })),
       })
       
+      console.log('[Notification] Successfully created', userIds.length, 'notifications')
+      
       revalidatePath('/admin/bildirimler')
       revalidatePath('/admin/dashboard')
+    } else {
+      console.log('[Notification] No users to notify - list was empty')
     }
     
     return { success: true, notifiedUsers: userIds.length }

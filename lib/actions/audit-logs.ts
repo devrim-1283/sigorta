@@ -179,7 +179,11 @@ async function createNotificationsForAuditLog(
       }
       
       // For non-dealer creators (admin, evrak-birimi, etc.), show their name to everyone
-      await createNotification({
+      console.log('[AuditLog Notification] Creator is not bayi, sending notification to all admins', { 
+        excludeUserId: userId ? Number(userId) : undefined,
+        roles: ['superadmin', 'birincil-admin', 'ikincil-admin', 'evrak-birimi']
+      })
+      const result = await createNotification({
         title: 'Yeni Müşteri Eklendi',
         message: `${creatorDisplayName} tarafından yeni müşteri eklendi: ${params.entityName}`,
         type: 'success',
@@ -187,6 +191,7 @@ async function createNotificationsForAuditLog(
         roles: ['superadmin', 'birincil-admin', 'ikincil-admin', 'evrak-birimi'],
         excludeUserId: userId ? Number(userId) : undefined,
       })
+      console.log('[AuditLog Notification] Notification result:', result)
     }
 
     // Document upload - Notify all admins
