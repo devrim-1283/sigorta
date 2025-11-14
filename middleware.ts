@@ -6,16 +6,9 @@ import type { NextRequest } from 'next/server'
 const authMiddleware = NextAuth(authConfig).auth
 
 export default function middleware(request: NextRequest) {
-  // HTTPS enforcement in production
-  if (process.env.NODE_ENV === 'production') {
-    const proto = request.headers.get('x-forwarded-proto')
-    if (proto && proto !== 'https') {
-      const url = request.nextUrl.clone()
-      url.protocol = 'https:'
-      return NextResponse.redirect(url, 301)
-    }
-  }
-
+  // HTTPS enforcement in production (disabled for Coolify reverse proxy)
+  // Coolify proxy handles HTTPS termination
+  
   // Run NextAuth middleware
   return authMiddleware(request)
 }
