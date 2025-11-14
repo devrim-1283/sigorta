@@ -711,7 +711,7 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
                   <tr key={customer.id} className="border-b hover:bg-slate-50 transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
+                        <Avatar className="h-10 w-10 flex-shrink-0">
                           <AvatarFallback style={{ backgroundColor: "#0B3D91", color: "white" }}>
                             {customer.ad_soyad
                               .split(" ")
@@ -719,9 +719,9 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
                               .join("")}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
-                          <p className="font-semibold">{customer.ad_soyad}</p>
-                          <p className="text-sm text-muted-foreground">{customer.telefon}</p>
+                        <div className="min-w-0">
+                          <p className="font-semibold truncate" title={customer.ad_soyad}>{customer.ad_soyad}</p>
+                          <p className="text-sm text-muted-foreground truncate">{customer.telefon}</p>
                         </div>
                       </div>
                     </td>
@@ -756,9 +756,9 @@ export function CustomersPage({ userRole = "superadmin" }: CustomersPageProps) {
                     </td>
                     {shouldShowDealerInfo && (
                       <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <Building className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{customer.bağlı_bayi_adı}</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Building className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <span className="text-sm truncate" title={customer.bağlı_bayi_adı}>{customer.bağlı_bayi_adı}</span>
                         </div>
                       </td>
                     )}

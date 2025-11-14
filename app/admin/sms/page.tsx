@@ -460,8 +460,10 @@ export default function SMSManagementPage() {
                           </div>
                         </td>
                         <td className="p-3 text-sm">{log.recipient_phone}</td>
-                        <td className="p-3 text-sm max-w-xs truncate" title={log.message}>
-                          {log.message}
+                        <td className="p-3 text-sm">
+                          <div className="max-w-xs truncate" title={log.message}>
+                            {log.message}
+                          </div>
                         </td>
                         <td className="p-3">{getStatusBadge(log)}</td>
                         <td className="p-3 text-sm text-slate-600">

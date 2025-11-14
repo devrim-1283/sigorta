@@ -104,12 +104,12 @@ export function DocumentCard({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <p className="font-semibold truncate">{document.tip}</p>
-              <Badge className={cn("rounded-xl border text-xs font-semibold px-2 py-0.5", getStatusColor(document.durum))}>
+              <p className="font-semibold truncate" title={document.tip}>{document.tip}</p>
+              <Badge className={cn("rounded-xl border text-xs font-semibold px-2 py-0.5 whitespace-nowrap", getStatusColor(document.durum))}>
                 {document.durum}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground truncate">{document.dosya_adı}</p>
+            <p className="text-sm text-muted-foreground truncate" title={document.dosya_adı}>{document.dosya_adı}</p>
             {document.yüklenme_tarihi && (
               <p className="text-xs text-muted-foreground">Yüklenme: {document.yüklenme_tarihi}</p>
             )}

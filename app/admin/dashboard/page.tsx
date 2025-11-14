@@ -374,11 +374,13 @@ export default function AdminDashboardPage() {
                   <div className="space-y-2">
                     {recentDocuments.map((doc: any) => (
                       <div key={doc.id} className="p-3 bg-slate-50 rounded-xl flex items-center justify-between hover:bg-slate-100 transition-colors">
-                        <div className="flex-1">
-                          <p className="font-medium text-slate-800">{doc.dosya_adı || doc.file_name}</p>
-                          <p className="text-sm text-slate-600">{doc.customer?.ad_soyad || 'Müşteri belirtilmemiş'}</p>
+                        <div className="flex-1 min-w-0 mr-2">
+                          <p className="font-medium text-slate-800 truncate" title={doc.dosya_adı || doc.file_name}>
+                            {doc.dosya_adı || doc.file_name}
+                          </p>
+                          <p className="text-sm text-slate-600 truncate">{doc.customer?.ad_soyad || 'Müşteri belirtilmemiş'}</p>
                         </div>
-                        <span className="text-xs text-slate-500">{doc.tip || doc.document_type}</span>
+                        <span className="text-xs text-slate-500 whitespace-nowrap">{doc.tip || doc.document_type}</span>
                       </div>
                     ))}
                   </div>

@@ -364,19 +364,19 @@ export default function NotificationsPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <h3 className={`font-semibold ${!notification.read ? 'text-slate-900' : 'text-slate-700'}`}>
+                              <h3 className={`font-semibold truncate ${!notification.read ? 'text-slate-900' : 'text-slate-700'}`} title={notification.title}>
                                 {notification.title}
                               </h3>
                               {notification.priority === 'high' && (
-                                <Badge className="bg-red-100 text-red-800 rounded-xl text-xs">Yüksek</Badge>
+                                <Badge className="bg-red-100 text-red-800 rounded-xl text-xs whitespace-nowrap">Yüksek</Badge>
                               )}
                               {!notification.read && (
-                                <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
+                                <span className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0"></span>
                               )}
                             </div>
-                            <p className="text-sm text-slate-600 mb-2">{notification.message}</p>
+                            <p className="text-sm text-slate-600 mb-2 line-clamp-2" title={notification.message}>{notification.message}</p>
                             <p className="text-xs text-slate-500">{notification.time}</p>
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0">

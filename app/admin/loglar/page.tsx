@@ -396,14 +396,14 @@ export default function LoglarPage() {
                         <div>
                           <p className="text-sm font-medium">{getEntityTypeLabel(log.entity_type)}</p>
                           {log.entity_name && (
-                            <p className="text-xs text-muted-foreground truncate max-w-[150px]">
+                            <p className="text-xs text-muted-foreground truncate max-w-[150px]" title={log.entity_name}>
                               {log.entity_name}
                             </p>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <p className="text-sm truncate max-w-[300px]">
+                        <p className="text-sm truncate max-w-[300px]" title={log.description}>
                           {log.description}
                         </p>
                       </TableCell>
