@@ -1009,6 +1009,40 @@ export async function createCustomer(data: {
       console.error('[Customer] Failed to log creation:', logError)
     }
 
+    // Send SMS to customer with login credentials
+    if (loginCredentials && customer.email) {
+      try {
+        const { sendSMS } = await import('@/lib/services/netgsm')
+        const { createSMSLog } = await import('./sms')
+        
+        const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://yourdomain.com'}/musteri-giris`
+        const smsMessage = `Merhaba ${customer.ad_soyad}, Şeffaf Danışmanlık'a hoş geldiniz. Giriş bilgileriniz - E-posta: ${customer.email}, Şifre: ${loginCredentials.password}. Dosya durumunuzu ${loginUrl} adresinden sorgulayabilirsiniz.`
+        
+        console.log('[Customer] Sending welcome SMS to:', customer.telefon)
+        const smsResult = await sendSMS({
+          phone: customer.telefon,
+          message: smsMessage,
+          customerName: customer.ad_soyad,
+        })
+
+        // Log SMS
+        await createSMSLog({
+          recipientName: customer.ad_soyad,
+          recipientPhone: customer.telefon,
+          message: smsMessage,
+          customerId: Number(customer.id),
+          jobId: smsResult.jobid,
+          status: smsResult.success ? 'sent' : 'failed',
+          errorMessage: smsResult.error,
+        })
+
+        console.log('[Customer] SMS sent:', smsResult.success ? 'Success' : 'Failed')
+      } catch (smsError) {
+        console.error('[Customer] Failed to send SMS:', smsError)
+        // Don't throw - SMS failure shouldn't prevent customer creation
+      }
+    }
+
     // Send notifications
     try {
       const customerUserId = customer.dealer_id ? Number(customer.dealer_id) : null
@@ -1484,6 +1518,47 @@ export async function updateCustomer(id: number, data: Partial<{
       }
     } catch (logError) {
       console.error('[Customer] Failed to log update:', logError)
+    }
+
+    // Send SMS if email, phone, or password changed
+    const emailChanged = data.email !== undefined && data.email !== existingCustomer.email
+    const phoneChanged = data.telefon && normalizedPhone !== existingCustomer.telefon
+    const passwordChanged = data.password && data.password.trim()
+    
+    if ((emailChanged || phoneChanged || passwordChanged) && customerEmail) {
+      try {
+        const { sendSMS } = await import('@/lib/services/netgsm')
+        const { createSMSLog } = await import('./sms')
+        
+        const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://yourdomain.com'}/musteri-giris`
+        const smsMessage = `Merhaba ${customerName}, hesap bilgileriniz güncellendi. Yeni giriş bilgileriniz - E-posta: ${customerEmail}, ${passwordChanged ? `Şifre: ${data.password}` : 'Şifre: Değişmedi'}. Giriş: ${loginUrl}`
+        
+        // Send to updated phone or existing phone
+        const targetPhone = phoneChanged ? normalizedPhone : existingCustomer.telefon
+        
+        console.log('[Customer] Sending update SMS to:', targetPhone)
+        const smsResult = await sendSMS({
+          phone: targetPhone,
+          message: smsMessage,
+          customerName: customerName,
+        })
+
+        // Log SMS
+        await createSMSLog({
+          recipientName: customerName,
+          recipientPhone: targetPhone,
+          message: smsMessage,
+          customerId: id,
+          jobId: smsResult.jobid,
+          status: smsResult.success ? 'sent' : 'failed',
+          errorMessage: smsResult.error,
+        })
+
+        console.log('[Customer] Update SMS sent:', smsResult.success ? 'Success' : 'Failed')
+      } catch (smsError) {
+        console.error('[Customer] Failed to send update SMS:', smsError)
+        // Don't throw - SMS failure shouldn't prevent customer update
+      }
     }
 
   return {

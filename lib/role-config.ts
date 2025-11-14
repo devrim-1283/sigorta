@@ -99,6 +99,16 @@ export const roleConfigs: Record<UserRole, RoleConfig> = {
         route: "/admin/bildirimler",
       },
       {
+        id: "sms-management",
+        label: "SMS Yönetimi",
+        icon: "MessageSquare",
+        route: "/admin/sms",
+        permissions: {
+          canViewAll: true,
+          canCreate: true,
+        },
+      },
+      {
         id: "audit-logs",
         label: "Sistem Logları",
         icon: "Activity",
