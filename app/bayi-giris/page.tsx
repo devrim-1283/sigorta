@@ -88,7 +88,7 @@ export default function DealerLoginPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="bayi@sigorta.com"
+                    placeholder="eposta"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 rounded-xl"
@@ -136,14 +136,6 @@ export default function DealerLoginPage() {
                 )}
               </Button>
             </form>
-
-            {/* Demo Credentials */}
-            <div className="mt-6 p-4 rounded-xl bg-orange-50">
-              <p className="text-sm font-medium text-orange-700 mb-2">Demo Bayi Hesabı:</p>
-              <div className="space-y-1 text-xs text-orange-600">
-                <p><strong>Bayi:</strong> bayi@sigorta.com / password</p>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
