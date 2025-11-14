@@ -86,7 +86,7 @@ export default function AdminLoginPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="yonetici@sigorta.com"
+                    placeholder="E-posta"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 rounded-xl"

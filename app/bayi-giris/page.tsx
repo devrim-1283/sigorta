@@ -88,7 +88,7 @@ export default function DealerLoginPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="bayi@sigorta.com"
+                    placeholder="E-posta"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 rounded-xl"
